@@ -396,6 +396,20 @@ impl LevelFlags {
 }
 
 fn main() -> ExitCode {
+    // Every subcommand lives in run(), one big function: a debug build's frame
+    // for it outgrows the 1 MB main thread Windows gives a process (macOS and
+    // Linux give 8 MB), and mb overflowed its stack on start. A thread with a
+    // stack of its own sizes it the same everywhere.
+    match std::thread::Builder::new().name("mb".into()).stack_size(64 << 20).spawn(run) {
+        Ok(t) => t.join().unwrap_or_else(|panic| std::panic::resume_unwind(panic)),
+        Err(e) => {
+            eprintln!("error: couldn't start mb: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run() -> ExitCode {
     let result = match Cli::parse().cmd {
         Cmd::Kits => {
             print!("{}", scaffold::kit_list());

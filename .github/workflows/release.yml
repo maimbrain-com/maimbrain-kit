@@ -21,66 +21,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - run: cargo test --workspace
-      # The SDK's physics features (Rapier) are off by default; test them too.
-      - run: cargo test -p maimbrain --features physics2d,physics3d
-      # The font library parses and lists (fonts themselves download on demand; mb new below bakes some).
-      - run: cargo run -q -p mb-cli -- fonts --category pixel
-      # A fresh game from each template must pass its own tests (rules, and the
-      # bot's difficulty report) and build and validate (needs the wasm target),
-      # created outside this workspace and pointed at this checkout's SDK.
-      - name: New games from both templates test, build and validate
+      # The tests live in a script so the monorepo's PR CI runs exactly these on a
+      # freshly assembled kit before anything reaches this repo (bash on all three:
+      # Git Bash on Windows).
+      - name: Test the kit (.github/ci/test.sh)
         shell: bash
-        run: |
-          set -eux
-          kit="$(pwd -W 2>/dev/null || pwd)"  # Windows Git Bash: D:/a/..., which Cargo understands
-          cargo run -q -p mb-cli -- new "$RUNNER_TEMP/ci2d" --id com.example.ci2d --creator @ci
-          cargo run -q -p mb-cli -- new "$RUNNER_TEMP/ci3d" --3d --id com.example.ci3d --creator @ci
-          # The 3D game also turns on physics3d, so Rapier is built for wasm32 here.
-          sed -i.bak 's|maimbrain = { git = "https://github.com/terracatta/maimbrain-kit" }|maimbrain = { git = "https://github.com/terracatta/maimbrain-kit", features = ["physics3d"] }|' "$RUNNER_TEMP/ci3d/Cargo.toml"
-          grep -q physics3d "$RUNNER_TEMP/ci3d/Cargo.toml"
-          for g in ci2d ci3d; do
-            printf '\n[patch."https://github.com/terracatta/maimbrain-kit"]\nmaimbrain = { path = "%s/sdk/maimbrain" }\n' "$kit" >> "$RUNNER_TEMP/$g/Cargo.toml"
-            cargo test -q --manifest-path "$RUNNER_TEMP/$g/Cargo.toml"
-            cargo run -q -p mb-cli -- build "$RUNNER_TEMP/$g"
-          done
-      # Every genre starter kit (`mb new --kit`) must scaffold into a game that passes
-      # its own tests (rules and bot sanity checks) and builds and validates.
-      - name: New games from every kit test, build and validate
-        shell: bash
-        run: |
-          set -eux
-          kit="$(pwd -W 2>/dev/null || pwd)"
-          cargo build -q -p mb-cli
-          target/debug/mb kits
-          # One target dir for all of them, so the SDK (and Rapier) compile once.
-          shared="$RUNNER_TEMP/kit-target"
-          for k in runner stacker shooter match3 racer tower-defense trivia; do
-            g="kit_$(echo "$k" | tr - _)"
-            target/debug/mb new --kit "$k" "$RUNNER_TEMP/$g" --id "com.example.$(echo "$k" | tr -d -)" --creator @ci
-            printf '\n[patch."https://github.com/terracatta/maimbrain-kit"]\nmaimbrain = { path = "%s/sdk/maimbrain" }\n' "$kit" >> "$RUNNER_TEMP/$g/Cargo.toml"
-            CARGO_TARGET_DIR="$shared" cargo test -q --manifest-path "$RUNNER_TEMP/$g/Cargo.toml"
-            CARGO_TARGET_DIR="$shared" target/debug/mb build "$RUNNER_TEMP/$g"
-          done
-      # mb serve --watch builds, serves, and rebuilds after an edit (no browser: the
-      # status endpoints say what was built).
-      - name: mb serve --watch rebuilds on save
-        shell: bash
-        run: |
-          set -eux
-          cargo build -q -p mb-cli
-          target/debug/mb serve --watch "$RUNNER_TEMP/ci2d" --port 8765 > "$RUNNER_TEMP/serve.log" 2>&1 &
-          pid=$!
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8765/__mb/status > /dev/null && break; sleep 1; done
-          curl -sf "http://127.0.0.1:8765/__mb/wait?timeout=300" | tee "$RUNNER_TEMP/first.json"
-          grep -q '"state":"ok"' "$RUNNER_TEMP/first.json"
-          curl -sf http://127.0.0.1:8765/game/game.wasm -o /dev/null
-          echo "// edited" >> "$RUNNER_TEMP/ci2d/src/lib.rs"
-          curl -sf "http://127.0.0.1:8765/__mb/wait?timeout=300" | tee "$RUNNER_TEMP/second.json"
-          grep -q '"build":2' "$RUNNER_TEMP/second.json"
-          grep -q '"state":"ok"' "$RUNNER_TEMP/second.json"
-          kill $pid || true
-          cat "$RUNNER_TEMP/serve.log"
+        run: bash .github/ci/test.sh
 
   build:
     if: startsWith(github.ref, 'refs/tags/v')

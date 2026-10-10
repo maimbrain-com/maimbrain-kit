@@ -1,5 +1,8 @@
 # Creator kit changelog
 
+## 0.7.1
+- **`mb` runs on Windows again.** It overflowed its stack the moment it started: every subcommand lives in one function, and a debug build's frame for it outgrew the 1 MB main thread Windows gives a process. `mb` now runs on a thread with its own 64 MB stack on every platform. 0.7.0 shipped no `mb` downloads for any platform because of this; 0.7.1 has them.
+
 ## 0.7.0
 
 ### Mechs and characters posed in code

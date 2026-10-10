@@ -16,6 +16,7 @@
 //! ```
 
 use std::f32::consts::PI;
+use std::ops::{Add, Mul, Sub};
 
 /// Easing curves (easings.net names): `t` 0→1 maps to 0→1. Back and
 /// elastic overshoot past 1 (and under 0); bounce stays within 0…1.
@@ -164,6 +165,9 @@ pub fn remap(v: f32, a0: f32, a1: f32, b0: f32, b1: f32) -> f32 {
 
 /// Frame-rate independent smoothing: moves `current` toward `target`,
 /// closing a fraction `1 − e^(−rate·dt)` of the gap (rate ≈ 1 / time constant).
+/// Fine for a number on screen; for anything that moves (a camera, what it
+/// follows, a character's position) use [`Follow`]: this one is first order,
+/// so its speed jumps whenever the target jumps and every turn shows as a kink.
 pub fn damp(current: f32, target: f32, rate: f32, dt: f32) -> f32 {
     target + (current - target) * (-rate * dt).exp()
 }
@@ -366,6 +370,149 @@ impl Spring {
         self.value = self.target + x;
         self.velocity = v;
     }
+}
+
+/// Values a [`Follow`] can move: anything that adds, subtracts and scales by
+/// an `f32` (`f32`, `gfx3d::Vec3`).
+pub trait Vector: Copy + Default + Add<Output = Self> + Sub<Output = Self> + Mul<f32, Output = Self> {}
+impl<T: Copy + Default + Add<Output = T> + Sub<Output = T> + Mul<f32, Output = T>> Vector for T {}
+
+/// `ω·halflife` for a critically damped spring: the x where (1 + x)·e^(−x) = ½.
+/// A [`Follow`] with a given `halflife` has angular frequency
+/// `ω = HALFLIFE_W / halflife`, and trails a target moving steadily at speed
+/// v by `2·v/ω` = [`Follow::lag_for`]`(halflife, v)` ≈ 1.19·v·halflife.
+pub const HALFLIFE_W: f32 = 1.678_347;
+
+/// A critically damped spring following a moving target (what other engines
+/// call SmoothDamp): use it for anything the camera follows, the camera
+/// itself, and anything that chases something else on screen.
+///
+/// - Its position and velocity stay continuous whatever the target does: a
+///   target that jumps gives a smooth start, a turn gives a curve, never a kink.
+/// - It never overshoots a target that stops (from rest, or from following it
+///   at a steady speed).
+/// - It's solved in closed form, not stepped, and each `update` treats the
+///   target as moving in a straight line from where it was at the last
+///   update, so 30, 60, 120 and 144 Hz trace the same path. A target that
+///   jumps (a creature switching phase) breaks that assumption: tell it with
+///   [`Follow::jump_target`] in that frame (or [`Follow::snap`] for a cut).
+///
+/// `halflife` is the seconds it takes to close half the gap to a target that
+/// jumped and holds still: 0.08 tight, 0.15 a chase camera, 0.3 lazy. A
+/// target moving at a steady speed v is trailed by `lag(v)` = 1.19·v·halflife;
+/// aim at `target + velocity * lag` instead to sit on it. Change `halflife`
+/// between updates freely (pull back fast, catch up slowly).
+/// ```
+/// use maimbrain::gfx3d::{Vec3, vec3};
+/// use maimbrain::motion::Follow;
+/// let mut look = Follow::new(Vec3::ZERO, 0.15);
+/// for i in 1..=60 {
+///     let runner = vec3(0.0, 1.0, -10.0 * i as f32 / 60.0);   // 10 m/s down −z
+///     look.update(runner, 1.0 / 60.0);
+/// }
+/// assert!((look.value.z - (-10.0 + look.lag(10.0))).abs() < 0.05);
+/// ```
+/// For angles, `update_angle` takes the short way round. For a rotation,
+/// follow the point it looks at (`Follow<Vec3>` + `gfx3d::look_at`) or its yaw.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Follow<T: Vector = f32> {
+    pub value: T,
+    /// Units per second.
+    pub velocity: T,
+    pub halflife: f32,
+    /// The target at the last update.
+    target: T,
+}
+
+impl<T: Vector> Follow<T> {
+    /// At rest at `value`.
+    pub fn new(value: T, halflife: f32) -> Self {
+        Follow { value, velocity: T::default(), halflife, target: value }
+    }
+
+    /// Jumps to `v` at rest (a cut, a respawn): the one discontinuity it has.
+    pub fn snap(&mut self, v: T) {
+        *self = Follow::new(v, self.halflife);
+    }
+
+    /// The target jumped to `target` (a creature's next phase, a new
+    /// waypoint, a lure that teleports): follow it from here as a target
+    /// that was there all along. `update` treats a target as moving in a
+    /// straight line since the last update, so a jump reads as one frame of
+    /// very fast motion, and the path after it depends on the frame rate
+    /// (`mb shot --smoothness` reports the creature's position jumping, worse
+    /// at one rate than the other). Call this in the frame the target jumps,
+    /// before `update`: the value keeps its position and velocity and the
+    /// path is the same at 60 and 120 Hz. [`Follow::snap`] jumps the value too.
+    /// ```
+    /// use maimbrain::motion::Follow;
+    /// // The value 0.1 s after the target jumps from 0 to 5, at 60 and 120 Hz.
+    /// let after = |hz: f32, told: bool| {
+    ///     let mut f = Follow::new(0.0, 0.3);
+    ///     if told { f.jump_target(5.0) }
+    ///     for _ in 0..(hz / 10.0) as usize { f.update(5.0, 1.0 / hz); }
+    ///     f.value
+    /// };
+    /// assert!((after(60.0, true) - after(120.0, true)).abs() < 1e-4);
+    /// assert!((after(60.0, false) - after(120.0, false)).abs() > 0.02);
+    /// ```
+    pub fn jump_target(&mut self, target: T) {
+        self.target = target;
+    }
+
+    /// The distance it trails a target moving steadily at `speed` (units/s).
+    pub fn lag(&self, speed: f32) -> f32 {
+        Self::lag_for(self.halflife, speed)
+    }
+
+    /// The distance a `Follow` with this `halflife` trails a target moving
+    /// steadily at `speed`, without one at hand: for tuning (how far behind
+    /// does a 0.15 s camera sit at 12 m/s?) or for aiming a camera built
+    /// elsewhere (`gfx3d::SpringCamera`) ahead of what it follows.
+    /// ```
+    /// use maimbrain::motion::Follow;
+    /// let lag = Follow::<f32>::lag_for(0.15, 12.0);
+    /// assert!((lag - 2.145).abs() < 0.01, "{lag}");
+    /// assert_eq!(lag, Follow::new(0.0, 0.15).lag(12.0));
+    /// ```
+    pub fn lag_for(halflife: f32, speed: f32) -> f32 {
+        2.0 * speed * halflife.max(1e-4) / HALFLIFE_W
+    }
+
+    /// Moves `dt` seconds toward `target` (where the target is now); returns the value.
+    pub fn update(&mut self, target: T, dt: f32) -> T {
+        if dt <= 0.0 {
+            return self.value;
+        }
+        let w = HALFLIFE_W / self.halflife.max(1e-4);
+        // Over this step the target moves at u; a spring chasing that settles
+        // `lead` behind it, and the gap e to there decays freely:
+        // e(t) = (e0 + (e0' + w·e0)·t)·e^(−w·t).
+        let u = (target - self.target) * (1.0 / dt);
+        let lead = u * (2.0 / w);
+        let (e0, e1) = (self.value - self.target + lead, self.velocity - u);
+        let j = e1 + e0 * w;
+        let k = (-w * dt).exp();
+        self.value = target - lead + (e0 + j * dt) * k;
+        self.velocity = u + (e1 - j * (w * dt)) * k;
+        self.target = target;
+        self.value
+    }
+}
+
+impl Follow<f32> {
+    /// `update` for an angle in radians: it follows `target` the short way
+    /// round. `value` winds on past ±π with the target rather than jumping
+    /// (draw with it as is, or `wrap_angle` it).
+    pub fn update_angle(&mut self, target: f32, dt: f32) -> f32 {
+        let target = self.target + wrap_angle(target - self.target);
+        self.update(target, dt)
+    }
+}
+
+/// `a` wrapped to −π…π.
+pub fn wrap_angle(a: f32) -> f32 {
+    (a + PI).rem_euclid(2.0 * PI) - PI
 }
 
 /// One value moved by a list of steps: `to` (ease there), `wait`, `set`.
@@ -697,9 +844,204 @@ impl Pulse {
     }
 }
 
+/// One key of [`PoseKeys`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Key<T> {
+    /// When it's reached, on the timeline's clock.
+    pub at: f32,
+    pub value: T,
+    /// How the move from the key before eases into this one.
+    pub ease: Ease,
+    /// How long it's held after `at` before moving on.
+    pub hold: f32,
+    /// How hard it trembles while held (and as it's reached): see [`PoseKeys::tremble`].
+    pub tremble: f32,
+}
+
+/// Poses (or any [`Lerp`] value: an angle, a `Vec3`, a `Quat`, your own
+/// pose struct) keyed on a timeline, eased between keys, with holds and a
+/// tremble. A pure function of the clock you pass, which can be seconds
+/// since an attack started or a tell's progress 0–1, so the pose is a
+/// function of the game's state and replays match at any frame rate.
+///
+/// ```
+/// use maimbrain::motion::{Ease, PoseKeys};
+/// // A lunge's tell (0–1 of the tell): ease into the windup, hold it cocked and trembling, then strike.
+/// let arm = PoseKeys::new(0.0f32).to(0.6, -1.2, Ease::CubicInOut).hold(0.25).trembling(1.0).to(1.0, 0.4, Ease::QuadIn);
+/// assert_eq!(arm.sample(0.0), 0.0);
+/// assert_eq!(arm.sample(0.7), -1.2);           // held
+/// assert!(arm.tremble(0.7, 40.0).abs() <= 1.0); // the shake that says "now"
+/// assert_eq!(arm.sample(1.0), 0.4);
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct PoseKeys<T: Lerp> {
+    keys: Vec<Key<T>>,
+}
+
+impl<T: Lerp> PoseKeys<T> {
+    /// Starts at `value` at time 0.
+    pub fn new(value: T) -> PoseKeys<T> {
+        PoseKeys { keys: vec![Key { at: 0.0, value, ease: Ease::Linear, hold: 0.0, tremble: 0.0 }] }
+    }
+
+    /// Moves to `value`, reaching it at `at` (after the previous key and its
+    /// hold), eased by `ease`.
+    pub fn to(mut self, at: f32, value: T, ease: Ease) -> PoseKeys<T> {
+        let last = self.keys.last().map_or(0.0, |k| k.at + k.hold);
+        self.keys.push(Key { at: at.max(last), value, ease, hold: 0.0, tremble: 0.0 });
+        self
+    }
+
+    /// Holds the last key for `seconds` before the next move starts.
+    pub fn hold(mut self, seconds: f32) -> PoseKeys<T> {
+        if let Some(k) = self.keys.last_mut() {
+            k.hold = seconds.max(0.0);
+        }
+        self
+    }
+
+    /// Makes the last key tremble with `amount` while held.
+    pub fn trembling(mut self, amount: f32) -> PoseKeys<T> {
+        if let Some(k) = self.keys.last_mut() {
+            k.tremble = amount;
+        }
+        self
+    }
+
+    pub fn keys(&self) -> &[Key<T>] {
+        &self.keys
+    }
+
+    /// When the last key (and its hold) ends.
+    pub fn duration(&self) -> f32 {
+        self.keys.last().map_or(0.0, |k| k.at + k.hold)
+    }
+
+    /// The value at `t`: the first key's before it, the last key's after.
+    pub fn sample(&self, t: f32) -> T {
+        let k = &self.keys;
+        for w in k.windows(2) {
+            let start = w[0].at + w[0].hold;
+            if t <= start {
+                return w[0].value;
+            }
+            if t < w[1].at {
+                let u = (t - start) / (w[1].at - start).max(1e-6);
+                return T::lerp(w[0].value, w[1].value, ease(w[1].ease, u));
+            }
+        }
+        k[k.len() - 1].value
+    }
+
+    /// The tremble at `t`: a ±1 shake at `hz` (30–45 reads as straining
+    /// metal) times the key's `tremble`, growing in over the last fifth of
+    /// the move into that key and kept through its hold; 0 elsewhere.
+    /// Scale a small turn by it (0.02–0.05 rad).
+    pub fn tremble(&self, t: f32, hz: f32) -> f32 {
+        let k = &self.keys;
+        let mut amount = 0.0f32;
+        for (i, key) in k.iter().enumerate() {
+            if key.tremble == 0.0 || t > key.at + key.hold {
+                continue;
+            }
+            let from = if i > 0 { k[i - 1].at + k[i - 1].hold } else { key.at };
+            let ramp_start = key.at - 0.2 * (key.at - from);
+            if t >= ramp_start {
+                let r = if key.at > ramp_start { ((t - ramp_start) / (key.at - ramp_start)).clamp(0.0, 1.0) } else { 1.0 };
+                amount = amount.max(key.tremble * r);
+            }
+        }
+        // Two incommensurate sines: a shake, not a hum.
+        amount * (0.7 * (std::f32::consts::TAU * hz * t).sin() + 0.3 * (std::f32::consts::TAU * hz * 1.618 * t + 1.3).sin())
+    }
+}
+
+/// A spring's response to a kick, `t` seconds after it: 0 before, up to 1
+/// at its first peak, then settling back to 0. A pure function of the time
+/// since the kick (unlike [`Spring::kick`], which integrates `dt`s), so a
+/// replay or a 120 Hz phone gets the same curve: strike stops, hit recoils,
+/// landing squash. `hz` is how fast it swings (8–25 for a heavy mech's
+/// parts), `damping` its damping ratio: 1 or more settles without
+/// overshooting (critically damped), 0.2–0.5 wobbles back past 0 once or
+/// twice.
+pub fn kick(t: f32, hz: f32, damping: f32) -> f32 {
+    if !(t > 0.0) || !(hz > 0.0) {
+        return 0.0;
+    }
+    let w = std::f32::consts::TAU * hz;
+    if damping >= 0.999 {
+        // Critically damped: w·t·e^(1 − w·t) peaks at 1 when w·t = 1.
+        let x = w * t;
+        return x * (1.0 - x).exp();
+    }
+    let z = damping.max(0.0);
+    let wd = w * (1.0 - z * z).sqrt();
+    let peak_t = (wd / (z * w).max(1e-6)).atan() / wd;
+    let peak = (-z * w * peak_t).exp() * (wd * peak_t).sin();
+    (-z * w * t).exp() * (wd * t).sin() / peak.max(1e-6)
+}
+
+/// A kick at a moment, as data: `amount × kick(t − at, hz, damping)`. Keep
+/// the time something happened (a hit's time in the fight), not a spring.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Kick {
+    /// When it hit, on your clock.
+    pub at: f32,
+    pub amount: f32,
+    pub hz: f32,
+    pub damping: f32,
+}
+
+impl Kick {
+    /// A kick of `amount` at `at` that swings at `hz` with a 0.3 damping ratio.
+    pub fn new(at: f32, amount: f32, hz: f32) -> Kick {
+        Kick { at, amount, hz, damping: 0.3 }
+    }
+    pub fn with_damping(mut self, damping: f32) -> Kick {
+        self.damping = damping;
+        self
+    }
+    /// Its value at `t` (your clock).
+    pub fn value(&self, t: f32) -> f32 {
+        self.amount * kick(t - self.at, self.hz, self.damping)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pose_keys_ease_hold_and_tremble() {
+        let k = PoseKeys::new(0.0f32).to(1.0, 10.0, Ease::Linear).hold(0.5).trembling(1.0).to(2.0, 0.0, Ease::QuadIn);
+        assert_eq!(k.duration(), 2.0);
+        assert_eq!((k.sample(-1.0), k.sample(0.5), k.sample(1.2), k.sample(1.5), k.sample(9.0)), (0.0, 5.0, 10.0, 10.0, 0.0));
+        assert!((k.sample(1.75) - 7.5).abs() < 1e-5, "quad-in: slow off the hold {}", k.sample(1.75));
+        assert_eq!(k.tremble(0.5, 40.0), 0.0, "no shake early in the move");
+        let shake = (0..100).map(|i| k.tremble(1.0 + i as f32 * 0.005, 40.0).abs()).fold(0.0f32, f32::max);
+        assert!(shake > 0.5 && shake <= 1.0, "{shake}");
+        assert_eq!(k.tremble(1.6, 40.0), 0.0, "stops when the hold ends");
+        // A key earlier than the one before is pushed after it.
+        let late = PoseKeys::new(0.0f32).to(1.0, 1.0, Ease::Linear).hold(1.0).to(0.5, 2.0, Ease::Linear);
+        assert_eq!(late.keys()[2].at, 2.0);
+    }
+
+    #[test]
+    fn kicks_are_pure_functions_of_time() {
+        assert_eq!(kick(-0.1, 10.0, 0.3), 0.0);
+        // Critically damped: peaks at 1 at 1/ω, never negative.
+        let w = std::f32::consts::TAU * 10.0;
+        assert!((kick(1.0 / w, 10.0, 1.0) - 1.0).abs() < 1e-5);
+        assert!((0..200).all(|i| kick(i as f32 * 0.005, 10.0, 1.0) >= 0.0));
+        // Underdamped: peaks at 1, swings back below 0, settles.
+        let max = (0..400).map(|i| kick(i as f32 * 0.001, 5.0, 0.3)).fold(0.0f32, f32::max);
+        let min = (0..400).map(|i| kick(i as f32 * 0.001, 5.0, 0.3)).fold(0.0f32, f32::min);
+        assert!((max - 1.0).abs() < 1e-3 && min < -0.2, "{max} {min}");
+        assert!(kick(3.0, 5.0, 0.3).abs() < 1e-3);
+        let k = Kick::new(2.0, 0.5, 8.0);
+        assert_eq!(k.value(1.0), 0.0);
+        assert_eq!(k.value(2.1), 0.5 * kick(2.1 - 2.0, 8.0, 0.3));
+    }
 
     #[test]
     fn every_ease_starts_at_0_and_ends_at_1() {
@@ -761,6 +1103,106 @@ mod tests {
         b.update(0.05);
         b.update(0.05);
         assert!((a.value - b.value).abs() < 1e-4);
+    }
+
+    use crate::gfx3d::{Vec3, vec3};
+
+    /// A runner: 10 m/s down −z, a sharp 90° turn to +x at 1 s (its velocity
+    /// snaps), a weave from 2 s, and a stop at 3 s.
+    fn runner(t: f32) -> Vec3 {
+        let (a, b, c) = (t.min(1.0), (t - 1.0).clamp(0.0, 2.0), (t - 2.0).clamp(0.0, 1.0));
+        vec3(10.0 * b, 0.0, -10.0 * a + 0.8 * (c * std::f32::consts::TAU).sin())
+    }
+
+    /// Follows `runner` at `hz` for 4 s; the value at every 1/6 s.
+    fn follow_at(hz: u32) -> Vec<Vec3> {
+        let mut f = Follow::new(Vec3::ZERO, 0.15);
+        let dt = 1.0 / hz as f32;
+        let mut out = Vec::new();
+        for i in 1..=4 * hz {
+            f.update(runner(i as f32 / hz as f32), dt);
+            if i % (hz / 6) == 0 {
+                out.push(f.value);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn follow_traces_the_same_path_at_any_frame_rate() {
+        let reference = follow_at(144);
+        for hz in [30, 60, 120] {
+            for (k, (a, b)) in follow_at(hz).iter().zip(&reference).enumerate() {
+                assert!(a.distance(*b) < 0.01, "{hz} Hz at {:.2} s: {a:?} vs {b:?}", (k + 1) as f32 / 6.0);
+            }
+        }
+    }
+
+    #[test]
+    fn follow_halflife_lag_and_no_overshoot() {
+        for hz in [30.0f32, 60.0, 120.0, 144.0] {
+            let dt = 1.0 / hz;
+            // A target that's there already: half the gap is gone after one halflife.
+            let mut f = Follow::new(0.0, 1.0 / 6.0);
+            f.target = 1.0;
+            for _ in 0..(hz / 6.0).round() as usize {
+                f.update(1.0, dt);
+            }
+            assert!((f.value - 0.5).abs() < 1e-3, "{hz} Hz: {}", f.value);
+            // From rest to a target that jumps: no overshoot, ever.
+            let mut f = Follow::new(0.0, 0.1);
+            let mut last = 0.0;
+            for _ in 0..(3.0 * hz) as usize {
+                f.update(1.0, dt);
+                assert!(f.value >= last - 1e-6 && f.value <= 1.0 + 1e-6, "{hz} Hz: {}", f.value);
+                last = f.value;
+            }
+            // Chasing a steady target, then the target stops: trails by lag(),
+            // then settles without passing it.
+            let mut f = Follow::new(0.0, 0.15);
+            let mut t = 0.0;
+            while t < 2.0 {
+                t += dt;
+                f.update(5.0 * t, dt);
+            }
+            assert!((5.0 * t - f.value - f.lag(5.0)).abs() < 1e-3, "{hz} Hz lag");
+            let stop = 5.0 * t;
+            for _ in 0..(2.0 * hz) as usize {
+                f.update(stop, dt);
+                assert!(f.value <= stop + 1e-5, "{hz} Hz: passed a stopped target");
+            }
+        }
+    }
+
+    #[test]
+    fn follow_stays_smooth_where_first_order_smoothing_kinks() {
+        // Peak acceleration (second difference / dt²) following a target that
+        // jumps 1 unit. A follow's is the same at 60 and 120 Hz: its velocity
+        // is continuous. `damp`'s doubles with the rate: its velocity jumps.
+        let peak = |hz: f32, spring: bool| {
+            let dt = 1.0 / hz;
+            let (mut f, mut d) = (Follow::new(0.0, 0.15), 0.0);
+            let mut xs = vec![0.0, 0.0];
+            for _ in 0..hz as usize {
+                xs.push(if spring { f.update(1.0, dt) } else { d = damp(d, 1.0, 4.6, dt); d });
+            }
+            xs.windows(3).map(|w| ((w[2] - 2.0 * w[1] + w[0]) / (dt * dt)).abs()).fold(0.0, f32::max)
+        };
+        let (s60, s120) = (peak(60.0, true), peak(120.0, true));
+        assert!((s120 / s60 - 1.0).abs() < 0.15, "follow: {s60} vs {s120}");
+        let (d60, d120) = (peak(60.0, false), peak(120.0, false));
+        assert!(d120 / d60 > 1.8, "damp: {d60} vs {d120}");
+    }
+
+    #[test]
+    fn follow_angle_takes_the_short_way_round() {
+        let mut f = Follow::new(3.0, 0.1);
+        for _ in 0..120 {
+            f.update_angle(-3.0, 1.0 / 60.0);
+        }
+        // −3 is 0.28 rad past +π from 3: it goes up through π, not down through 0.
+        assert!((wrap_angle(f.value) + 3.0).abs() < 1e-3 && f.value > 3.0, "{}", f.value);
+        assert!((wrap_angle(7.0) - (7.0 - std::f32::consts::TAU)).abs() < 1e-5);
     }
 
     #[test]

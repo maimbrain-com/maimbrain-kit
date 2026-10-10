@@ -6,7 +6,7 @@
 
 use super::audio::{self, Kind};
 use super::img::{Image, over};
-use super::provider::{AudioRequest, ImageRequest, Output, Provider};
+use super::provider::{AudioRequest, ImageRequest, ModelOutput, ModelRequest, Output, Provider};
 
 pub struct Mock;
 
@@ -87,6 +87,43 @@ fn creature(im: &mut Image, cx: f32, cy: f32, r: f32, pal: &[[u8; 3]], phase: f3
     }
 }
 
+/// A head-and-shoulders bust for a talking-portrait cell: `mouth` 0 (closed) to 3 (wide open),
+/// `row` picks the brows (each expression its own), `blink` closes the eyes. The bust is cut off
+/// by a straight line at `cut`.
+#[allow(clippy::too_many_arguments)]
+fn bust(im: &mut Image, cx: f32, cy: f32, r: f32, cut: f32, pal: &[[u8; 3]], mouth: u32, row: u32, blink: bool, blocky: f32) {
+    let dark = pal[0];
+    let cloth = pal[1 % pal.len()];
+    let skin = pal[pal.len() - 1];
+    ellipse(im, cx, cy + r * 1.35, r * 1.34, r * 0.79, dark, blocky); // shoulders
+    ellipse(im, cx, cy + r * 1.35, r * 1.24, r * 0.69, cloth, blocky);
+    ellipse(im, cx, cy, r * 1.12, r * 1.12, dark, blocky); // head
+    ellipse(im, cx, cy, r, r, skin, blocky);
+    ellipse(im, cx, cy - r * 0.62, r * 0.9, r * 0.42, cloth, blocky); // hair
+    for dx in [-0.36, 0.36] {
+        let ex = cx + dx * r;
+        if blink {
+            ellipse(im, ex, cy - r * 0.08, r * 0.17, r * 0.035, dark, blocky);
+        } else {
+            ellipse(im, ex, cy - r * 0.1, r * 0.16, r * 0.19, [250, 250, 250], blocky);
+            ellipse(im, ex, cy - r * 0.08, r * 0.07, r * 0.09, dark, blocky);
+        }
+        // Brows: higher or lower, nearer or farther apart, by expression.
+        let lift = [0.0, 0.08, -0.06, 0.14][row as usize % 4];
+        let pinch = [0.0, 0.05, -0.04, 0.02][row as usize % 4] * dx.signum();
+        ellipse(im, ex - pinch * r, cy - r * (0.36 + lift), r * 0.17, r * 0.04, dark, blocky);
+    }
+    let m = mouth.min(3) as f32;
+    ellipse(im, cx, cy + r * 0.48, r * (0.22 + 0.05 * m), r * [0.05, 0.1, 0.16, 0.24][mouth.min(3) as usize], dark, blocky);
+    // The straight cut under the shoulders.
+    let key = im.get(0, 0);
+    for y in (cut.max(0.0) as u32)..((cy + r * 2.2) as u32).min(im.h) {
+        for x in ((cx - r * 1.4).max(0.0) as u32)..((cx + r * 1.4) as u32).min(im.w) {
+            im.set(x, y, key);
+        }
+    }
+}
+
 fn gradient(w: u32, h: u32, top: [u8; 3], bottom: [u8; 3]) -> Image {
     let mut im = Image::new(w, h, [0, 0, 0, 255]);
     for y in 0..h {
@@ -149,6 +186,22 @@ pub fn image(req: &ImageRequest) -> Image {
             }
             im
         }
+        "portrait" => {
+            // 4 columns (mouth closed → wide open) × frames / 4 rows (expressions, then the blink
+            // row), each bust a little off in place and size, as a model's would be.
+            let rows = (req.hint.frames / 4).max(1);
+            let mut im = flat(w, h);
+            let (cw, ch) = (w as f32 / 4.0, h as f32 / rows as f32);
+            let blocky = if req.hint.pixel_art { (cw.min(ch) / 40.0).round().max(2.0) } else { 0.0 };
+            for i in 0..4 * rows {
+                let (col, row) = (i % 4, i / 4);
+                let (jx, jy, js) = ((rng.f() - 0.5) * 0.06, (rng.f() - 0.5) * 0.05, 1.0 + (rng.f() - 0.5) * 0.06);
+                let r = cw.min(ch) * 0.22 * js;
+                let (cx, cy) = (cw * (col as f32 + 0.5 + jx), ch * (row as f32 + 0.4 + jy));
+                bust(&mut im, cx, cy, r, cy + r * 1.7, &pal, col, row, row + 1 == rows && rows > 1, blocky);
+            }
+            im
+        }
         "background" | "icon" => {
             let top = pal[pal.len() - 1];
             let mut im = gradient(w, h, top, pal[0]);
@@ -161,6 +214,19 @@ pub fn image(req: &ImageRequest) -> Image {
             if req.hint.kind == "icon" {
                 creature(&mut im, w as f32 * 0.5, h as f32 * 0.55, s * 0.36, &pal, 0.0, blocky);
             }
+            im
+        }
+        "sky" => {
+            // Shaped like what models return for an equirect: sky above a horizon at the middle,
+            // stars right up to the top row, hills that don't wrap at the edges.
+            let mut im = gradient(w, h / 2, [8, 12, 40], [70, 80, 140]);
+            im.px.extend(gradient(w, h - h / 2, [30, 26, 40], [12, 10, 16]).px);
+            im.h = h;
+            for _ in 0..(w / 6) {
+                let (x, y) = (rng.f() * w as f32, rng.f() * h as f32 * 0.45);
+                ellipse(&mut im, x, y, 1.2, 1.2, [255, 250, 230], 0.0);
+            }
+            hills(&mut im, &mut rng, pal[1 % pal.len()], 0.5, 0.04);
             im
         }
         "layer" => {
@@ -199,25 +265,60 @@ pub fn image(req: &ImageRequest) -> Image {
 
 /// A 30 s, 44.1 kHz stereo song with a fade-in, at a tempo set by the prompt
 /// and seed: a kick on every beat, off-beat hats, a chord change every bar.
+#[cfg(test)]
 pub fn song(bpm: f32, secs: f32, rate: u32, seed: u64) -> Vec<f32> {
+    song_in_sections(bpm, secs, rate, seed, &[])
+}
+
+/// The same with sections starting at `starts` (seconds): each moves the
+/// progression on and adds a melody, at the same tempo and in the same key.
+pub fn song_in_sections(bpm: f32, secs: f32, rate: u32, seed: u64, starts: &[f32]) -> Vec<f32> {
     let n = (secs * rate as f32) as usize;
     let beat = 60.0 / bpm;
     let roots = [220.0, 196.0, 174.61, 196.0, 246.94, 220.0];
+    // A minor's notes, for the arpeggios.
+    let arp = [[440.0, 523.25, 659.25, 523.25], [392.0, 493.88, 587.33, 783.99], [349.23, 440.0, 523.25, 698.46], [659.25, 587.33, 523.25, 493.88]];
     let off = (seed % 3) as usize;
     let mut rng = Rng(seed | 1);
     (0..n)
         .map(|i| {
             let t = i as f32 / rate as f32;
+            let section = starts.iter().rposition(|&s| t >= s);
             let bt = t % beat;
             let kick = (-bt * 30.0).exp() * (std::f32::consts::TAU * (50.0 + 80.0 * (-bt * 40.0).exp()) * bt).sin();
             let ht = (t + beat / 2.0) % beat;
             let noise = rng.f() * 2.0 - 1.0;
             let hat = (-ht * 80.0).exp() * noise * 0.3;
-            let bar = ((t / (beat * 4.0)) as usize + off) % 4;
+            let bar = ((t / (beat * 4.0)) as usize + off + section.unwrap_or(0)) % 4;
             let r = roots[bar];
             let pad: f32 = [1.0, 1.26, 1.5].iter().map(|k| (std::f32::consts::TAU * r * k * t).sin()).sum::<f32>() * 0.08;
+            let lead = match section {
+                Some(s) => {
+                    let e = t / (beat / 2.0);
+                    let et = e.fract() * beat / 2.0;
+                    // A melody that doesn't repeat (as a model's doesn't, quite): each eighth's
+                    // note from one of the arpeggios, picked by a hash of the eighth.
+                    let k = (e as u64 / 2).wrapping_mul(0x9e37_79b9_7f4a_7c15) >> 62;
+                    let f = arp[(k as usize + s) % 4][(e as usize + s) % 4];
+                    (std::f32::consts::TAU * f * t).sin() * (-et * 5.0).exp() * 0.25
+                }
+                None => 0.0,
+            };
             let fade = (t / 1.5).min(1.0) * ((secs - t) / 2.0).clamp(0.0, 1.0);
-            (kick * 0.6 + hat + pad) * fade
+            (kick * 0.6 + hat + pad + lead) * fade
+        })
+        .collect()
+}
+
+/// "[0:20 - 0:40]" section starts in a prompt, in seconds.
+fn section_starts(prompt: &str) -> Vec<f32> {
+    prompt
+        .split('[')
+        .skip(1)
+        .filter_map(|p| {
+            let (m, rest) = p.split_once(':')?;
+            let s: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            Some(m.trim().parse::<f32>().ok()? * 60.0 + s.parse::<f32>().ok()?)
         })
         .collect()
 }
@@ -232,14 +333,45 @@ impl Provider for Mock {
         Ok(Output { bytes: im.encode_png(), mime: "image/png".into(), text: Some("mock image".into()), cost_usd: Some(0.0) })
     }
 
+    fn model(&self, req: &ModelRequest) -> Result<ModelOutput, String> {
+        Ok(super::mock3d::model(req))
+    }
+
+    /// The stand-in's rigged twin (same prompt and seed, so clips added later share its bones).
+    fn rig(&self, req: &super::provider::RigRequest) -> Result<ModelOutput, String> {
+        let m = super::mock3d::model(&ModelRequest { prompt: req.prompt.clone(), seed: req.seed, rig: true, animations: req.animations.clone(), ..ModelRequest::default() });
+        let mut out = ModelOutput { clips: m.clips, rigged: true, cost_usd: Some(0.0), ..ModelOutput::default() };
+        match &req.rig_task {
+            Some(id) => out.rig = Some((id.clone(), req.rig_type.clone().unwrap_or_else(|| "mock".into()))),
+            None => {
+                let id = format!("mock-rig-{:016x}", hash(&[req.prompt.as_bytes(), &req.seed.unwrap_or(0).to_le_bytes()]));
+                let t = req.rig_type.clone().unwrap_or_else(|| "mock".into());
+                out.tasks.push((format!("rig ({t})"), id.clone()));
+                out.rig = Some((id, t));
+                out.glb = m.glb;
+            }
+        }
+        for a in &req.animations {
+            out.tasks.push((format!("animate {a}"), format!("mock-{a}")));
+        }
+        Ok(out)
+    }
+
     fn audio(&self, req: &AudioRequest) -> Result<Output, String> {
+        // "mock-refuse" in a prompt: the refusal a real provider's content filter gives, to try what follows one.
+        if req.prompt.contains("mock-refuse") {
+            return Err("mock: no audio in the response (status completed). A safety filter may have blocked the prompt: describe the subject differently.".into());
+        }
         let seed = hash(&[req.prompt.as_bytes(), &req.seed.unwrap_or(0).to_le_bytes()]);
         match req.kind {
             Kind::Music => {
-                let bpm = 90.0 + (seed % 50) as f32;
+                // It plays at the tempo asked for ("128 BPM"); otherwise one from the seed.
+                let starts = section_starts(&req.prompt);
+                let asked = req.prompt.split(" BPM").next().and_then(|p| p.rsplit(' ').next()).and_then(|b| b.parse::<f32>().ok());
+                let bpm = asked.unwrap_or(90.0 + (seed % 50) as f32);
                 let rate = 44100;
-                let secs = req.seconds.unwrap_or(30.0).clamp(4.0, 60.0);
-                let l = song(bpm, secs, rate, seed);
+                let secs = req.seconds.unwrap_or(30.0).clamp(4.0, 240.0);
+                let l = song_in_sections(bpm, secs, rate, seed, &starts);
                 // A little stereo width: the right channel is slightly delayed.
                 let mut wav = Vec::new();
                 let d = 20;

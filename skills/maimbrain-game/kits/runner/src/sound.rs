@@ -39,17 +39,19 @@ const MUSIC_HI: usize = 18;
 
 /// The mix. The music is the reference: both stems at `MUSIC_VOL` come to
 /// about -23 LUFS, and every effect's level below is set against it
-/// (measured with `tools/mixsim.py` over bot-played rounds). Frequent
-/// sounds are the quietest: coins (2–3 a second in bursts) sit ~12 dB under
-/// the music, jumps ~5 dB; rare moments (CLOSE!, a new family) get close to
+/// (measured with the skill's `mix_check.py` over bot-played rounds).
+/// Frequent sounds carry the least energy: coins (2–3 a second in bursts)
+/// sit ~9 dB under the music over 3 s, yet each one, short and bright,
+/// peaks over half as loud as the music on a phone speaker, so it's heard
+/// (the streak sparkle too); jumps ~10 dB under; rare moments (CLOSE!, a new family) get close to
 /// it, and only the end of a run (the bonk, the slide whistle) goes over,
 /// while the music fades out.
 const MUSIC_VOL: f32 = 1.0;
 /// The high stem (lead and arpeggios) never drops below this share: the
 /// hook is always there, and speed and danger bring it up to full.
 const HI_FLOOR: f32 = 0.6;
-const VOL_COIN: f32 = 0.15;
-const VOL_ARC: f32 = 0.15;
+const VOL_COIN: f32 = 0.24;
+const VOL_ARC: f32 = 0.25;
 const VOL_JUMP: f32 = 0.22;
 const VOL_JUMP2: f32 = 0.36;
 const VOL_CLOSE: f32 = 0.47;

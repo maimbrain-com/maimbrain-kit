@@ -8,6 +8,7 @@
 //! how a snack lands, wobbles, wedges or slides is never scripted.
 
 use maimbrain::Rng;
+use maimbrain::motion::Follow;
 use maimbrain::physics2d::{Body, BodyId, Event, Joint, JointId, Shape, Vec2, World, vec2};
 
 // ---- Tuning knobs -----------------------------------------------------
@@ -316,6 +317,9 @@ pub struct Sim {
     pub over: bool,
     /// World y at the top of the screen (negative as the tower grows).
     pub cam_y: f32,
+    /// What moves `cam_y`: a critically damped spring, so the camera glides
+    /// up when a block lands rather than starting with a jolt.
+    cam: Follow,
     /// The tower's height above the plate, px.
     pub height: f32,
     pub best_height: f32,
@@ -360,6 +364,7 @@ impl Sim {
             tip_dir: 1.0,
             over: false,
             cam_y: 0.0,
+            cam: Follow::new(0.0, 0.3),
             height: 0.0,
             best_height: 0.0,
             wobble: 0.0,
@@ -553,8 +558,9 @@ impl Sim {
         self.best_height = self.best_height.max(self.height);
         let want = (PLATE_TOP - self.height - TOWER_TOP_ON_SCREEN).min(0.0);
         // After the last heart the camera drops to the pile on the blanket.
-        let (want, rate) = if self.ending.is_some() { (0.0, 2.5) } else { (want, 2.2) };
-        self.cam_y += (want - self.cam_y) * (1.0 - (-dt * rate).exp());
+        let (want, halflife) = if self.ending.is_some() { (0.0, 0.28) } else { (want, 0.3) };
+        self.cam.halflife = halflife;
+        self.cam_y = self.cam.update(want, dt);
 
         if let Some(e) = &mut self.ending {
             *e += dt;

@@ -6,7 +6,7 @@ their pitch, length and brightness are exact: they're in the music's key and
 soft enough to fire a few times a second under it. Everything else comes
 from `mb sfx` in tools/regen.sh.
 
-    python3 tools/gen_sfx.py       # needs oggenc (brew install vorbis-tools)
+    python3 tools/gen_sfx.py       # encodes with `mb ogg` (or oggenc)
 
 The music (music_base/music_hi) is in E, and borrows from both E major and
 E minor (its lead has G and G#, C and C#; the skill's scripts/mix_check.py

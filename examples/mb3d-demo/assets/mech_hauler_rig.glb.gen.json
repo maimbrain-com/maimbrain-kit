@@ -1,0 +1,284 @@
+{
+  "generator": "mb 0.7.0-dev model",
+  "date": "2026-10-10T16:51:22Z",
+  "provider": "tripo",
+  "model": "P1-20260311",
+  "prompt": "a heavy industrial anime real-robot mecha standing upright, bulky armored barrel torso, yellow and black hazard-striped armor plates on dented steel, big hydraulic arms with clamp hands, small head with a single red mono-eye and a short antenna, thick stompy legs, twin exhaust stacks on the back, rivets and panel lines",
+  "full_prompt": "a heavy industrial anime real-robot mecha standing upright, bulky armored barrel torso, yellow and black hazard-striped armor plates on dented steel, big hydraulic arms with clamp hands, small head with a single red mono-eye and a short antenna, thick stompy legs, twin exhaust stacks on the back, rivets and panel lines. detailed anime real-robot mecha, angular faceted armor plates, crisp panel lines, visible mechanical joints, clean hand-painted texture with sharp highlights. Style: late-1990s real-robot anime cel art: crisp ink linework, angular mechanical shapes, layered armor plates with panel lines, two-tone cel shading with hard shadows, dramatic cinematic lighting. readable silhouettes, anime mecha, high contrast, clean cel shading. Colors from this palette: #0b1026, #1d2b53, #4a6fa5",
+  "seed": 735417257,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/style.toml",
+    "sha256": "6b1fff4b27b97f849785381b4c5a20150a9d13c42a06f8cd87cd7bd2f1212e50"
+  },
+  "est_cost_usd": 1.25,
+  "cost_usd": 0.4,
+  "raw": "art/raw/mech_hauler_rig-735417257.glb",
+  "raw_sha256": "ec857abf5bdb8a3f3ef1cc9ca88c7b280022c51a558226facb115ecc0b8f800d",
+  "output_sha256": "6ac76566a106afa342abf2b03eb19eb2fae5ea66eaf745be11ce68b683be5c0e",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "animate": [
+      "idle",
+      "walk",
+      "hurt",
+      "pitch_baseball",
+      "box_01",
+      "hit_to_body_01"
+    ],
+    "compress": true,
+    "facing": "+z",
+    "glow": null,
+    "glow_above": 0.6000000238418579,
+    "kind": "model",
+    "lengthwise": false,
+    "model": "P1-20260311",
+    "name": "mech_hauler_rig",
+    "negative": null,
+    "no_style": false,
+    "object": "character",
+    "origin": "ground",
+    "out": "assets/mech_hauler_rig.glb",
+    "polys": 5500,
+    "provider": "tripo",
+    "reference": null,
+    "rig": true,
+    "rig_type": "biped",
+    "seed": 735417257,
+    "size": 4.599999904632568,
+    "spine": "off",
+    "spine_joints": null,
+    "subject": "a heavy industrial anime real-robot mecha standing upright, bulky armored barrel torso, yellow and black hazard-striped armor plates on dented steel, big hydraulic arms with clamp hands, small head with a single red mono-eye and a short antenna, thick stompy legs, twin exhaust stacks on the back, rivets and panel lines",
+    "texture_format": "auto",
+    "texture_size": 1024,
+    "turn": 0.0
+  },
+  "result": {
+    "bytes": 1391368,
+    "bytes_uncompressed": 1905856,
+    "clips": [
+      {
+        "name": "Idle",
+        "seconds": 15.366999626159668
+      },
+      {
+        "name": "Walk",
+        "seconds": 2.367000102996826
+      },
+      {
+        "name": "Hurt",
+        "seconds": 13.866999626159668
+      },
+      {
+        "name": "PitchBaseball",
+        "seconds": 3.799999952316284
+      },
+      {
+        "name": "Box01",
+        "seconds": 2.2330000400543213
+      },
+      {
+        "name": "HitToBody01",
+        "seconds": 1.2999999523162842
+      }
+    ],
+    "compressed": true,
+    "dropped": [],
+    "facing": "+z",
+    "facing_check": {
+      "reason": "not a long shape",
+      "verdict": "uncertain"
+    },
+    "glow_share": null,
+    "glowing_materials": 0,
+    "joints": 41,
+    "mesh_nodes": [
+      "mech_hauler_rig/body"
+    ],
+    "metal_rough": {
+      "metalness": 0.2199999988079071,
+      "roughness": 0.1599999964237213
+    },
+    "metal_rough_from_provider": {
+      "metalness": 0.2199999988079071,
+      "roughness": 0.1599999964237213
+    },
+    "normals_added": false,
+    "notes": [],
+    "orient": null,
+    "placement": {
+      "origin": "ground",
+      "scale": 4.608997344970703,
+      "size_m": [
+        2.7095868587493896,
+        4.599999904632568,
+        4.149899005889893
+      ],
+      "source_size": [
+        0.5878907442092896,
+        0.9980478882789612,
+        0.9003908038139343
+      ],
+      "turn_degrees": 0.0,
+      "turned_lengthwise": false
+    },
+    "raw_clips": [
+      {
+        "action": "idle",
+        "path": "art/raw/mech_hauler_rig-735417257.idle.glb",
+        "sha256": "365be162c0ae440fee883fae981c6304fabac4405c593015ea5982b233cb0a0d"
+      },
+      {
+        "action": "walk",
+        "path": "art/raw/mech_hauler_rig-735417257.walk.glb",
+        "sha256": "68628268b4dc4227524d29ad6e5f907d713424451483acd42fe52be5b5dc1091"
+      },
+      {
+        "action": "hurt",
+        "path": "art/raw/mech_hauler_rig-735417257.hurt.glb",
+        "sha256": "20170d604329cf15ec5ce0ed1eae7e340142ae9f01b1ac70071b72f3053e1c39"
+      },
+      {
+        "action": "pitch_baseball",
+        "path": "art/raw/mech_hauler_rig-735417257.pitch_baseball.glb",
+        "sha256": "513283c40d84449dc96df9778b23961de526497541233635f82f8774168ddc65"
+      },
+      {
+        "action": "box_01",
+        "path": "art/raw/mech_hauler_rig-735417257.box_01.glb",
+        "sha256": "4e7cb338cdeeaf1f5b96e9c59cbca88ed4d4b2715a3148be8daba35157e79ca4"
+      },
+      {
+        "action": "hit_to_body_01",
+        "path": "art/raw/mech_hauler_rig-735417257.hit_to_body_01.glb",
+        "sha256": "88e85d5e04417f01a9275e421120ab3fe98c37ea4a5f62e6d0a8cc20df72f78a"
+      }
+    ],
+    "rig": {
+      "joints_from_provider": 41,
+      "merged_leaves": 0,
+      "symmetric": false,
+      "tree": [
+        "Root (0 verts)",
+        "  Hip (0 verts)",
+        "    Pelvis (0 verts)",
+        "      L_Thigh (0 verts)",
+        "        L_Calf (0 verts)",
+        "          L_Foot (28 verts)",
+        "            L_ToeBase (37 verts)",
+        "          L_CalfTwist01 (244 verts)",
+        "            L_CalfTwist02 (535 verts)",
+        "        L_ThighTwist01 (238 verts)",
+        "          L_ThighTwist02 (116 verts)",
+        "      R_Thigh (0 verts)",
+        "        R_ThighTwist01 (258 verts)",
+        "          R_ThighTwist02 (136 verts)",
+        "        R_Calf (0 verts)",
+        "          R_Foot (28 verts)",
+        "            R_ToeBase (29 verts)",
+        "          R_CalfTwist01 (317 verts)",
+        "            R_CalfTwist02 (528 verts)",
+        "    Waist (141 verts)",
+        "      Spine01 (427 verts)",
+        "        Spine02 (191 verts)",
+        "          NeckTwist01 (0 verts)",
+        "            NeckTwist02 (0 verts)",
+        "              Head (636 verts)",
+        "          L_Clavicle (526 verts)",
+        "            L_Upperarm (0 verts)",
+        "              L_Forearm (0 verts)",
+        "                L_ForearmTwist01 (308 verts)",
+        "                  L_ForearmTwist02 (30 verts)",
+        "                L_Hand (1799 verts)",
+        "              L_UpperarmTwist01 (382 verts)",
+        "                L_UpperarmTwist02 (121 verts)",
+        "          R_Clavicle (786 verts)",
+        "            R_Upperarm (0 verts)",
+        "              R_UpperarmTwist01 (406 verts)",
+        "                R_UpperarmTwist02 (212 verts)",
+        "              R_Forearm (0 verts)",
+        "                R_ForearmTwist01 (256 verts)",
+        "                  R_ForearmTwist02 (56 verts)",
+        "                R_Hand (2398 verts)"
+      ]
+    },
+    "rigged": true,
+    "simplify_error": 0.3026988208293915,
+    "source_generator": "Tripo",
+    "spine": null,
+    "tasks": [
+      {
+        "id": "ed1e5786-ca00-4efa-9a67-f7b7a4c36103",
+        "step": "text-to-model"
+      }
+    ],
+    "texture_sizes": [
+      [
+        512,
+        512
+      ],
+      [
+        1024,
+        1024
+      ],
+      [
+        512,
+        512
+      ]
+    ],
+    "textures": [
+      {
+        "format": "jpeg",
+        "kb": 52,
+        "role": "data",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          2048,
+          2048
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 223,
+        "role": "color",
+        "size": [
+          1024,
+          1024
+        ],
+        "source_size": [
+          2048,
+          2048
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 111,
+        "role": "data",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          2048,
+          2048
+        ]
+      }
+    ],
+    "triangles": 5738,
+    "triangles_from_provider": 7407,
+    "vertices": 11169,
+    "warnings": [
+      "simplified to 5738 triangles, not 5500: the shape wouldn't go lower without falling apart",
+      "it's polished metal (metalness 0.22, roughness 0.16 on average): with nothing bright to reflect, that reads near-black outdoors; `--reprocess --metal 0.15 --min-roughness 0.6` mattes it",
+      "the rig isn't symmetric: 23 joint(s) on the left and 13 on the right have no mirror (a missing wing or limb?); `mb model <game> mech_hauler_rig --reprocess --spine auto` gives it bones mb lays out itself",
+      "facing uncertain: not a long shape, so mb can't tell its front; check the preview's arrow (the way it faces) and pass --turn 90, 180 or -90 if its front is elsewhere"
+    ]
+  },
+  "note": "Generated with Tripo; assets made on paid credits are yours, those made with free credits stay Tripo's (its terms)."
+}

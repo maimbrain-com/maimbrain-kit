@@ -37,6 +37,21 @@ pub struct Manifest {
     pub scores: Vec<ScoreBoard>,
     #[serde(default)]
     pub remix: Remix,
+    /// Where a replay card puts its "Beat …" banner (SPEC §5.2).
+    #[serde(default)]
+    pub replay_banner: ReplayBanner,
+}
+
+/// Where the feed draws a replay card's "Beat …" banner (SPEC §5.2).
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ReplayBanner {
+    /// Over the bottom ~230 pt, with the title (the default).
+    #[default]
+    Bottom,
+    /// Just below the top inset, ~110 pt: for games whose player sits low on
+    /// the screen (a runner or racer seen from behind), so replays show it.
+    Top,
 }
 
 /// A platform-rendered leaderboard. Games can't create boards at runtime.
@@ -107,6 +122,8 @@ impl PerfTier {
 pub enum Sensor {
     Tilt,
     Motion,
+    /// The phone's orientation (gyro-fused) and rotation rate: aiming by pointing it.
+    Attitude,
     Loudness,
     Light,
     Haptics,
@@ -117,6 +134,7 @@ impl Sensor {
         match self {
             Sensor::Tilt => "tilt",
             Sensor::Motion => "motion",
+            Sensor::Attitude => "attitude",
             Sensor::Loudness => "loudness",
             Sensor::Light => "light",
             Sensor::Haptics => "haptics",

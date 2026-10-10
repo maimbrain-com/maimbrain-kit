@@ -3,10 +3,15 @@
 //   .claude/skills in the monorepo, under skills/ in the public
 //   maimbrain-kit repo)
 // - its genre starter kits (kits/<genre>/, `mb new --kit`): every file of
-//   each kit, listed in $OUT_DIR/kits.rs, plus the helper scripts (sfx.py,
-//   pixel.py, check_audio.py) that kit games get copies of in tools/
+//   each kit, listed in $OUT_DIR/kits.rs
+// - its helper scripts (sfx.py, pixel.py, check_audio.py, mix_check.py, and make_glb.py and lut.py
+//   for 3D), also in kits.rs: every new game gets copies in tools/
 // - the built web runtime (runtime/dist in the monorepo, runtime-dist/ in
 //   the kit). Without it, `mb serve` says how to build it.
+// - what `mb --version` names besides the version: the commit it was built
+//   from (git's short sha of this checkout, the monorepo's or the kit's, or
+//   MB_BUILD_ID; "dev" without either) and the embedded runtime's id (a hash
+//   of its files).
 //
 // The runtime is usually built *after* mb-cli has compiled once (`just
 // runtime` itself runs `mb abi`), so the files are watched even while they
@@ -14,7 +19,7 @@
 // missing, so the next `cargo run -p mb-cli` after `just runtime` embeds it.
 use std::path::{Path, PathBuf};
 
-const RUNTIME_FILES: [&str; 5] = ["index.html", "runtime.js", "probe-worker.js", "mb_host_bg.wasm", "silence.wav"];
+const RUNTIME_FILES: [&str; 6] = ["index.html", "runtime.js", "probe-worker.js", "headless.js", "mb_host_bg.wasm", "silence.wav"];
 
 fn main() {
     let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").canonicalize().unwrap();
@@ -37,6 +42,7 @@ fn main() {
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("runtime");
     std::fs::create_dir_all(&out).unwrap();
     let present = RUNTIME_FILES.iter().all(|f| dist.join(f).is_file());
+    let mut runtime_id = Fnv::new();
     for f in RUNTIME_FILES {
         let src = dist.join(f);
         // Watched whether or not it exists yet (see the top of this file).
@@ -44,18 +50,62 @@ fn main() {
         let dest = out.join(f);
         if present {
             std::fs::copy(&src, &dest).unwrap_or_else(|e| panic!("{}: {e}", src.display()));
+            runtime_id.add(f.as_bytes());
+            runtime_id.add(&std::fs::read(&src).unwrap());
         } else {
             std::fs::write(&dest, b"").unwrap();
         }
     }
     println!("cargo:rustc-env=MB_RUNTIME_EMBEDDED={}", if present { "1" } else { "" });
     println!("cargo:rustc-env=MB_RUNTIME_DIST={}", dist.display());
+    println!("cargo:rustc-env=MB_RUNTIME_ID={}", if present { format!("{:08x}", runtime_id.0 >> 32) } else { "none".into() });
+    println!("cargo:rustc-env=MB_BUILD_ID={}", build_id(&root));
+}
+
+/// FNV-1a (64-bit), for the runtime's id.
+struct Fnv(u64);
+
+impl Fnv {
+    fn new() -> Fnv {
+        Fnv(0xcbf2_9ce4_8422_2325)
+    }
+    fn add(&mut self, bytes: &[u8]) {
+        for b in bytes {
+            self.0 = (self.0 ^ *b as u64).wrapping_mul(0x100_0000_01b3);
+        }
+    }
+}
+
+/// The commit this is built from: MB_BUILD_ID if set (CI), else git's short
+/// sha of the checkout at `root`, else "dev". Rebuilt when HEAD moves.
+fn build_id(root: &Path) -> String {
+    println!("cargo:rerun-if-env-changed=MB_BUILD_ID");
+    if let Some(id) = std::env::var("MB_BUILD_ID").ok().filter(|s| !s.trim().is_empty()) {
+        return id.trim().to_string();
+    }
+    let git = |args: &[&str]| {
+        let out = std::process::Command::new("git").arg("-C").arg(root).args(args).output().ok().filter(|o| o.status.success())?;
+        Some(String::from_utf8_lossy(&out.stdout).trim().to_string()).filter(|s| !s.is_empty())
+    };
+    let Some(sha) = git(&["rev-parse", "--short", "HEAD"]) else { return "dev".into() };
+    // HEAD, and the branch it points at, loose or packed (in a worktree they
+    // live in different git directories). Only files that exist: a missing
+    // one would rerun this script on every build.
+    let mut watch = vec!["HEAD".to_string(), "packed-refs".to_string()];
+    watch.extend(git(&["symbolic-ref", "-q", "HEAD"]));
+    for w in watch {
+        if let Some(p) = git(&["rev-parse", "--path-format=absolute", "--git-path", &w]).filter(|p| Path::new(p).is_file()) {
+            println!("cargo:rerun-if-changed={p}");
+        }
+    }
+    sha
 }
 
 /// Writes $OUT_DIR/kits.rs: `KITS`, one entry per kits/<genre>/ directory
 /// (sorted), with its kit.toml summary and tech and every file to copy
 /// (everything except kit.toml, screenshots/, target/ and dotfiles), and
-/// `KIT_SCRIPTS`, the skill's helper scripts that kit games get in tools/.
+/// `SCRIPTS` and `SCRIPTS_3D`, the skill's helper scripts every new game
+/// (and every new 3D game) gets in tools/.
 fn kits(skill: &Path) {
     let dir = skill.join("kits");
     // A directory: Cargo rescans everything under it for changes.
@@ -84,13 +134,16 @@ fn kits(skill: &Path) {
         }
         code += "    ] },\n";
     }
-    code += "];\n\npub const KIT_SCRIPTS: &[(&str, &[u8])] = &[\n";
-    for s in ["sfx.py", "pixel.py", "check_audio.py"] {
-        let p = skill.join("scripts").join(s);
-        println!("cargo:rerun-if-changed={}", p.display());
-        code += &format!("    ({s:?}, include_bytes!({:?})),\n", p.display().to_string());
-    }
     code += "];\n";
+    for (name, scripts) in [("SCRIPTS", &["sfx.py", "pixel.py", "check_audio.py", "mix_check.py"][..]), ("SCRIPTS_3D", &["make_glb.py", "lut.py"])] {
+        code += &format!("\npub const {name}: &[(&str, &[u8])] = &[\n");
+        for s in scripts {
+            let p = skill.join("scripts").join(s);
+            println!("cargo:rerun-if-changed={}", p.display());
+            code += &format!("    ({s:?}, include_bytes!({:?})),\n", p.display().to_string());
+        }
+        code += "];\n";
+    }
     std::fs::write(PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("kits.rs"), code).unwrap();
 }
 

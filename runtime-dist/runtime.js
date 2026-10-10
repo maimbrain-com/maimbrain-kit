@@ -28,6 +28,10 @@ function host_gpu_connect() {
 function host_gpu_debug_lose() {
   wasm.host_gpu_debug_lose();
 }
+function host_gpu_done() {
+  const ret = wasm.host_gpu_done();
+  return ret;
+}
 function host_gpu_fault(message2) {
   const ptr0 = passStringToWasm0(message2, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
   const len0 = WASM_VECTOR_LEN;
@@ -62,8 +66,18 @@ function host_init(canvas, logical_w, logical_h) {
 function host_new_session() {
   wasm.host_new_session();
 }
+function host_pose() {
+  const ret = wasm.host_pose();
+  var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
+  wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+  return v1;
+}
 function host_redraw() {
   const ret = wasm.host_redraw();
+  return ret !== 0;
+}
+function host_redraw_isolated(node, hud, plain) {
+  const ret = wasm.host_redraw_isolated(node, hud, plain);
   return ret !== 0;
 }
 function host_resize(width, height) {
@@ -86,6 +100,33 @@ function host_stats() {
 }
 function host_step(dt) {
   wasm.host_step(dt);
+}
+function host_take_refusal() {
+  let deferred1_0;
+  let deferred1_1;
+  try {
+    const ret = wasm.host_take_refusal();
+    deferred1_0 = ret[0];
+    deferred1_1 = ret[1];
+    return getStringFromWasm0(ret[0], ret[1]);
+  } finally {
+    wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+  }
+}
+function host_top_draws(n) {
+  let deferred1_0;
+  let deferred1_1;
+  try {
+    const ret = wasm.host_top_draws(n);
+    deferred1_0 = ret[0];
+    deferred1_1 = ret[1];
+    return getStringFromWasm0(ret[0], ret[1]);
+  } finally {
+    wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+  }
+}
+function host_track(node) {
+  wasm.host_track(node);
 }
 function __wbg_get_imports() {
   const import0 = {
@@ -501,7 +542,7 @@ function __wbg_get_imports() {
           const a = state0.a;
           state0.a = 0;
           try {
-            return wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___js_sys_ad02f14a055e7bf2___Function_fn_wasm_bindgen_16ce60f5be4e30c6___JsValue_____wasm_bindgen_16ce60f5be4e30c6___sys__Undefined___js_sys_ad02f14a055e7bf2___Function_fn_wasm_bindgen_16ce60f5be4e30c6___JsValue_____wasm_bindgen_16ce60f5be4e30c6___sys__Undefined_______true_(a, state0.b, arg02, arg12);
+            return wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(a, state0.b, arg02, arg12);
           } finally {
             state0.a = a;
           }
@@ -569,6 +610,9 @@ function __wbg_get_imports() {
     },
     __wbg_setPipeline_b6f981027e02cd16: function(arg0, arg1) {
       arg0.setPipeline(arg1);
+    },
+    __wbg_setScissorRect_889235eeb784732b: function(arg0, arg1, arg2, arg3, arg4) {
+      arg0.setScissorRect(arg1 >>> 0, arg2 >>> 0, arg3 >>> 0, arg4 >>> 0);
     },
     __wbg_setVertexBuffer_6db3b60e99280744: function(arg0, arg1, arg2, arg3) {
       arg0.setVertexBuffer(arg1 >>> 0, arg2, arg3);
@@ -1172,27 +1216,27 @@ function __wbg_get_imports() {
       }, arguments);
     },
     __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000002: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000003: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
       return ret;
     },
     __wbindgen_generic_0000000000000004: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__86);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__117);
       return ret;
     },
     __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true__87);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__118);
       return ret;
     },
     __wbindgen_generic_0000000000000006: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true__88);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119);
       return ret;
     },
     __wbindgen_generic_0000000000000007: function(arg0) {
@@ -1222,38 +1266,38 @@ function __wbg_get_imports() {
     "./mb_host_bg.js": import0
   };
 }
-function wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
 }
-function wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__86(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__86(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__117(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__117(arg0, arg1, arg2);
 }
-function wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true__87(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true__87(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__118(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__118(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true__88(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___wasm_bindgen_16ce60f5be4e30c6___sys__JsNullable_wgpu_8e86242f95ca2672___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_16ce60f5be4e30c6___JsError___true__88(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___js_sys_ad02f14a055e7bf2___Function_fn_wasm_bindgen_16ce60f5be4e30c6___JsValue_____wasm_bindgen_16ce60f5be4e30c6___sys__Undefined___js_sys_ad02f14a055e7bf2___Function_fn_wasm_bindgen_16ce60f5be4e30c6___JsValue_____wasm_bindgen_16ce60f5be4e30c6___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
-  wasm.wasm_bindgen_16ce60f5be4e30c6___convert__closures_____invoke___js_sys_ad02f14a055e7bf2___Function_fn_wasm_bindgen_16ce60f5be4e30c6___JsValue_____wasm_bindgen_16ce60f5be4e30c6___sys__Undefined___js_sys_ad02f14a055e7bf2___Function_fn_wasm_bindgen_16ce60f5be4e30c6___JsValue_____wasm_bindgen_16ce60f5be4e30c6___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
+  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
 }
 var __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
 var __wbindgen_enum_GpuAutoLayoutMode = ["auto"];
@@ -1347,6 +1391,10 @@ ${val.stack}`;
   }
   return className;
 }
+function getArrayF32FromWasm0(ptr, len) {
+  ptr = ptr >>> 0;
+  return getFloat32ArrayMemory0().subarray(ptr / 4, ptr / 4 + len);
+}
 function getArrayJsValueFromWasm0(ptr, len) {
   ptr = ptr >>> 0;
   const mem = getDataViewMemory0();
@@ -1380,6 +1428,13 @@ function getDataViewMemory0() {
     cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
   }
   return cachedDataViewMemory0;
+}
+var cachedFloat32ArrayMemory0 = null;
+function getFloat32ArrayMemory0() {
+  if (cachedFloat32ArrayMemory0 === null || cachedFloat32ArrayMemory0.byteLength === 0) {
+    cachedFloat32ArrayMemory0 = new Float32Array(wasm.memory.buffer);
+  }
+  return cachedFloat32ArrayMemory0;
 }
 function getStringFromWasm0(ptr, len) {
   return decodeText(ptr >>> 0, len);
@@ -1500,6 +1555,7 @@ function __wbg_finalize_init(instance, module) {
   wasm = instance.exports;
   wasmModule = module;
   cachedDataViewMemory0 = null;
+  cachedFloat32ArrayMemory0 = null;
   cachedUint32ArrayMemory0 = null;
   cachedUint8ArrayMemory0 = null;
   wasm.__wbindgen_start();
@@ -1563,10 +1619,14 @@ async function __wbg_init(module_or_path) {
 }
 
 // src/bridge.ts
-var native = window.webkit?.messageHandlers?.mb;
+var page = typeof window === "undefined" ? void 0 : window;
+var native = page?.webkit?.messageHandlers?.mb;
 var taps = [];
+var sink = null;
 function post(m) {
+  if (sink) return sink(m);
   if (native) native.postMessage(m);
+  else page?.dispatchEvent(new CustomEvent("mb:message", { detail: m }));
   for (const t of taps) t(m);
   if (m.op !== "heartbeat") console.log("[mb]", m.op, JSON.stringify(m));
 }
@@ -1655,6 +1715,1573 @@ function debugGpu(kind) {
   }
 }
 
+// src/buses.ts
+var BUS_MASTER = 0;
+var BUS_MUSIC = 1;
+var BUS_SFX = 2;
+var BUS_COUNT = 3;
+var FX_FIELDS = 8;
+var MIN_RAMP = 0.01;
+var OPEN_HZ = 2e4;
+var LOW_HZ = 20;
+var IR_MIN_INTERVAL = 200;
+var IR_MIN_FADE = 0.05;
+var MAX_DELAY = 2;
+var defaults = () => ({
+  lowpass: { cutoff: OPEN_HZ, q: Math.SQRT1_2 },
+  highpass: { cutoff: LOW_HZ, q: Math.SQRT1_2 },
+  reverb: { wet: 0, decay: 1.5, damping: 0.5, predelay: 0.02 },
+  delay: { wet: 0, time: 0.3, feedback: 0.35, damping: 0.3 },
+  volume: 1
+});
+var Buses = class {
+  params = Array.from({ length: BUS_COUNT }, defaults);
+  ctx = null;
+  nodes = [];
+  /** Builds every bus on a (new) context, master feeding `out`, with the current settings. */
+  attach(ctx, out) {
+    this.detach();
+    this.ctx = ctx;
+    for (let b = 0; b < BUS_COUNT; b++) {
+      const input = ctx.createGain();
+      const highpass = ctx.createBiquadFilter();
+      highpass.type = "highpass";
+      const lowpass = ctx.createBiquadFilter();
+      lowpass.type = "lowpass";
+      const volume = ctx.createGain();
+      input.connect(highpass).connect(lowpass).connect(volume);
+      this.nodes.push({ input, highpass, lowpass, volume, reverb: null, delay: null });
+    }
+    this.nodes[BUS_MUSIC].volume.connect(this.nodes[BUS_MASTER].input);
+    this.nodes[BUS_SFX].volume.connect(this.nodes[BUS_MASTER].input);
+    this.nodes[BUS_MASTER].volume.connect(out);
+    for (let b = 0; b < BUS_COUNT; b++) this.apply(b, 0, true);
+  }
+  /** The context is gone (closed or replaced): forget its nodes, keep the settings. */
+  detach() {
+    for (const n of this.nodes) {
+      if (n.reverb?.rebuild) clearTimeout(n.reverb.rebuild);
+      if (n.reverb?.idle) clearTimeout(n.reverb.idle);
+    }
+    this.ctx = null;
+    this.nodes = [];
+  }
+  /** Where a voice on `bus` connects, or null without a context. */
+  input(bus) {
+    return this.nodes[bus]?.input ?? this.nodes[BUS_SFX]?.input ?? null;
+  }
+  /** A new session: every bus back to its defaults, at once. */
+  reset() {
+    this.params = Array.from({ length: BUS_COUNT }, defaults);
+    if (this.ctx) for (let b = 0; b < BUS_COUNT; b++) this.apply(b, 0, true);
+  }
+  /** mb_bus_fx: `f` is the struct's 8 fields as f32s, the first `ramp`.
+   *  Returns 0, or −2 for an unknown bus or kind. `instant` skips the glide
+   *  (fast-forwarding a restored session). */
+  set(bus, kind, f, instant) {
+    if (!Number.isInteger(bus) || bus < 0 || bus >= BUS_COUNT) return -2;
+    const num = (i, lo, hi, dflt) => {
+      const x = f[i] ?? NaN;
+      return Number.isFinite(x) ? Math.min(Math.max(x, lo), hi) : dflt;
+    };
+    const ramp = num(0, 0, 60, 0);
+    const p = this.params[bus];
+    switch (kind) {
+      case 1 /* Lowpass */:
+      case 2 /* Highpass */: {
+        const filter = kind === 1 /* Lowpass */ ? p.lowpass : p.highpass;
+        filter.cutoff = num(1, LOW_HZ, OPEN_HZ, kind === 1 /* Lowpass */ ? OPEN_HZ : LOW_HZ);
+        filter.q = num(2, 0.1, 30, Math.SQRT1_2);
+        break;
+      }
+      case 3 /* Reverb */:
+        p.reverb = { wet: num(1, 0, 1, 0), decay: num(2, 0.1, 10, 1.5), damping: num(3, 0, 1, 0.5), predelay: num(4, 0, 0.25, 0.02) };
+        break;
+      case 4 /* Delay */:
+        p.delay = { wet: num(1, 0, 1, 0), time: num(2, 0.01, MAX_DELAY, 0.3), feedback: num(3, 0, 0.9, 0.35), damping: num(4, 0, 1, 0.3) };
+        break;
+      case 5 /* Volume */:
+        p.volume = num(1, 0, 4, 1);
+        break;
+      default:
+        return -2;
+    }
+    if (this.ctx) this.apply(bus, ramp, instant);
+    return 0;
+  }
+  /** Moves the bus's nodes to its parameters. */
+  apply(b, ramp, instant) {
+    const ctx = this.ctx;
+    const n = this.nodes[b];
+    const p = this.params[b];
+    const at = instant ? null : ctx.currentTime;
+    const nyquist = ctx.sampleRate / 2;
+    sweep(n.lowpass.frequency, p.lowpass.cutoff >= OPEN_HZ ? nyquist * 0.98 : Math.min(p.lowpass.cutoff, nyquist * 0.98), ramp, at);
+    sweep(n.highpass.frequency, p.highpass.cutoff <= LOW_HZ ? 10 : p.highpass.cutoff, ramp, at);
+    glide(n.lowpass.Q, qDb(p.lowpass.cutoff >= OPEN_HZ ? Math.SQRT1_2 : p.lowpass.q), ramp, at);
+    glide(n.highpass.Q, qDb(p.highpass.cutoff <= LOW_HZ ? Math.SQRT1_2 : p.highpass.q), ramp, at);
+    glide(n.volume.gain, p.volume, ramp, at);
+    this.applyReverb(b, ramp, at);
+    this.applyDelay(b, ramp, at);
+  }
+  applyReverb(b, ramp, at) {
+    const ctx = this.ctx;
+    const n = this.nodes[b];
+    const p = this.params[b].reverb;
+    if (!n.reverb) {
+      if (p.wet <= 0) return;
+      const wet = ctx.createGain();
+      wet.gain.value = 0;
+      const predelay = ctx.createDelay(0.5);
+      predelay.delayTime.value = p.predelay;
+      const conv = ctx.createConvolver();
+      conv.normalize = false;
+      conv.buffer = impulse(ctx, p.decay, p.damping);
+      const level = ctx.createGain();
+      n.lowpass.connect(wet).connect(predelay).connect(conv).connect(level).connect(n.volume);
+      n.reverb = { wet, predelay, conv, level, decay: p.decay, damping: p.damping, builtAt: performance.now(), rebuild: null, idle: null };
+      if (at === null) at = ctx.currentTime;
+    }
+    const r = n.reverb;
+    glide(r.wet.gain, p.wet, ramp, at);
+    glide(r.predelay.delayTime, p.predelay, ramp, at);
+    if (r.decay !== p.decay || r.damping !== p.damping) this.scheduleIr(b, r, ramp);
+    if (r.idle) clearTimeout(r.idle);
+    r.idle = null;
+    if (p.wet <= 0) {
+      const ctxNow = ctx;
+      r.idle = setTimeout(
+        () => {
+          r.idle = null;
+          if (this.ctx !== ctxNow || this.nodes[b]?.reverb !== r || this.params[b].reverb.wet > 0) return;
+          if (r.rebuild) clearTimeout(r.rebuild);
+          r.wet.disconnect();
+          r.level.disconnect();
+          r.conv.disconnect();
+          n.reverb = null;
+        },
+        (ramp + p.predelay + r.decay + 0.5) * 1e3
+      );
+    }
+  }
+  /** A new impulse response when the last was made long enough ago, with the latest values. */
+  scheduleIr(b, r, ramp) {
+    if (r.rebuild) return;
+    const ctx = this.ctx;
+    const wait = Math.max(0, r.builtAt + IR_MIN_INTERVAL - performance.now());
+    r.rebuild = setTimeout(() => {
+      r.rebuild = null;
+      if (this.ctx !== ctx || this.nodes[b]?.reverb !== r) return;
+      const p = this.params[b].reverb;
+      if (r.decay === p.decay && r.damping === p.damping) return;
+      const conv = ctx.createConvolver();
+      conv.normalize = false;
+      conv.buffer = impulse(ctx, p.decay, p.damping);
+      const level = ctx.createGain();
+      level.gain.value = 0;
+      r.predelay.connect(conv).connect(level).connect(this.nodes[b].volume);
+      const fade = Math.max(ramp, IR_MIN_FADE);
+      const t = ctx.currentTime;
+      level.gain.setTargetAtTime(1, t, fade / 4);
+      r.level.gain.setTargetAtTime(0, t, fade / 4);
+      const [oldConv, oldLevel] = [r.conv, r.level];
+      setTimeout(() => {
+        oldConv.disconnect();
+        oldLevel.disconnect();
+      }, (fade * 1.6 + 0.1) * 1e3);
+      Object.assign(r, { conv, level, decay: p.decay, damping: p.damping, builtAt: performance.now() });
+    }, wait);
+  }
+  applyDelay(b, ramp, at) {
+    const ctx = this.ctx;
+    const n = this.nodes[b];
+    const p = this.params[b].delay;
+    if (!n.delay) {
+      if (p.wet <= 0) return;
+      const wet = ctx.createGain();
+      wet.gain.value = 0;
+      const line = ctx.createDelay(MAX_DELAY);
+      line.delayTime.value = p.time;
+      const damp = ctx.createBiquadFilter();
+      damp.type = "lowpass";
+      const feedback = ctx.createGain();
+      n.lowpass.connect(wet).connect(line).connect(damp).connect(n.volume);
+      damp.connect(feedback).connect(line);
+      n.delay = { wet, line, damp, feedback };
+      if (at === null) at = ctx.currentTime;
+    }
+    const d = n.delay;
+    glide(d.wet.gain, p.wet, ramp, at);
+    glide(d.line.delayTime, p.time, ramp, at);
+    glide(d.feedback.gain, p.feedback, ramp, at);
+    sweep(d.damp.frequency, Math.min(2e4 * 0.05 ** p.damping, ctx.sampleRate * 0.49), ramp, at);
+  }
+  /** Preview aid (part of `mb.audio()`). */
+  debug() {
+    return this.params.map((p, b) => ({
+      bus: ["master", "music", "sfx"][b],
+      ...structuredClone(p),
+      reverbBuilt: !!this.nodes[b]?.reverb,
+      delayBuilt: !!this.nodes[b]?.delay
+    }));
+  }
+};
+function glide(param, v, ramp, at) {
+  if (at === null) {
+    param.cancelScheduledValues(0);
+    param.value = v;
+    return;
+  }
+  param.setTargetAtTime(v, at, Math.max(ramp, MIN_RAMP) / 4);
+}
+function sweep(param, hz, ramp, at) {
+  if (at === null) {
+    param.cancelScheduledValues(0);
+    param.value = hz;
+    return;
+  }
+  const from = param.value;
+  param.cancelScheduledValues(at);
+  param.setValueAtTime(from > 0 ? from : hz, at);
+  param.exponentialRampToValueAtTime(hz, at + Math.max(ramp, MIN_RAMP));
+}
+function qDb(q2) {
+  return 20 * Math.log10(q2);
+}
+function impulse(ctx, decay, damping) {
+  const rate = ctx.sampleRate;
+  const len = Math.max(1, Math.round(rate * (decay + 0.05)));
+  const buf = ctx.createBuffer(2, len, rate);
+  const top = 14e3;
+  const bottom = top * 0.02 ** damping;
+  let seed = 625341585;
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    let lp = 0;
+    let energy = 0;
+    for (let i = 0; i < len; i++) {
+      const t = i / rate;
+      seed ^= seed << 13;
+      seed ^= seed >>> 17;
+      seed ^= seed << 5;
+      const noise = (seed >>> 0) / 2147483648 - 1;
+      const fc = top * (bottom / top) ** Math.min(1, t / decay);
+      lp += (noise - lp) * (1 - Math.exp(-2 * Math.PI * fc / rate));
+      const v = lp * Math.exp(-6.9078 * t / decay) * Math.min(1, t / 0.01);
+      d[i] = v;
+      energy += v * v;
+    }
+    const k = 1 / Math.sqrt(energy || 1);
+    for (let i = 0; i < len; i++) d[i] *= k;
+  }
+  return buf;
+}
+
+// src/audio.ts
+var MAX_VOICES = 32;
+var MASTER_GAIN = 0.8;
+var GLIDE = 0.012;
+var RESUME_GRACE_MS = 400;
+var PRESENT_FRAMES = 1;
+var FALLBACK_OUTPUT_LATENCY = 0.02;
+var LATE_START_LEAD = 0.01;
+var CLOCK_SMOOTHING = 0.05;
+var CLOCK_SNAP = 0.02;
+var CLOCK_HYSTERESIS = 1e-3;
+var RESCHEDULE_AT = 1e-3;
+var CLOCK_SETTLE_FRAMES = 120;
+var MAX_TIMING_LOGS = 12;
+var MIN_FADE = 3e-3;
+var RELEASE_TC = 6.9;
+var Audio = class {
+  ctx = null;
+  /** Mute and master level, after the buses and before the limiter. */
+  master = null;
+  buses = new Buses();
+  decoder = null;
+  sounds = [];
+  /** Decoded audio by source bytes (shared across sessions via the asset cache). */
+  decoded = /* @__PURE__ */ new WeakMap();
+  voices = /* @__PURE__ */ new Map();
+  nextVoice = 1;
+  /** The page is active (shown and running), so it may hold a running context. */
+  active = false;
+  muted = false;
+  /** The player turned game sound off (app setting); independent of prerolling. */
+  userMuted = false;
+  generation = 0;
+  warned = false;
+  /** Fast-forwarding a restored session (watch mode): nothing starts playing. */
+  ff = false;
+  silence = null;
+  // --- the clock: game time → wall time → context time ----------------------
+  /** The current frame: its rAF timestamp (ms; NaN = no frame since the clock
+   *  was invalidated), its game time and game seconds per wall second. */
+  frameNow = NaN;
+  frameGame = 0;
+  frameScale = 1;
+  lastFrameNow = NaN;
+  /** Smoothed display frame period (ms), and the presentation delay in use. */
+  period = 1e3 / 60;
+  presentMs = 1e3 / 60 * PRESENT_FRAMES;
+  /** Context seconds − performance.now seconds for the sample being heard:
+   *  smoothed, and the value in use (hysteresis). */
+  offsetEst = null;
+  offset = null;
+  farReadings = 0;
+  via = "latency";
+  /** This context has given a sane getOutputTimestamp; stop falling back. */
+  otsSeen = false;
+  /** Frames since this context's first clock reading (for the settled log). */
+  clockFrames = -1;
+  /** The previous frame's mapping, to notice when it moves. */
+  prevMap = null;
+  timingLogs = 0;
+  constructor() {
+    const unlock = () => this.unlock();
+    for (const ev of ["pointerdown", "pointerup", "touchend", "click", "keydown"]) {
+      if (typeof window !== "undefined") window.addEventListener(ev, unlock, { capture: true, passive: true });
+    }
+  }
+  /** WebKit plays Web Audio as "ambient" (muted by the silent switch)
+   *  unless the page asks for playback (PLAN Q14). */
+  setPlayback(on) {
+    const session = navigator.audioSession;
+    if (session) {
+      session.type = on ? "playback" : "ambient";
+      post({ op: "log", level: 0, msg: `runtime: audio session ${session.type}` });
+    } else if (on && !this.silence) {
+      this.silence = new window.Audio(new URL("silence.wav", import.meta.url).href);
+      this.silence.loop = true;
+      void this.silence.play().catch((e) => post({ op: "log", level: 2, msg: `runtime: silent audio failed: ${e}` }));
+      post({ op: "log", level: 0, msg: "runtime: audio session via silent media element" });
+    } else if (!on && this.silence) {
+      this.silence.pause();
+      this.silence = null;
+    }
+  }
+  // --- lifecycle ---------------------------------------------------------------
+  /** The page is shown and running: create (or revive) the context and start loops. */
+  resume() {
+    this.active = true;
+    if (!this.ctx) {
+      this.createContext();
+      return;
+    }
+    const ctx = this.ctx;
+    void ctx.resume().catch(() => {
+    });
+    setTimeout(() => {
+      if (this.active && this.ctx === ctx && ctx.state !== "running") this.rebuild(`resume left it ${ctx.state}`);
+    }, RESUME_GRACE_MS);
+  }
+  /** The page is going off screen (or is a neighbour): stop holding audio.
+   *  Every voice pauses; play_at voices are rescheduled from game time on resume. */
+  suspend() {
+    this.active = false;
+    void this.ctx?.suspend().catch(() => {
+    });
+    this.invalidateClock(true);
+  }
+  /** Silences output without stopping voices (a feed neighbour prerolling). */
+  setMuted(on) {
+    this.muted = on;
+    this.applyGain();
+  }
+  /** The app's sound setting: silent while off, whatever else is going on. */
+  setUserMuted(on) {
+    this.userMuted = on;
+    this.applyGain();
+  }
+  applyGain() {
+    if (this.master) this.master.gain.value = this.muted || this.userMuted ? 0 : MASTER_GAIN;
+  }
+  /** Watch mode: a restored session runs many frames in a moment. Meanwhile
+   *  mb_play one-shots are dropped (they'd all be late) and nothing starts;
+   *  afterwards loops start and play_at voices are scheduled from game time,
+   *  so music picks up where the run had got to. */
+  fastForward(on) {
+    this.ff = on;
+    this.invalidateClock(true);
+    if (!on) this.flush();
+  }
+  /** A new game session: the old session's voices stop and sound handles
+   *  restart from 1. Decoded audio is kept and reused. */
+  newSession() {
+    for (const id of [...this.voices.keys()]) this.stop(id);
+    this.buses.reset();
+    this.sounds = [];
+    this.generation++;
+    this.timingLogs = 0;
+    this.frameNow = NaN;
+    this.prevMap = null;
+  }
+  createContext() {
+    const ctx = new AudioContext({ latencyHint: "interactive" });
+    const master = ctx.createGain();
+    master.gain.value = this.muted || this.userMuted ? 0 : MASTER_GAIN;
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -9;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 12;
+    limiter.attack.value = 3e-3;
+    limiter.release.value = 0.15;
+    master.connect(limiter).connect(ctx.destination);
+    ctx.onstatechange = () => {
+      post({ op: "log", level: 0, msg: `runtime: audio ${ctx.state}` });
+      if (ctx.state !== "running" && this.ctx === ctx) this.invalidateClock(false);
+      if (ctx.state === "interrupted" && this.active && this.ctx === ctx) {
+        setTimeout(() => {
+          if (this.active && this.ctx === ctx && ctx.state !== "running") {
+            void ctx.resume().catch(() => {
+            });
+            setTimeout(() => this.active && this.ctx === ctx && ctx.state !== "running" && this.rebuild("interrupted"), RESUME_GRACE_MS);
+          }
+        }, 100);
+      }
+    };
+    this.ctx = ctx;
+    this.master = master;
+    this.buses.attach(ctx, master);
+    this.otsSeen = false;
+    this.clockFrames = -1;
+    this.invalidateClock(false);
+    post({ op: "log", level: 0, msg: `runtime: audio context created (${ctx.state})` });
+    void ctx.resume().catch(() => {
+    });
+    for (const [id, v] of this.voices) {
+      if (v.at !== null || v.nodes) continue;
+      if (v.loop) this.tryStart(id, v);
+      else this.voices.delete(id);
+    }
+    this.flush();
+  }
+  /** Replaces a context that won't run with a fresh one. */
+  rebuild(why) {
+    post({ op: "log", level: 1, msg: `runtime: rebuilding audio (${why})` });
+    const old = this.ctx;
+    for (const v of this.voices.values()) v.nodes = null;
+    this.ctx = null;
+    this.master = null;
+    this.buses.detach();
+    void old?.close().catch(() => {
+    });
+    this.createContext();
+  }
+  unlock() {
+    if (!this.active) return;
+    if (!this.ctx) this.createContext();
+    const ctx = this.ctx;
+    if (ctx.state === "running") return;
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    src.connect(ctx.destination);
+    src.start();
+    ctx.resume().catch((e) => post({ op: "log", level: 2, msg: `runtime: audio resume failed: ${e}` }));
+  }
+  // --- the clock -----------------------------------------------------------------
+  /** Called once per frame, after game time has advanced and before
+   *  mb_update: `now` is the frame's requestAnimationFrame timestamp,
+   *  `game` its game time, `scale` game seconds per wall second. */
+  frame(now, game, scale) {
+    if (this.ff) {
+      this.frameGame = game;
+      return;
+    }
+    if (Number.isFinite(this.lastFrameNow)) {
+      const p = now - this.lastFrameNow;
+      if (p >= 4 && p <= 50) this.period += (p - this.period) * 0.05;
+    }
+    this.lastFrameNow = now;
+    const present2 = this.period * PRESENT_FRAMES;
+    if (Math.abs(present2 - this.presentMs) > 1) this.presentMs = present2;
+    this.frameNow = now;
+    this.frameGame = game;
+    this.frameScale = scale > 0 ? scale : 1;
+    this.measure();
+    if (this.offset === null || !this.ctx) {
+      this.prevMap = null;
+      return;
+    }
+    const map = { now, game, scale: this.frameScale, present: this.presentMs, offset: this.offset };
+    const prev = this.prevMap;
+    this.prevMap = map;
+    if (prev) {
+      const before = (prev.now + prev.present + (game - prev.game) * 1e3 / prev.scale) / 1e3 + prev.offset;
+      const after = (now + map.present) / 1e3 + map.offset;
+      if (Math.abs(after - before) > RESCHEDULE_AT) this.reschedule();
+    }
+    this.flush();
+    for (const v of this.voices.values()) if (v.stopAt !== null && v.nodes && !Number.isFinite(v.stopWhen)) this.applyStop(v);
+    if (this.clockFrames >= 0 && ++this.clockFrames === CLOCK_SETTLE_FRAMES) this.logClock("settled");
+  }
+  /** Context time at which game time `at` is heard, with the current frame's mapping. */
+  ctxTimeOf(at) {
+    return (this.frameNow + this.presentMs + (at - this.frameGame) * 1e3 / this.frameScale) / 1e3 + (this.offset ?? 0);
+  }
+  clockReady() {
+    return Number.isFinite(this.frameNow) && this.offset !== null && this.ctx?.state === "running";
+  }
+  /** Output latency the context reports (s), with a fallback for what it doesn't. */
+  reportedLatency() {
+    const ctx = this.ctx;
+    const out = ctx.outputLatency;
+    return (ctx.baseLatency || 0) + (typeof out === "number" && out > 0 ? out : FALLBACK_OUTPUT_LATENCY);
+  }
+  /** Reads the context's clock against performance.now and updates the offset. */
+  measure() {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== "running") return;
+    const nowOffset = ctx.currentTime - performance.now() / 1e3;
+    let raw = null;
+    let via = "latency";
+    if (typeof ctx.getOutputTimestamp === "function") {
+      const ts = ctx.getOutputTimestamp();
+      const c = ts.contextTime ?? 0;
+      const p = ts.performanceTime ?? 0;
+      if (c > 0 && p > 0) {
+        const o = c - p / 1e3;
+        const behind = nowOffset - o;
+        if (behind > -5e-3 && behind < 1) {
+          raw = o;
+          via = "getOutputTimestamp";
+          this.otsSeen = true;
+        }
+      }
+    }
+    if (raw === null) {
+      if (this.otsSeen) return;
+      raw = nowOffset - this.reportedLatency();
+    }
+    const switched = via !== this.via;
+    this.via = via;
+    if (this.offsetEst === null || switched) {
+      this.offsetEst = raw;
+      this.farReadings = 0;
+    } else if (Math.abs(raw - this.offsetEst) > CLOCK_SNAP) {
+      if (++this.farReadings < 3) return;
+      post({ op: "log", level: 1, msg: `runtime: audio clock moved ${((raw - this.offsetEst) * 1e3).toFixed(1)} ms (output route change?)` });
+      this.offsetEst = raw;
+      this.farReadings = 0;
+      this.clockFrames = 0;
+    } else {
+      this.farReadings = 0;
+      this.offsetEst += (raw - this.offsetEst) * CLOCK_SMOOTHING;
+    }
+    const first = this.offset === null;
+    if (first || Math.abs(this.offsetEst - this.offset) > CLOCK_HYSTERESIS) this.offset = this.offsetEst;
+    if (first && this.clockFrames < 0) {
+      this.clockFrames = 0;
+      this.logClock("first");
+    }
+  }
+  /** Measurement aid (shows in the iOS app's console as `runtime: audio clock …`). */
+  logClock(when) {
+    const ctx = this.ctx;
+    if (!ctx || this.offset === null) return;
+    const ms = (s) => typeof s === "number" ? `${(s * 1e3).toFixed(1)} ms` : "n/a";
+    const trails = ctx.currentTime - performance.now() / 1e3 - this.offset;
+    post({
+      op: "log",
+      level: 1,
+      msg: `runtime: audio clock (${when}): baseLatency ${ms(ctx.baseLatency)}, outputLatency ${ms(ctx.outputLatency)}, getOutputTimestamp ${typeof ctx.getOutputTimestamp === "function" ? "yes" : "no"}, via ${this.via}, heard ${ms(trails)} after currentTime, frame ${this.period.toFixed(1)} ms, present +${this.presentMs.toFixed(1)} ms, ctx\u2212perf ${this.offset.toFixed(4)} s, ${ctx.sampleRate} Hz`
+    });
+  }
+  /** The clock can't be trusted (suspended, a new context, a stopped timeline):
+   *  play_at voices stop and are rescheduled once it's known again. */
+  invalidateClock(frameToo) {
+    if (frameToo) {
+      this.frameNow = NaN;
+      this.lastFrameNow = NaN;
+    }
+    this.offsetEst = null;
+    this.offset = null;
+    this.farReadings = 0;
+    this.prevMap = null;
+    for (const v of this.voices.values()) if (v.at !== null) this.stopNodes(v);
+  }
+  /** The mapping moved: play_at voices that haven't started yet are rescheduled. */
+  reschedule() {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    for (const v of this.voices.values()) {
+      if (v.at !== null && v.nodes && v.start > ctx.currentTime + LATE_START_LEAD) this.stopNodes(v);
+      else if (v.nodes && v.stopAt !== null && v.stopWhen > ctx.currentTime + LATE_START_LEAD) v.stopWhen = NaN;
+    }
+  }
+  // --- sounds and voices -------------------------------------------------------
+  /** Returns a sound handle (≥ 1) and decodes in the background. */
+  load(bytes) {
+    const handle = this.sounds.push(null);
+    const gen = this.generation;
+    let decoding = this.decoded.get(bytes);
+    if (!decoding && typeof OfflineAudioContext === "undefined") return handle;
+    if (!decoding) {
+      this.decoder ??= new OfflineAudioContext({ numberOfChannels: 1, length: 1, sampleRate: 48e3 });
+      decoding = this.decoder.decodeAudioData(bytes.slice().buffer);
+      this.decoded.set(bytes, decoding);
+      decoding.then(
+        (buf) => post({ op: "log", level: 0, msg: `runtime: sound decoded (${buf.duration.toFixed(2)} s)` }),
+        () => {
+        }
+      );
+    }
+    decoding.then((buf) => {
+      if (gen !== this.generation) return;
+      this.sounds[handle - 1] = buf;
+      this.flush();
+    }).catch((e) => post({ op: "log", level: 2, msg: `runtime: sound ${handle} failed to decode: ${e}` }));
+    return handle;
+  }
+  /** mb_play (`at` undefined: as soon as it can), mb_play_at (heard at game time `at`) and
+   *  mb_play_from (heard at `at` from `from` seconds into the sound, rising over `fadeIn` seconds). */
+  play(sound, vol, pan, pitch, loop, at, from = 0, fadeIn = 0) {
+    const id = this.nextVoice++;
+    if (sound < 1 || sound > this.sounds.length) return id;
+    if (at === void 0 && !loop && (!this.sounds[sound - 1] || !this.ctx || this.ff)) return id;
+    if (this.voices.size >= MAX_VOICES) {
+      let victim;
+      for (const [k, other] of this.voices) {
+        if (!other.loop) {
+          victim = k;
+          break;
+        }
+      }
+      this.stop(victim ?? this.voices.keys().next().value);
+    }
+    const v = {
+      sound,
+      vol,
+      pan,
+      pitch,
+      loop,
+      at: at ?? null,
+      when: NaN,
+      start: NaN,
+      offset: 0,
+      from: Number.isFinite(from) && from > 0 ? from : 0,
+      fadeIn: Number.isFinite(fadeIn) && fadeIn > 0 ? Math.min(fadeIn, 60) : 0,
+      stopAt: null,
+      stopFade: 0,
+      stopWhen: NaN,
+      bus: BUS_SFX,
+      nodes: null
+    };
+    this.voices.set(id, v);
+    this.tryStart(id, v);
+    return id;
+  }
+  /** Starts every voice that's waiting and now can. */
+  flush() {
+    for (const [id, v] of this.voices) if (!v.nodes) this.tryStart(id, v);
+  }
+  /** Starts a voice if it can: decoded, a context, and for play_at a known clock. */
+  tryStart(id, v) {
+    const ctx = this.ctx;
+    const buf = this.sounds[v.sound - 1];
+    if (v.nodes || !ctx || !this.master || !buf || this.ff) return;
+    if (v.at === null) {
+      if (ctx.state !== "running" && !this.warned) {
+        this.warned = true;
+        post({ op: "log", level: 2, msg: `runtime: playing while audio is ${ctx.state}` });
+      }
+      this.startNodes(id, v, buf, 0, 0);
+      return;
+    }
+    if (!this.clockReady()) return;
+    const when = this.ctxTimeOf(v.at);
+    const earliest = ctx.currentTime + LATE_START_LEAD;
+    let start = when;
+    const from = v.loop ? v.from % buf.duration : v.from;
+    let offset = from;
+    if (!v.loop && from >= buf.duration || v.stopAt !== null && this.ctxTimeOf(v.stopAt) + v.stopFade <= Math.max(when, earliest)) {
+      this.voices.delete(id);
+      return;
+    }
+    if (when < earliest) {
+      const late = earliest - when;
+      offset = from + late * pitchOf(v);
+      if (v.loop) {
+        offset %= buf.duration;
+      } else if (offset - from > (buf.duration - from) / 2) {
+        this.voices.delete(id);
+        this.timingLog(`runtime: voice ${id} skipped, ${(late * 1e3).toFixed(1)} ms late (sound ${buf.duration.toFixed(2)} s)`);
+        return;
+      }
+      start = earliest;
+      if (late > 2e-3) this.timingLog(`runtime: voice ${id}${v.loop ? " (loop)" : ""} started ${(late * 1e3).toFixed(1)} ms late, offset into its sound`);
+    }
+    v.when = when;
+    this.startNodes(id, v, buf, start, offset);
+  }
+  timingLog(msg) {
+    if (this.timingLogs++ < MAX_TIMING_LOGS) post({ op: "log", level: 0, msg });
+  }
+  startNodes(id, v, buf, start, offset) {
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = v.loop;
+    const pan = ctx.createStereoPanner();
+    const gain = ctx.createGain();
+    const fadeIn = ctx.createGain();
+    const fadeOut = ctx.createGain();
+    src.connect(pan).connect(gain).connect(fadeIn).connect(fadeOut).connect(this.buses.input(v.bus));
+    v.nodes = { src, pan, gain, fadeIn, fadeOut };
+    v.start = start;
+    v.offset = offset;
+    v.stopWhen = NaN;
+    this.apply(v, true);
+    const into = Number.isFinite(v.when) ? Math.max(0, start - v.when) : 0;
+    if (v.fadeIn > 0 && into < v.fadeIn) {
+      const p0 = into / v.fadeIn;
+      const n = 64;
+      const curve = new Float32Array(n);
+      for (let i = 0; i < n; i++) curve[i] = Math.sin((p0 + (1 - p0) * i / (n - 1)) * Math.PI / 2);
+      fadeIn.gain.setValueCurveAtTime(curve, start, Math.max(MIN_FADE, (1 - p0) * v.fadeIn));
+    } else if (offset > 0) {
+      fadeIn.gain.setValueAtTime(0, start);
+      fadeIn.gain.linearRampToValueAtTime(1, start + MIN_FADE);
+    }
+    src.onended = () => {
+      if (this.voices.get(id) === v && v.nodes?.src === src) this.voices.delete(id);
+    };
+    src.start(start, offset);
+    if (v.stopAt !== null) this.applyStop(v);
+  }
+  /** Schedules a voice's release (mb_voice_stop_at) on its nodes, once the clock is known. */
+  applyStop(v) {
+    const ctx = this.ctx;
+    const n = v.nodes;
+    if (!ctx || !n || v.stopAt === null || !this.clockReady()) return;
+    const now = ctx.currentTime;
+    const at = this.ctxTimeOf(v.stopAt);
+    const end = at + v.stopFade;
+    if (end <= v.start) {
+      v.stopWhen = v.start;
+      n.src.stop(v.start);
+      return;
+    }
+    const t = Math.max(at, now, v.start);
+    v.stopWhen = t;
+    const g = n.fadeOut.gain;
+    g.cancelScheduledValues(0);
+    if (end - t <= MIN_FADE) {
+      g.setValueAtTime(1, t);
+      g.linearRampToValueAtTime(0, t + MIN_FADE);
+      n.src.stop(t + 2 * MIN_FADE);
+      return;
+    }
+    const tc = v.stopFade / RELEASE_TC;
+    g.setValueAtTime(Math.exp(-(t - at) / tc), t);
+    g.setTargetAtTime(0, t, tc);
+    n.src.stop(end + MIN_FADE);
+  }
+  /** mb_voice_stop_at: the voice dies away from game time `at`, 60 dB over
+   *  `fade` seconds, then stops. A later call replaces one that hasn't begun. */
+  stopAt(voice, at, fade) {
+    const v = this.voices.get(voice);
+    if (!v) return;
+    const ctx = this.ctx;
+    if (ctx && v.nodes && Number.isFinite(v.stopWhen) && v.stopWhen <= ctx.currentTime) return;
+    v.stopAt = at;
+    v.stopFade = Number.isFinite(fade) && fade > 0 ? Math.min(fade, 60) : 0;
+    v.stopWhen = NaN;
+    if (v.nodes) this.applyStop(v);
+  }
+  /** Stops a voice's nodes but keeps the voice (to be started again). */
+  stopNodes(v) {
+    const n = v.nodes;
+    if (!n) return;
+    v.nodes = null;
+    n.src.onended = null;
+    try {
+      n.src.stop();
+    } catch {
+    }
+    n.fadeOut.disconnect();
+  }
+  update(voice, vol, pan, pitch) {
+    const v = this.voices.get(voice);
+    if (v) {
+      Object.assign(v, { vol, pan, pitch });
+      this.apply(v, false);
+    }
+  }
+  apply(v, now) {
+    if (!v.nodes || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    const go = (param, value) => {
+      if (now) param.value = value;
+      else param.setTargetAtTime(value, t, GLIDE);
+    };
+    go(v.nodes.gain.gain, Math.min(Math.max(v.vol, 0), 4));
+    go(v.nodes.pan.pan, Math.min(Math.max(v.pan, -1), 1));
+    go(v.nodes.src.playbackRate, pitchOf(v));
+  }
+  /** mb_voice_bus: plays the voice into another bus from now on. */
+  voiceBus(voice, bus) {
+    const v = this.voices.get(voice);
+    if (!v || !Number.isInteger(bus) || bus < 0 || bus >= BUS_COUNT || v.bus === bus) return;
+    v.bus = bus;
+    if (v.nodes) {
+      v.nodes.fadeOut.disconnect();
+      v.nodes.fadeOut.connect(this.buses.input(bus));
+    }
+  }
+  /** mb_bus_fx: 0, or −2 for an unknown bus or kind. Set at once while
+   *  fast-forwarding (only where the run got to matters). */
+  busFx(bus, kind, fields) {
+    return this.buses.set(bus, kind, fields, this.ff);
+  }
+  stop(voice) {
+    const v = this.voices.get(voice);
+    if (!v) return;
+    this.voices.delete(voice);
+    try {
+      v.nodes?.src.stop();
+    } catch {
+    }
+  }
+  /** Preview aid (`mb.audio()`): the clock and every voice, for checking alignment. */
+  debug() {
+    const ctx = this.ctx;
+    return {
+      state: ctx?.state ?? "none",
+      sampleRate: ctx?.sampleRate ?? 0,
+      baseLatency: ctx?.baseLatency ?? null,
+      outputLatency: ctx?.outputLatency ?? null,
+      getOutputTimestamp: typeof ctx?.getOutputTimestamp === "function",
+      via: this.via,
+      currentTime: ctx?.currentTime ?? 0,
+      /** Context seconds − performance.now seconds for the sample being heard. */
+      offset: this.offset,
+      framePeriodMs: this.period,
+      presentMs: this.presentMs,
+      gameTime: this.frameGame,
+      buses: this.buses.debug(),
+      voices: [...this.voices].map(([id, v]) => ({
+        id,
+        sound: v.sound,
+        loop: v.loop,
+        bus: v.bus,
+        at: v.at,
+        from: v.from,
+        fadeIn: v.fadeIn,
+        stopAt: v.stopAt,
+        stopFade: v.stopFade,
+        when: v.when,
+        start: v.start,
+        offset: v.offset,
+        playing: v.nodes !== null
+      }))
+    };
+  }
+};
+function pitchOf(v) {
+  return Math.min(Math.max(v.pitch, 0.125), 8);
+}
+
+// src/boot.ts
+async function loadBoot() {
+  if (window.__MB_BOOT) return window.__MB_BOOT;
+  const res = await fetch("../game/boot.json");
+  if (!res.ok) throw new Error(`no boot config (window.__MB_BOOT or game/boot.json): ${res.status}`);
+  return await res.json();
+}
+
+// src/input.ts
+var Input = class {
+  constructor(el, layout, touchDeclared, mouseDeclared) {
+    this.layout = layout;
+    this.touchDeclared = touchDeclared;
+    this.mouseDeclared = mouseDeclared;
+    el.addEventListener("pointerdown", (e) => this.down(e));
+    el.addEventListener("pointermove", (e) => this.move(e));
+    el.addEventListener("pointerup", (e) => this.up(e, false));
+    el.addEventListener("pointercancel", (e) => this.up(e, true));
+    el.style.touchAction = "none";
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+  pending = [];
+  /** When each pending event happened (ms, performance.now clock); NaN = at the frame. */
+  stamps = [];
+  /** pointerId → small id, for pointers the game owns. */
+  owned = /* @__PURE__ */ new Map();
+  nextId = 0;
+  /** The latency probe (SPEC §9 `mb.latency()`); its record for each pending event, while it's on. */
+  latency = null;
+  probes = [];
+  /** Probe records of the events the last `take()` returned. */
+  taken = [];
+  /** A tap at CSS pixels (the native feed forwards the tap that starts play). */
+  tapAt(x, y) {
+    const l = this.layout();
+    const lx = Math.fround((x - l.offsetX) / l.scale);
+    const ly = Math.fround((y - l.offsetY) / l.scale);
+    const [down, up] = this.touchDeclared || !this.mouseDeclared ? [1 /* TouchDown */, 3 /* TouchUp */] : [7 /* MouseDown */, 9 /* MouseUp */];
+    const id = this.nextId++ & 255;
+    const now = performance.now();
+    this.pending.push([down, id, 0, lx, ly, 1, 0, 0], [up, id, 0, lx, ly, 0, 0, 0]);
+    this.stamps.push(now, now);
+  }
+  /** Queues an event from another source (keyboard, gamepad), with its
+   *  timestamp if it has one (otherwise it counts as happening at the frame). */
+  push(e, stamp = NaN) {
+    this.pending.push(e);
+    this.stamps.push(stamp);
+    const probe2 = this.latency?.event(e[0], e[1], stamp);
+    if (probe2) this.probes[this.pending.length - 1] = probe2;
+  }
+  /** Moves queued events to the guest's frame. Call once per frame boundary.
+   *  With `frame`, each event gets its lag behind the frame's game time:
+   *  whole microseconds, within the frame's dt, never growing along the
+   *  queue (so times stay monotonic). Without it (input being dropped) no
+   *  lags are computed. */
+  take(frame) {
+    const events = this.pending;
+    const stamps = this.stamps;
+    this.pending = [];
+    this.stamps = [];
+    this.taken = this.probes;
+    this.probes = [];
+    if (!frame) return events;
+    const max = Math.max(0, Math.floor(frame.dt * 1e6));
+    let prev = max;
+    return events.map((ev, i) => {
+      const stamp = stamps[i] ?? NaN;
+      let lag = Number.isFinite(stamp) ? Math.round((frame.now - stamp) * 1e3 * frame.scale) : 0;
+      lag = Math.min(Math.max(lag, 0), max, prev);
+      prev = lag;
+      if (lag === 0) return ev;
+      const out = ev.slice(0, 8);
+      out.push(lag);
+      return out;
+    });
+  }
+  asTouch(e) {
+    return e.pointerType !== "mouse" || !this.mouseDeclared;
+  }
+  pointer(kind, id, e) {
+    const l = this.layout();
+    const x = Math.fround((e.clientX - l.offsetX) / l.scale);
+    const y = Math.fround((e.clientY - l.offsetY) / l.scale);
+    this.push([kind, id, 0, x, y, Math.fround(e.pressure), 0, 0], e.timeStamp);
+  }
+  down(e) {
+    const l = this.layout();
+    if (e.clientY >= l.height - l.stripHeight) return;
+    const touch = this.asTouch(e);
+    if (touch ? !this.touchDeclared : !this.mouseDeclared) return;
+    const id = touch ? this.nextId++ & 255 : e.button & 255;
+    this.owned.set(e.pointerId, id);
+    this.lastMove.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY });
+    e.target.setPointerCapture?.(e.pointerId);
+    this.pointer(touch ? 1 /* TouchDown */ : 7 /* MouseDown */, id, e);
+  }
+  move(e) {
+    const id = this.owned.get(e.pointerId);
+    let kind;
+    if (id !== void 0) kind = this.asTouch(e) ? 2 /* TouchMove */ : 8 /* MouseMove */;
+    else if (e.pointerType === "mouse" && this.mouseDeclared) kind = 8 /* MouseMove */;
+    else return;
+    for (const s of this.samples(e)) this.pointer(kind, id ?? 0, s);
+  }
+  /** Last move sample delivered per pointer: time (ms) and position. */
+  lastMove = /* @__PURE__ */ new Map();
+  /** A move's samples. Browsers send at most one pointermove per animation
+   *  frame, so on a touch panel faster than the display (120 Hz and up)
+   *  samples would be dropped and the one kept would carry a frame-aligned
+   *  time; `getCoalescedEvents()` has every sample since the last
+   *  pointermove, each with its own time and position. In order, skipping
+   *  repeats and anything older than the last sample delivered. */
+  samples(e) {
+    const all = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+    const list = all.length ? all : [e];
+    const out = [];
+    let last = this.lastMove.get(e.pointerId);
+    for (const s of list) {
+      if (last && (s.timeStamp < last.t || s.timeStamp === last.t && s.clientX === last.x && s.clientY === last.y)) continue;
+      last = { t: s.timeStamp, x: s.clientX, y: s.clientY };
+      out.push(s);
+    }
+    if (last) this.lastMove.set(e.pointerId, last);
+    return out;
+  }
+  up(e, cancel) {
+    this.lastMove.delete(e.pointerId);
+    const id = this.owned.get(e.pointerId);
+    if (id === void 0) return;
+    this.owned.delete(e.pointerId);
+    const kind = this.asTouch(e) ? cancel ? 4 /* TouchCancel */ : 3 /* TouchUp */ : 9 /* MouseUp */;
+    this.pointer(kind, id, e);
+  }
+};
+function writeEvents(view, ptr, events, times) {
+  events.forEach((ev, i) => {
+    const o = ptr + i * 32;
+    view.setUint8(o, ev[0]);
+    view.setUint8(o + 1, ev[1]);
+    view.setUint16(o + 2, ev[2], true);
+    view.setFloat32(o + 4, ev[3], true);
+    view.setFloat32(o + 8, ev[4], true);
+    view.setFloat32(o + 12, ev[5], true);
+    view.setFloat32(o + 16, ev[6], true);
+    view.setUint32(o + 20, ev[7], true);
+    view.setFloat64(o + 24, times[i] ?? 0, true);
+  });
+}
+
+// src/stats.ts
+var KEEP = 600;
+var BUDGETS = { draws: 200, triangles: 15e4, skinned: 16, particles: 5e3 };
+function budgetUse(f) {
+  const n = (k) => typeof f[k] === "number" ? f[k] : 0;
+  return { draws: n("draws") + n("reflected") + n("under"), triangles: n("triangles") + n("reflectedTriangles"), skinned: n("skinned"), particles: n("particles") };
+}
+function overBudget(f) {
+  const use = budgetUse(f);
+  return Object.keys(BUDGETS).filter((k) => use[k] > BUDGETS[k]);
+}
+function spread(values) {
+  const v = values.filter((x) => typeof x === "number" && Number.isFinite(x)).sort((a, b) => a - b);
+  if (v.length === 0) return null;
+  const at = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))];
+  return { p50: at(0.5), p95: at(0.95), max: v[v.length - 1] };
+}
+var Stats = class {
+  /** Ring buffer: `next` is where the next frame goes. */
+  ring = [];
+  next = 0;
+  /** Keep what each frame drew (a `host_stats()` call per frame). Always in
+   *  the preview; on a device, from the first `mb.stats()` on. */
+  drawn;
+  constructor(drawn) {
+    this.drawn = drawn;
+  }
+  push(s) {
+    this.ring[this.next] = s;
+    this.next = (this.next + 1) % KEEP;
+  }
+  /** The last `n` frames kept, oldest first. */
+  frames(n = KEEP) {
+    const all = this.ring.length < KEEP ? this.ring.slice() : [...this.ring.slice(this.next), ...this.ring.slice(0, this.next)];
+    return all.slice(Math.max(0, all.length - n));
+  }
+  clear() {
+    this.ring = [];
+    this.next = 0;
+  }
+  /** The frames kept and `{ p50, p95, max }` of each numeric field over them. */
+  report(opts) {
+    const frames = this.frames();
+    const keys = /* @__PURE__ */ new Set(["interval", "mb_update", "mb_render", "present", "gpu"]);
+    for (const f of frames) for (const k in f) if (k !== "frame" && (typeof f[k] === "number" || f[k] === null)) keys.add(k);
+    const summary = {};
+    for (const k of keys) summary[k] = spread(frames.map((f) => f[k]));
+    if (opts?.reset) this.clear();
+    return { frames, summary };
+  }
+};
+function drawStatsOverlay(stats) {
+  const el = document.createElement("div");
+  el.style.cssText = "position:fixed;top:4px;right:4px;z-index:11;pointer-events:none;padding:3px 5px;border-radius:4px;background:rgba(0,0,0,.45);color:#fff;font:10px/1.3 ui-monospace,Menlo,monospace;white-space:pre;text-align:right";
+  document.body.append(el);
+  const num = (v) => typeof v === "number" ? v : null;
+  const show = () => {
+    const frames = stats.frames(60);
+    const last = frames[frames.length - 1];
+    const interval = spread(frames.map((f) => f.interval));
+    const fps = interval ? (1e3 / interval.p50).toFixed(0) : "\u2013";
+    const p95 = (k2) => spread(frames.map((f) => f[k2]))?.p95.toFixed(1) ?? "\u2013";
+    const draws = num(last?.draws);
+    const tris = num(last?.triangles);
+    const scale = num(last?.renderScale);
+    const k = (v) => v >= 1e3 ? `${(v / 1e3).toFixed(1).replace(/\.0$/, "")}k` : `${v}`;
+    const over = last ? overBudget(last) : [];
+    const use = last ? budgetUse(last) : null;
+    const worst = last?.top?.[0];
+    el.style.background = over.length ? "rgba(190,20,20,.85)" : "rgba(0,0,0,.45)";
+    el.textContent = `${fps} fps  p95 ${interval ? interval.p95.toFixed(1) : "\u2013"} ms
+upd ${p95("mb_update")} ren ${p95("mb_render")} host ${p95("present")}
+${draws === null ? "\u2013" : `${draws}+${num(last?.draws2d) ?? 0}`} draws ${tris === null ? "0" : k(tris)} tris` + (scale === null ? "" : ` \xD7${scale.toFixed(2)}`) + (use ? over.map((b) => `
+over: ${b} ${k(use[b])} > ${k(BUDGETS[b])}`).join("") : "") + (over.length && worst ? `
+most: node ${worst.node} ${k(worst.triangles + worst.reflectedTriangles)} tris` : "");
+  };
+  show();
+  setInterval(show, 250);
+}
+
+// src/latency.ts
+var KEEP2 = 2e3;
+var KEEP_FRAMES = 1200;
+var KINDS = {
+  1: ["down", "touch"],
+  2: ["move", "touch"],
+  3: ["up", "touch"],
+  4: ["cancel", "touch"],
+  5: ["key_down", "key"],
+  6: ["key_up", "key"],
+  7: ["down", "touch"],
+  8: ["move", "touch"],
+  9: ["up", "touch"],
+  10: ["wheel", "touch"]
+};
+var Latency = class {
+  enabled = false;
+  ring = [];
+  next = 0;
+  frameRing = [];
+  nextFrame = 0;
+  /** The live frame being run (set by `deliver`), until its submit. */
+  running = null;
+  /** Delivered by the frame being run, waiting for its submit. */
+  current = [];
+  /** The newest tilt sample not yet delivered (the game sees only the newest one per frame). */
+  tiltPending = null;
+  /** An input event reached the page; null while off or when it has no time of its own. */
+  event(kind, id, stamp) {
+    const k = KINDS[kind];
+    if (!this.enabled || !k || !Number.isFinite(stamp)) return null;
+    return { kind: k[0], group: k[1], id: k[1] === "touch" ? id : null, stamp, received: performance.now(), frame: null, frameStart: null, submitted: null, presented: null };
+  }
+  /** A motion sample (tilt, or attitude for games that aim with it) reached the page at
+   *  `received`, taken at `stamp`. */
+  tilt(stamp, received, kind = "tilt") {
+    if (!this.enabled) return;
+    this.tiltPending = { kind, group: "tilt", id: null, stamp, received, frame: null, frameStart: null, submitted: null, presented: null };
+  }
+  /** A live frame delivered these events (and the newest tilt sample) to the game. */
+  deliver(events, frame, frameStart) {
+    if (!this.enabled) return;
+    this.current = [];
+    this.running = { frame, frameStart };
+    const all = this.tiltPending ? [...events, this.tiltPending] : events;
+    this.tiltPending = null;
+    for (const e of all) {
+      if (!e) continue;
+      e.frame = frame;
+      e.frameStart = frameStart;
+      this.current.push(e);
+      this.ring[this.next] = e;
+      this.next = (this.next + 1) % KEEP2;
+    }
+  }
+  /** The frame just run was submitted to the GPU at `t` (null: it wasn't presented). */
+  submitted(t) {
+    for (const e of this.current) e.submitted = t;
+    this.current = [];
+    if (this.running && t !== null) {
+      this.frameRing[this.nextFrame] = { ...this.running, submitted: t, presented: null };
+      this.nextFrame = (this.nextFrame + 1) % KEEP_FRAMES;
+    }
+    this.running = null;
+  }
+  /** Native: session frame `frame` was presented at `t` (performance.now clock). */
+  presented(frame, t) {
+    if (!Number.isFinite(frame) || !Number.isFinite(t)) return;
+    for (let j = 1; j <= this.frameRing.length; j++) {
+      const f = this.frameRing[(this.nextFrame - j + this.frameRing.length) % this.frameRing.length];
+      if (f.frame < frame) break;
+      if (f.frame === frame) f.presented ??= t;
+    }
+    const n = this.ring.length;
+    for (let j = 1; j <= n; j++) {
+      const e = this.ring[(this.next - j + n) % n];
+      if (e.frame === null) continue;
+      if (e.frame < frame) break;
+      if (e.frame === frame && e.presented === null) e.presented = t;
+    }
+  }
+  /** Kept events, oldest first. */
+  events() {
+    return this.ring.length < KEEP2 ? this.ring.slice() : [...this.ring.slice(this.next), ...this.ring.slice(0, this.next)];
+  }
+  /** Kept frames, oldest first. */
+  frames() {
+    const r = this.frameRing;
+    return r.length < KEEP_FRAMES ? r.slice() : [...r.slice(this.nextFrame), ...r.slice(0, this.nextFrame)];
+  }
+  clear() {
+    this.ring = [];
+    this.next = 0;
+    this.frameRing = [];
+    this.nextFrame = 0;
+    this.running = null;
+    this.current = [];
+    this.tiltPending = null;
+  }
+  /** The events and, per group, p50/p95/max of each stage (ms):
+   *  deliver = received − stamp, toFrame = frameStart − received,
+   *  toSubmit = submitted − stamp, toPresent = presented − stamp. */
+  report() {
+    const events = this.events();
+    const summary = {};
+    for (const g of ["touch", "key", "tilt"]) {
+      const es = events.filter((e) => e.group === g);
+      if (!es.length) continue;
+      const d = (f) => spread(es.map(f));
+      summary[g] = {
+        deliver: d((e) => e.received - e.stamp),
+        toFrame: d((e) => e.frameStart === null ? null : e.frameStart - e.received),
+        toSubmit: d((e) => e.submitted === null ? null : e.submitted - e.stamp),
+        toPresent: d((e) => e.presented === null ? null : e.presented - e.stamp)
+      };
+    }
+    return { enabled: this.enabled, events, frames: this.frames(), summary };
+  }
+};
+
+// src/motion.ts
+var SAMPLE_HZ = 100;
+var q = (v, steps, lo, hi) => Math.round(Math.max(lo, Math.min(hi, v)) * steps) / steps;
+var vec = (x, y, z, max) => [x, y, z].every(Number.isFinite) ? [q(x, 4096, -max, max), q(y, 4096, -max, max), q(z, 4096, -max, max)] : null;
+function att(a) {
+  if (a.length < 7 || !a.slice(0, 7).every(Number.isFinite)) return null;
+  const n = Math.hypot(a[0], a[1], a[2], a[3]);
+  if (n < 0.5) return null;
+  const s = a[3] < 0 ? -1 / n : 1 / n;
+  const c = (v) => q(v * s, 32768, -1, 1);
+  const r = (v) => q(v, 1024, -64, 64);
+  return [c(a[0]), c(a[1]), c(a[2]), c(a[3]), r(a[4]), r(a[5]), r(a[6])];
+}
+var qmul = (a, b) => [
+  a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+  a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+  a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+  a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]
+];
+var qaxis = (x, y, z, angle) => {
+  const s = Math.sin(angle / 2);
+  return [x * s, y * s, z * s, Math.cos(angle / 2)];
+};
+function pose(yaw, pitch, roll) {
+  return qmul(qmul(qaxis(0, -1, 0, yaw), qaxis(1, 0, 0, -pitch)), qaxis(0, 0, 1, roll));
+}
+function gravityOf(q2) {
+  const [x, y, z, w] = q2;
+  return [2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)];
+}
+function rateOf(from, to, dt) {
+  let d = qmul([-from[0], -from[1], -from[2], from[3]], to);
+  if (d[3] < 0) d = [-d[0], -d[1], -d[2], -d[3]];
+  return dt > 0 ? [2 * d[0] / dt, 2 * d[1] / dt, 2 * d[2] / dt] : [0, 0, 0];
+}
+var Sensors = class {
+  /** `source`: who supplies samples: the iOS app pushes them ("native"), a phone's browser has
+   *  its own events ("device"), a desktop preview emulates them. `off`: start with tilt and
+   *  motion off (the preview's `?sensors=none`). */
+  constructor(want, source, off = false) {
+    this.want = want;
+    this.available = !off;
+    if (source === "emulate") this.emulate();
+    else if (source === "device") this.device();
+  }
+  /** Latest samples; null until the first one arrives. */
+  tilt = null;
+  motion = null;
+  attitude = null;
+  /** 0–1, or −1 when the mic is unavailable (denied, missing). */
+  loudness = null;
+  /** False while tilt, motion and attitude are off (`off()`): no samples reach the game. */
+  available = true;
+  /** A touch device whose browser has orientation and motion events (a phone, a tablet). */
+  static deviceHasMotion() {
+    return typeof DeviceOrientationEvent !== "undefined" && navigator.maxTouchPoints > 0 && matchMedia("(pointer: coarse)").matches;
+  }
+  /** Preview: tilt and motion were set from outside, and the pointer leaves them alone until `on()`. */
+  pinnedMotion = false;
+  /** Native: gravity and user acceleration, game axes, in g, and the attitude (quaternion and
+   *  rotation rate) when there is one. A sample turns the sensors back on (and in the preview
+   *  pins them). */
+  set(gx, gy, gz, ax, ay, az, attitude = []) {
+    this.available = true;
+    this.pinnedMotion = this.emulated;
+    if (this.want.tilt) this.tilt = vec(gx, gy, gz, 4) ?? this.tilt;
+    if (this.want.motion) this.motion = vec(ax, ay, az, 16) ?? this.motion;
+    if (this.want.attitude) this.attitude = att(attitude) ?? this.attitude;
+  }
+  /** No tilt or motion from now on (the game sees them as unavailable, -6). */
+  off() {
+    this.available = false;
+    this.tilt = null;
+    this.motion = null;
+    this.attitude = null;
+  }
+  /** Tilt and motion back on (or unpinned): in the preview, emulated again
+   *  from upright and still; natively, from the next sample. */
+  on() {
+    if (this.available && !this.pinnedMotion) return;
+    this.available = true;
+    this.pinnedMotion = false;
+    if (this.emulated) this.seed();
+  }
+  /** The preview's starting readings: upright and still. */
+  seed() {
+    if (!this.available) return;
+    if (this.want.tilt) this.tilt = [0, 1, 0];
+    if (this.want.motion) this.motion = [0, 0, 0];
+    if (this.want.attitude) this.attitude = [0, 0, 0, 1, 0, 0, 0];
+    this.pointer.tilt = null;
+    this.pointer.motion = null;
+    this.pointer.pose = null;
+  }
+  /** Preview: tilt, motion and attitude as the pointer has them now, waiting for the next sample. */
+  pointer = { tilt: null, motion: null, pose: null };
+  setLoudness(v) {
+    if (!this.want.loudness || !Number.isFinite(v)) return;
+    this.loudness = v < 0 ? -1 : q(v, 1024, 0, 1);
+  }
+  /** Preview: a console-pinned loudness that the emulation leaves alone (undefined unpins). */
+  pinned;
+  /** `mb.loudness()` from outside: native samples, or a preview pin. */
+  external(v) {
+    if (this.emulated) {
+      this.pinned = v;
+      if (v !== void 0) this.setLoudness(v);
+    } else if (v !== void 0) {
+      this.setLoudness(v);
+    }
+  }
+  emulated = false;
+  /** Preview: an emulated tilt sample was taken at `stamp` (for the latency probe). */
+  onEmulatedTilt = null;
+  emulate() {
+    this.emulated = true;
+    this.seed();
+    const pointer = this.pointer;
+    let last = null;
+    window.addEventListener("pointermove", (e) => {
+      if (!this.available || this.pinnedMotion) return;
+      if (this.want.attitude) {
+        const angle = (pos, size) => Math.max(-0.5, Math.min(0.5, pos / size - 0.5)) * (Math.PI / 2);
+        pointer.pose = pose(angle(e.clientX, window.innerWidth), -angle(e.clientY, window.innerHeight), 0);
+        if (this.want.tilt) pointer.tilt = vec(...gravityOf(pointer.pose), 4);
+      } else {
+        const angle = (pos, size) => Math.max(-1, Math.min(1, (pos / size - 0.5) * 3)) * (Math.PI / 2);
+        const roll = angle(e.clientX, window.innerWidth);
+        const pitch = angle(e.clientY, window.innerHeight);
+        if (this.want.tilt) pointer.tilt = vec(Math.sin(roll) * Math.cos(pitch), Math.cos(roll) * Math.cos(pitch), -Math.sin(pitch), 4);
+      }
+      const t = e.timeStamp / 1e3;
+      if (last && t > last.t) {
+        const dt = t - last.t;
+        const vx = (e.clientX - last.x) / dt;
+        const vy = (e.clientY - last.y) / dt;
+        const k = 6e-3;
+        if (this.want.motion) pointer.motion = vec((vx - last.vx) * k, (vy - last.vy) * k, 0, 16);
+        last = { x: e.clientX, y: e.clientY, vx, vy, t };
+      } else {
+        last = { x: e.clientX, y: e.clientY, vx: 0, vy: 0, t };
+      }
+    });
+    if (this.want.motion) {
+      setInterval(() => {
+        const m = pointer.motion;
+        if (m) pointer.motion = vec(m[0] * 0.5, m[1] * 0.5, m[2] * 0.5, 16);
+      }, 50);
+    }
+    if (this.want.tilt || this.want.motion || this.want.attitude) {
+      let last2 = null;
+      setInterval(() => {
+        if (!this.available || this.pinnedMotion) return;
+        let sampled = false;
+        if (pointer.tilt && pointer.tilt.join() !== this.tilt?.join()) {
+          this.tilt = pointer.tilt;
+          sampled = true;
+        }
+        if (pointer.motion) this.motion = pointer.motion;
+        if (this.want.attitude && pointer.pose) {
+          const a = att([...pointer.pose, ...rateOf(last2 ?? pointer.pose, pointer.pose, 1 / SAMPLE_HZ)]);
+          last2 = pointer.pose;
+          if (a && a.join() !== this.attitude?.join()) {
+            this.attitude = a;
+            sampled = true;
+          }
+        }
+        if (sampled) this.onEmulatedTilt?.(performance.now());
+      }, 1e3 / SAMPLE_HZ);
+    }
+    if (this.want.loudness) this.emulateMic();
+  }
+  /** A phone's browser. iOS delivers these events only once the page has asked
+   *  for permission from a tap (`DeviceMotionEvent.requestPermission()`, which
+   *  the web player does when play starts); until then the game sees −6.
+   *  Attitude isn't read from them yet, so a game that declares it sees it as
+   *  unavailable (−6) in a phone's browser. */
+  device() {
+    const G = 9.80665;
+    const toGame = (x, y, z, max) => {
+      const a = (screen.orientation?.angle ?? 0) * Math.PI / 180;
+      const sx = x * Math.cos(a) + y * Math.sin(a);
+      const sy = -x * Math.sin(a) + y * Math.cos(a);
+      return vec(sx, -sy, z, max);
+    };
+    if (this.want.tilt) {
+      window.addEventListener("deviceorientation", (e) => {
+        if (!this.available || e.beta === null || e.gamma === null) return;
+        const b = e.beta * Math.PI / 180;
+        const g = e.gamma * Math.PI / 180;
+        this.tilt = toGame(Math.cos(b) * Math.sin(g), -Math.sin(b), -Math.cos(b) * Math.cos(g), 4) ?? this.tilt;
+      });
+    }
+    if (this.want.motion) {
+      window.addEventListener("devicemotion", (e) => {
+        const a = e.acceleration;
+        if (!this.available || a?.x == null || a.y == null || a.z == null) return;
+        this.motion = toGame(a.x / G, a.y / G, a.z / G, 16) ?? this.motion;
+      });
+    }
+    if (this.want.loudness) this.emulateMic();
+  }
+  /** Desktop preview: the real microphone if the browser allows it, else keys (see top). */
+  emulateMic() {
+    this.loudness = 0;
+    let held = null;
+    let mic = null;
+    let level = 0;
+    const keyLevel = (e) => e.code === "Space" ? 0.85 : /^Digit[0-9]$/.test(e.code) ? Number(e.code.slice(5)) / 10 : null;
+    window.addEventListener("keydown", (e) => {
+      const k = keyLevel(e);
+      if (k !== null) held = k;
+    });
+    window.addEventListener("keyup", (e) => {
+      if (keyLevel(e) !== null) held = null;
+    });
+    const start = async () => {
+      window.removeEventListener("pointerdown", start);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } });
+        const ctx = new AudioContext();
+        mic = ctx.createAnalyser();
+        mic.fftSize = 1024;
+        ctx.createMediaStreamSource(stream).connect(mic);
+        console.log("[mb] preview: loudness from the microphone (or hold 1\u20139 / Space)");
+      } catch {
+        console.log("[mb] preview: no microphone; hold 1\u20139 for 0.1\u20130.9, Space for a blow (0.85)");
+      }
+    };
+    window.addEventListener("pointerdown", start);
+    const buf = new Float32Array(1024);
+    setInterval(() => {
+      if (this.pinned !== void 0) return;
+      let target = held ?? 0;
+      if (mic) target = Math.max(target, levelOf(mic, buf));
+      level += (target - level) * (target > level ? 0.6 : 0.15);
+      this.setLoudness(level);
+    }, 16);
+  }
+};
+function levelOf(a, buf) {
+  a.getFloatTimeDomainData(buf);
+  let s = 0;
+  for (const v of buf) s += v * v;
+  const db = 10 * Math.log10(s / buf.length + 1e-12);
+  return Math.max(0, Math.min(1, (db + 60) / 60));
+}
+
+// src/keys.ts
+var HID = {
+  Enter: 40,
+  Escape: 41,
+  Backspace: 42,
+  Tab: 43,
+  Space: 44,
+  Minus: 45,
+  Equal: 46,
+  BracketLeft: 47,
+  BracketRight: 48,
+  Backslash: 49,
+  Semicolon: 51,
+  Quote: 52,
+  Backquote: 53,
+  Comma: 54,
+  Period: 55,
+  Slash: 56,
+  CapsLock: 57,
+  ArrowRight: 79,
+  ArrowLeft: 80,
+  ArrowDown: 81,
+  ArrowUp: 82,
+  ControlLeft: 224,
+  ShiftLeft: 225,
+  AltLeft: 226,
+  MetaLeft: 227,
+  ControlRight: 228,
+  ShiftRight: 229,
+  AltRight: 230,
+  MetaRight: 231
+};
+for (let i = 0; i < 26; i++) HID[`Key${String.fromCharCode(65 + i)}`] = 4 + i;
+for (let i = 1; i <= 9; i++) HID[`Digit${i}`] = 29 + i;
+HID.Digit0 = 39;
+for (let i = 1; i <= 12; i++) HID[`F${i}`] = 57 + i;
+var KEY_DOWN = 5;
+var KEY_UP = 6;
+var PAD_BUTTON = 11;
+var PAD_AXIS = 12;
+var Keyboard = class {
+  constructor(push) {
+    const on = (kind) => (e) => {
+      const code = HID[e.code];
+      if (code === void 0 || e.repeat) return;
+      e.preventDefault();
+      push([kind, 0, 0, 0, 0, 0, 0, code], e.timeStamp);
+    };
+    window.addEventListener("keydown", on(KEY_DOWN));
+    window.addEventListener("keyup", on(KEY_UP));
+  }
+};
+var Gamepads = class {
+  last = /* @__PURE__ */ new Map();
+  poll(push) {
+    for (const pad of navigator.getGamepads?.() ?? []) {
+      if (!pad) continue;
+      const prev = this.last.get(pad.index) ?? { buttons: [], axes: [] };
+      const buttons = pad.buttons.map((b) => Math.fround(b.value));
+      const axes = pad.axes.map((a) => Math.fround(Math.abs(a) < 0.1 ? 0 : a));
+      buttons.forEach((v, i) => {
+        if (v > 0.5 !== (prev.buttons[i] ?? 0) > 0.5) push([PAD_BUTTON, 0, pad.index, 0, 0, v, 0, i]);
+      });
+      axes.forEach((v, i) => {
+        if (Math.abs(v - (prev.axes[i] ?? 0)) > 0.02) push([PAD_AXIS, 0, pad.index, 0, 0, v, 0, i]);
+      });
+      this.last.set(pad.index, { buttons, axes });
+    }
+  }
+};
+
+// src/probe.ts
+async function probe() {
+  const out = {
+    userAgent: navigator.userAgent,
+    webgpu: "gpu" in navigator,
+    offscreenCanvas: typeof OffscreenCanvas !== "undefined",
+    transferControlToOffscreen: "transferControlToOffscreen" in HTMLCanvasElement.prototype,
+    crossOriginIsolated: self.crossOriginIsolated
+  };
+  try {
+    out.worker = await new Promise((resolve) => {
+      const w = new Worker(new URL("probe-worker.js", import.meta.url), { type: "module" });
+      const timer = setTimeout(() => resolve({ error: "timeout" }), 3e3);
+      w.onmessage = (e) => {
+        clearTimeout(timer);
+        resolve(e.data);
+        w.terminate();
+      };
+      w.onerror = (e) => {
+        clearTimeout(timer);
+        resolve({ error: e.message || "worker failed to start" });
+      };
+      const c = new OffscreenCanvas(16, 16);
+      w.postMessage({ canvas: c }, [c]);
+    });
+  } catch (e) {
+    out.worker = { error: String(e) };
+  }
+  return out;
+}
+
 // src/abi.json
 var abi_default = {
   abi: 0,
@@ -1668,6 +3295,28 @@ var abi_default = {
       ],
       requires: null,
       results: []
+    },
+    {
+      name: "mb_mark",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: null,
+      results: []
+    },
+    {
+      name: "mb_param",
+      params: [
+        "i32",
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: null,
+      results: [
+        "i32"
+      ]
     },
     {
       name: "mb_time",
@@ -2569,6 +4218,46 @@ var abi_default = {
       ]
     },
     {
+      name: "mb3d_node_fade",
+      params: [
+        "i32",
+        "f32",
+        "f32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_draw_distance",
+      params: [
+        "f32",
+        "f32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_skin",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
       name: "mb3d_fog",
       params: [
         "i32"
@@ -2632,6 +4321,282 @@ var abi_default = {
       results: []
     },
     {
+      name: "mb3d_reflector",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_atmosphere",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_clouds",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_sky_disc",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_sky_texture",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_ripple",
+      params: [
+        "f32",
+        "f32",
+        "f32",
+        "f32",
+        "f32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_wake",
+      params: [
+        "i32",
+        "f32",
+        "f32",
+        "f32",
+        "f32",
+        "f32",
+        "f32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_water",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_grade",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_shafts",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_halos",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_film",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_material_get",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_model_materials",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_model_node_names",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_retro",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: []
+    },
+    {
+      name: "mb3d_texture_filter",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_backdrop",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_anim_mask",
+      params: [
+        "i32",
+        "i32",
+        "f32",
+        "f32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_anim_take",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_node_get_parent",
+      params: [
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
       name: "mb_sound",
       params: [
         "i32"
@@ -2671,6 +4636,23 @@ var abi_default = {
       ]
     },
     {
+      name: "mb_play_from",
+      params: [
+        "i32",
+        "f32",
+        "f32",
+        "f32",
+        "i32",
+        "f64",
+        "f64",
+        "f32"
+      ],
+      requires: null,
+      results: [
+        "i32"
+      ]
+    },
+    {
       name: "mb_voice_set",
       params: [
         "i32",
@@ -2688,6 +4670,37 @@ var abi_default = {
       ],
       requires: null,
       results: []
+    },
+    {
+      name: "mb_voice_stop_at",
+      params: [
+        "i32",
+        "f64",
+        "f32"
+      ],
+      requires: null,
+      results: []
+    },
+    {
+      name: "mb_voice_bus",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: null,
+      results: []
+    },
+    {
+      name: "mb_bus_fx",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: null,
+      results: [
+        "i32"
+      ]
     },
     {
       name: "mb_tilt",
@@ -2708,6 +4721,18 @@ var abi_default = {
       ],
       requires: {
         sensor: "motion"
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb_attitude",
+      params: [
+        "i32"
+      ],
+      requires: {
+        sensor: "attitude"
       },
       results: [
         "i32"
@@ -2868,7 +4893,13 @@ var HOST_DIRECT = [
   "mb3d_clip_duration",
   "mb3d_anim",
   "mb3d_node_morph",
-  "mb3d_node_material"
+  "mb3d_node_material",
+  "mb3d_node_fade",
+  "mb3d_draw_distance",
+  "mb3d_texture_filter",
+  "mb3d_node_get_parent",
+  "mb3d_ripple",
+  "mb3d_wake"
 ];
 var MATERIAL_SIZE = 64;
 var SUN_SIZE = 36;
@@ -2877,12 +4908,28 @@ var POST_SIZE = 32;
 var EMITTER_SIZE = 128;
 var TRAIL_SIZE = 64;
 var INSTANCE_SIZE = 44;
+var SKIN_JOINT_SIZE = 68;
+var MAX_JOINTS = 64;
 var MAX_INSTANCES_PER_NODE = 16384;
 var FOG_SIZE = 48;
 var STYLE_SIZE = 32;
 var TEXT_DESC_SIZE = 64;
 var DOF_SIZE = 16;
 var SPEED_SIZE = 32;
+var REFLECTOR_SIZE = 48;
+var ATMOSPHERE_SIZE = 80;
+var CLOUDS_SIZE = 64;
+var SKY_DISC_SIZE = 64;
+var SKY_TEXTURE_SIZE = 32;
+var WATER_SIZE = 96;
+var GRADE_SIZE = 96;
+var SHAFTS_SIZE = 48;
+var HALOS_SIZE = 32;
+var FILM_SIZE = 32;
+var RETRO_SIZE = 32;
+var LAYER_SIZE = 40;
+var MAX_LAYERS = 4;
+var MAX_MASK = 256;
 var NAME_MAX = 256;
 var TEXT_MAX_BYTES = 4096;
 var MESH_MAX_BYTES = 64 * 1024 * 1024;
@@ -2931,9 +4978,29 @@ function buildImports(s, host, m) {
     toHost(data);
     return data.length;
   };
+  const refusedOnce = /* @__PURE__ */ new Set();
+  const refused = (asset, r) => {
+    if (r !== -4 /* Quota */) return r;
+    const why = host_take_refusal();
+    if (why && !refusedOnce.has(asset)) {
+      refusedOnce.add(asset);
+      const msg = `runtime: ${s.assets.path(asset) ?? `asset ${asset}`} refused (\u22124): ${why}`;
+      console.warn(msg);
+      post({ op: "log", level: 2, msg });
+    }
+    return r;
+  };
   const impl = {
     // 5.1 sys
     mb_log: ((level, ptr, len) => s.log(level, str(ptr, len))),
+    mb_mark: ((ptr, len) => s.mark(str(ptr, Math.min(len >>> 0, 64)))),
+    mb_param: ((nptr, nlen, out, cap) => {
+      const v = s.params.get(str(nptr, nlen));
+      if (v === void 0) return -1;
+      const b = enc.encode(v);
+      bytes().set(b.subarray(0, Math.max(0, cap)), out);
+      return b.length;
+    }),
     mb_time: (() => s.gameTime),
     mb_time_lost: (() => s.timeLost),
     mb_rand_seed: (() => BigInt.asIntN(64, s.seed)),
@@ -2941,6 +5008,7 @@ function buildImports(s, host, m) {
     mb_round: ((state) => {
       if (state < 0 || state > 2 || state === s.round) return;
       s.round = state;
+      s.observer?.round(state);
       if (!s.replaying) post({ op: "round", state });
     }),
     mb_player_id: ((ptr) => {
@@ -3011,11 +5079,11 @@ function buildImports(s, host, m) {
     }),
     mb3d_texture: ((asset) => {
       const n = assetToHost(asset);
-      return n < 0 ? n : host.mbh_texture(n);
+      return n < 0 ? n : refused(asset, host.mbh_texture(n));
     }),
     mb3d_gltf: ((asset) => {
       const n = assetToHost(asset);
-      return n < 0 ? n : host.mbh_gltf(n);
+      return n < 0 ? n : refused(asset, host.mbh_gltf(n));
     }),
     mb3d_material: ((ptr) => {
       toHost(slice(ptr, MATERIAL_SIZE));
@@ -3059,6 +5127,11 @@ function buildImports(s, host, m) {
       toHost(slice(ptr, count * INSTANCE_SIZE));
       return host.mbh_instances(node, count);
     }),
+    mb3d_skin: ((node, ptr, count) => {
+      if (count < 0 || count > MAX_JOINTS) return -4 /* Quota */;
+      toHost(slice(ptr, count * SKIN_JOINT_SIZE));
+      return host.mbh_skin(node, count);
+    }),
     mb3d_clip_find: ((model, ptr, len) => {
       if (len < 0 || len > NAME_MAX) return -2 /* InvalidArgument */;
       toHost(slice(ptr, len));
@@ -3072,6 +5145,24 @@ function buildImports(s, host, m) {
     mb3d_node_world: ((node, out) => {
       const r = host.mbh_node_world(node);
       if (r >= 0) bytes().set(new Uint8Array(host.memory.buffer, host.host_scratch(64), 64), out);
+      return r;
+    }),
+    mb3d_material_get: ((material, out) => {
+      const r = host.mbh_material_get(material);
+      if (r >= 0) bytes().set(new Uint8Array(host.memory.buffer, host.host_scratch(MATERIAL_SIZE), MATERIAL_SIZE), out);
+      return r;
+    }),
+    mb3d_model_materials: ((model, out, cap) => {
+      const r = host.mbh_model_materials(model, Math.max(0, Math.min(cap, 1024)));
+      const n = Math.min(Math.max(r, 0), Math.max(0, Math.min(cap, 1024))) * 4;
+      if (n > 0) bytes().set(new Uint8Array(host.memory.buffer, host.host_scratch(n), n), out);
+      return r;
+    }),
+    mb3d_model_node_names: ((model, out, cap) => {
+      const c = Math.max(0, Math.min(cap, 65536));
+      const r = host.mbh_model_node_names(model, c);
+      const n = Math.min(Math.max(r, 0), c);
+      if (n > 0) bytes().set(new Uint8Array(host.memory.buffer, host.host_scratch(n), n), out);
       return r;
     }),
     mb3d_fog: ((ptr) => {
@@ -3098,6 +5189,65 @@ function buildImports(s, host, m) {
       toHost(slice(ptr, SPEED_SIZE));
       host.mbh_speed();
     }),
+    mb3d_reflector: ((ptr) => {
+      toHost(slice(ptr, REFLECTOR_SIZE));
+      host.mbh_reflector();
+    }),
+    mb3d_atmosphere: ((ptr) => {
+      toHost(slice(ptr, ATMOSPHERE_SIZE));
+      host.mbh_atmosphere();
+    }),
+    mb3d_clouds: ((ptr) => {
+      toHost(slice(ptr, CLOUDS_SIZE));
+      host.mbh_clouds();
+    }),
+    mb3d_sky_disc: ((ptr) => {
+      toHost(slice(ptr, SKY_DISC_SIZE));
+      host.mbh_sky_disc();
+    }),
+    mb3d_sky_texture: ((texture, ptr) => {
+      toHost(slice(ptr, SKY_TEXTURE_SIZE));
+      return host.mbh_sky_texture(texture);
+    }),
+    mb3d_water: ((ptr) => {
+      toHost(slice(ptr, WATER_SIZE));
+      host.mbh_water();
+    }),
+    mb3d_grade: ((ptr) => {
+      toHost(slice(ptr, GRADE_SIZE));
+      host.mbh_grade();
+    }),
+    mb3d_shafts: ((ptr) => {
+      toHost(slice(ptr, SHAFTS_SIZE));
+      host.mbh_shafts();
+    }),
+    mb3d_halos: ((ptr) => {
+      toHost(slice(ptr, HALOS_SIZE));
+      host.mbh_halos();
+    }),
+    mb3d_film: ((ptr) => {
+      toHost(slice(ptr, FILM_SIZE));
+      host.mbh_film();
+    }),
+    mb3d_retro: ((ptr) => {
+      toHost(slice(ptr, RETRO_SIZE));
+      host.mbh_retro();
+    }),
+    mb3d_backdrop: ((ptr, count) => {
+      if (count < 0 || count > MAX_LAYERS) return -2 /* InvalidArgument */;
+      toHost(slice(ptr, count * LAYER_SIZE));
+      return host.mbh_backdrop(count);
+    }),
+    mb3d_anim_mask: ((node, clip, time, weight, ptr, count) => {
+      if (count < 0 || count > MAX_MASK) return -2 /* InvalidArgument */;
+      toHost(slice(ptr, count * 8));
+      return host.mbh_anim_mask(node, clip, time, weight, count);
+    }),
+    mb3d_anim_take: ((node, out) => {
+      const r = host.mbh_anim_take(node);
+      if (r >= 0) bytes().set(new Uint8Array(host.memory.buffer, host.host_scratch(40), 40), out);
+      return r;
+    }),
     // 5.6 audio
     mb_sound: ((asset) => {
       const st = s.assets.state(asset);
@@ -3108,8 +5258,12 @@ function buildImports(s, host, m) {
     }),
     mb_play: ((sound, vol, pan, pitch, loop) => s.audio.play(sound, vol, pan, pitch, loop !== 0)),
     mb_play_at: ((sound, vol, pan, pitch, loop, at) => s.audio.play(sound, vol, pan, pitch, loop !== 0, Number.isFinite(at) ? at : s.gameTime)),
+    mb_play_from: ((sound, vol, pan, pitch, loop, at, from, fade) => s.audio.play(sound, vol, pan, pitch, loop !== 0, Number.isFinite(at) ? at : s.gameTime, from, fade)),
     mb_voice_set: ((voice, vol, pan, pitch) => s.audio.update(voice, vol, pan, pitch)),
     mb_voice_stop: ((voice) => s.audio.stop(voice)),
+    mb_voice_stop_at: ((voice, at, fade) => s.audio.stopAt(voice, Number.isFinite(at) ? at : s.gameTime, fade)),
+    mb_voice_bus: ((voice, bus) => s.audio.voiceBus(voice, bus)),
+    mb_bus_fx: ((bus, kind, ptr) => s.audio.busFx(bus, kind, floats(ptr, FX_FIELDS))),
     // 5.7 sensors
     mb_tilt: ((ptr) => {
       if (!s.tilt) return -6 /* NotReady */;
@@ -3121,6 +5275,13 @@ function buildImports(s, host, m) {
       if (!s.motion) return -6 /* NotReady */;
       const v = view();
       s.motion.forEach((x, i) => v.setFloat32(ptr + i * 4, x, true));
+      return 0;
+    }),
+    // Attitude (28 bytes): quaternion x, y, z, w then rotation rate x, y, z.
+    mb_attitude: ((ptr) => {
+      if (!s.attitude) return -6 /* NotReady */;
+      const v = view();
+      s.attitude.forEach((x, i) => v.setFloat32(ptr + i * 4, x, true));
       return 0;
     }),
     // −1 until a reading arrives or when the mic is unavailable (SPEC §5.7).
@@ -3155,6 +5316,7 @@ function buildImports(s, host, m) {
     // 5.8 score
     mb_score_submit: ((board, value) => {
       if (!boards.has(board)) return -3 /* NotDeclared */;
+      s.observer?.score(board, value);
       if (!s.replaying) post({ op: "score_submit", board, value: value.toString() });
       return 0;
     }),
@@ -3191,828 +5353,6 @@ function buildImports(s, host, m) {
   return imports;
 }
 
-// src/audio.ts
-var MAX_VOICES = 32;
-var MASTER_GAIN = 0.8;
-var GLIDE = 0.012;
-var RESUME_GRACE_MS = 400;
-var PRESENT_FRAMES = 1;
-var FALLBACK_OUTPUT_LATENCY = 0.02;
-var LATE_START_LEAD = 0.01;
-var CLOCK_SMOOTHING = 0.05;
-var CLOCK_SNAP = 0.02;
-var CLOCK_HYSTERESIS = 1e-3;
-var RESCHEDULE_AT = 1e-3;
-var CLOCK_SETTLE_FRAMES = 120;
-var MAX_TIMING_LOGS = 12;
-var Audio = class {
-  ctx = null;
-  master = null;
-  decoder = null;
-  sounds = [];
-  /** Decoded audio by source bytes (shared across sessions via the asset cache). */
-  decoded = /* @__PURE__ */ new WeakMap();
-  voices = /* @__PURE__ */ new Map();
-  nextVoice = 1;
-  /** The page is active (shown and running), so it may hold a running context. */
-  active = false;
-  muted = false;
-  /** The player turned game sound off (app setting); independent of prerolling. */
-  userMuted = false;
-  generation = 0;
-  warned = false;
-  /** Fast-forwarding a restored session (watch mode): nothing starts playing. */
-  ff = false;
-  silence = null;
-  // --- the clock: game time → wall time → context time ----------------------
-  /** The current frame: its rAF timestamp (ms; NaN = no frame since the clock
-   *  was invalidated), its game time and game seconds per wall second. */
-  frameNow = NaN;
-  frameGame = 0;
-  frameScale = 1;
-  lastFrameNow = NaN;
-  /** Smoothed display frame period (ms), and the presentation delay in use. */
-  period = 1e3 / 60;
-  presentMs = 1e3 / 60 * PRESENT_FRAMES;
-  /** Context seconds − performance.now seconds for the sample being heard:
-   *  smoothed, and the value in use (hysteresis). */
-  offsetEst = null;
-  offset = null;
-  farReadings = 0;
-  via = "latency";
-  /** This context has given a sane getOutputTimestamp; stop falling back. */
-  otsSeen = false;
-  /** Frames since this context's first clock reading (for the settled log). */
-  clockFrames = -1;
-  /** The previous frame's mapping, to notice when it moves. */
-  prevMap = null;
-  timingLogs = 0;
-  constructor() {
-    const unlock = () => this.unlock();
-    for (const ev of ["pointerdown", "pointerup", "touchend", "click", "keydown"]) {
-      window.addEventListener(ev, unlock, { capture: true, passive: true });
-    }
-  }
-  /** WebKit plays Web Audio as "ambient" (muted by the silent switch)
-   *  unless the page asks for playback (PLAN Q14). */
-  setPlayback(on) {
-    const session = navigator.audioSession;
-    if (session) {
-      session.type = on ? "playback" : "ambient";
-      post({ op: "log", level: 0, msg: `runtime: audio session ${session.type}` });
-    } else if (on && !this.silence) {
-      this.silence = new window.Audio("silence.wav");
-      this.silence.loop = true;
-      void this.silence.play().catch((e) => post({ op: "log", level: 2, msg: `runtime: silent audio failed: ${e}` }));
-      post({ op: "log", level: 0, msg: "runtime: audio session via silent media element" });
-    }
-  }
-  // --- lifecycle ---------------------------------------------------------------
-  /** The page is shown and running: create (or revive) the context and start loops. */
-  resume() {
-    this.active = true;
-    if (!this.ctx) {
-      this.createContext();
-      return;
-    }
-    const ctx = this.ctx;
-    void ctx.resume().catch(() => {
-    });
-    setTimeout(() => {
-      if (this.active && this.ctx === ctx && ctx.state !== "running") this.rebuild(`resume left it ${ctx.state}`);
-    }, RESUME_GRACE_MS);
-  }
-  /** The page is going off screen (or is a neighbour): stop holding audio.
-   *  Every voice pauses; play_at voices are rescheduled from game time on resume. */
-  suspend() {
-    this.active = false;
-    void this.ctx?.suspend().catch(() => {
-    });
-    this.invalidateClock(true);
-  }
-  /** Silences output without stopping voices (a feed neighbour prerolling). */
-  setMuted(on) {
-    this.muted = on;
-    this.applyGain();
-  }
-  /** The app's sound setting: silent while off, whatever else is going on. */
-  setUserMuted(on) {
-    this.userMuted = on;
-    this.applyGain();
-  }
-  applyGain() {
-    if (this.master) this.master.gain.value = this.muted || this.userMuted ? 0 : MASTER_GAIN;
-  }
-  /** Watch mode: a restored session runs many frames in a moment. Meanwhile
-   *  mb_play one-shots are dropped (they'd all be late) and nothing starts;
-   *  afterwards loops start and play_at voices are scheduled from game time,
-   *  so music picks up where the run had got to. */
-  fastForward(on) {
-    this.ff = on;
-    this.invalidateClock(true);
-    if (!on) this.flush();
-  }
-  /** A new game session: the old session's voices stop and sound handles
-   *  restart from 1. Decoded audio is kept and reused. */
-  newSession() {
-    for (const id of [...this.voices.keys()]) this.stop(id);
-    this.sounds = [];
-    this.generation++;
-    this.timingLogs = 0;
-    this.frameNow = NaN;
-    this.prevMap = null;
-  }
-  createContext() {
-    const ctx = new AudioContext({ latencyHint: "interactive" });
-    const master = ctx.createGain();
-    master.gain.value = this.muted || this.userMuted ? 0 : MASTER_GAIN;
-    const limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = -9;
-    limiter.knee.value = 6;
-    limiter.ratio.value = 12;
-    limiter.attack.value = 3e-3;
-    limiter.release.value = 0.15;
-    master.connect(limiter).connect(ctx.destination);
-    ctx.onstatechange = () => {
-      post({ op: "log", level: 0, msg: `runtime: audio ${ctx.state}` });
-      if (ctx.state !== "running" && this.ctx === ctx) this.invalidateClock(false);
-      if (ctx.state === "interrupted" && this.active && this.ctx === ctx) {
-        setTimeout(() => {
-          if (this.active && this.ctx === ctx && ctx.state !== "running") {
-            void ctx.resume().catch(() => {
-            });
-            setTimeout(() => this.active && this.ctx === ctx && ctx.state !== "running" && this.rebuild("interrupted"), RESUME_GRACE_MS);
-          }
-        }, 100);
-      }
-    };
-    this.ctx = ctx;
-    this.master = master;
-    this.otsSeen = false;
-    this.clockFrames = -1;
-    this.invalidateClock(false);
-    post({ op: "log", level: 0, msg: `runtime: audio context created (${ctx.state})` });
-    void ctx.resume().catch(() => {
-    });
-    for (const [id, v] of this.voices) {
-      if (v.at !== null || v.nodes) continue;
-      if (v.loop) this.tryStart(id, v);
-      else this.voices.delete(id);
-    }
-    this.flush();
-  }
-  /** Replaces a context that won't run with a fresh one. */
-  rebuild(why) {
-    post({ op: "log", level: 1, msg: `runtime: rebuilding audio (${why})` });
-    const old = this.ctx;
-    for (const v of this.voices.values()) v.nodes = null;
-    this.ctx = null;
-    this.master = null;
-    void old?.close().catch(() => {
-    });
-    this.createContext();
-  }
-  unlock() {
-    if (!this.active) return;
-    if (!this.ctx) this.createContext();
-    const ctx = this.ctx;
-    if (ctx.state === "running") return;
-    const src = ctx.createBufferSource();
-    src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
-    src.connect(ctx.destination);
-    src.start();
-    ctx.resume().catch((e) => post({ op: "log", level: 2, msg: `runtime: audio resume failed: ${e}` }));
-  }
-  // --- the clock -----------------------------------------------------------------
-  /** Called once per frame, after game time has advanced and before
-   *  mb_update: `now` is the frame's requestAnimationFrame timestamp,
-   *  `game` its game time, `scale` game seconds per wall second. */
-  frame(now, game, scale) {
-    if (this.ff) {
-      this.frameGame = game;
-      return;
-    }
-    if (Number.isFinite(this.lastFrameNow)) {
-      const p = now - this.lastFrameNow;
-      if (p >= 4 && p <= 50) this.period += (p - this.period) * 0.05;
-    }
-    this.lastFrameNow = now;
-    const present2 = this.period * PRESENT_FRAMES;
-    if (Math.abs(present2 - this.presentMs) > 1) this.presentMs = present2;
-    this.frameNow = now;
-    this.frameGame = game;
-    this.frameScale = scale > 0 ? scale : 1;
-    this.measure();
-    if (this.offset === null || !this.ctx) {
-      this.prevMap = null;
-      return;
-    }
-    const map = { now, game, scale: this.frameScale, present: this.presentMs, offset: this.offset };
-    const prev = this.prevMap;
-    this.prevMap = map;
-    if (prev) {
-      const before = (prev.now + prev.present + (game - prev.game) * 1e3 / prev.scale) / 1e3 + prev.offset;
-      const after = (now + map.present) / 1e3 + map.offset;
-      if (Math.abs(after - before) > RESCHEDULE_AT) this.reschedule();
-    }
-    this.flush();
-    if (this.clockFrames >= 0 && ++this.clockFrames === CLOCK_SETTLE_FRAMES) this.logClock("settled");
-  }
-  /** Context time at which game time `at` is heard, with the current frame's mapping. */
-  ctxTimeOf(at) {
-    return (this.frameNow + this.presentMs + (at - this.frameGame) * 1e3 / this.frameScale) / 1e3 + (this.offset ?? 0);
-  }
-  clockReady() {
-    return Number.isFinite(this.frameNow) && this.offset !== null && this.ctx?.state === "running";
-  }
-  /** Output latency the context reports (s), with a fallback for what it doesn't. */
-  reportedLatency() {
-    const ctx = this.ctx;
-    const out = ctx.outputLatency;
-    return (ctx.baseLatency || 0) + (typeof out === "number" && out > 0 ? out : FALLBACK_OUTPUT_LATENCY);
-  }
-  /** Reads the context's clock against performance.now and updates the offset. */
-  measure() {
-    const ctx = this.ctx;
-    if (!ctx || ctx.state !== "running") return;
-    const nowOffset = ctx.currentTime - performance.now() / 1e3;
-    let raw = null;
-    let via = "latency";
-    if (typeof ctx.getOutputTimestamp === "function") {
-      const ts = ctx.getOutputTimestamp();
-      const c = ts.contextTime ?? 0;
-      const p = ts.performanceTime ?? 0;
-      if (c > 0 && p > 0) {
-        const o = c - p / 1e3;
-        const behind = nowOffset - o;
-        if (behind > -5e-3 && behind < 1) {
-          raw = o;
-          via = "getOutputTimestamp";
-          this.otsSeen = true;
-        }
-      }
-    }
-    if (raw === null) {
-      if (this.otsSeen) return;
-      raw = nowOffset - this.reportedLatency();
-    }
-    const switched = via !== this.via;
-    this.via = via;
-    if (this.offsetEst === null || switched) {
-      this.offsetEst = raw;
-      this.farReadings = 0;
-    } else if (Math.abs(raw - this.offsetEst) > CLOCK_SNAP) {
-      if (++this.farReadings < 3) return;
-      post({ op: "log", level: 1, msg: `runtime: audio clock moved ${((raw - this.offsetEst) * 1e3).toFixed(1)} ms (output route change?)` });
-      this.offsetEst = raw;
-      this.farReadings = 0;
-      this.clockFrames = 0;
-    } else {
-      this.farReadings = 0;
-      this.offsetEst += (raw - this.offsetEst) * CLOCK_SMOOTHING;
-    }
-    const first = this.offset === null;
-    if (first || Math.abs(this.offsetEst - this.offset) > CLOCK_HYSTERESIS) this.offset = this.offsetEst;
-    if (first && this.clockFrames < 0) {
-      this.clockFrames = 0;
-      this.logClock("first");
-    }
-  }
-  /** Measurement aid (shows in the iOS app's console as `runtime: audio clock …`). */
-  logClock(when) {
-    const ctx = this.ctx;
-    if (!ctx || this.offset === null) return;
-    const ms = (s) => typeof s === "number" ? `${(s * 1e3).toFixed(1)} ms` : "n/a";
-    const trails = ctx.currentTime - performance.now() / 1e3 - this.offset;
-    post({
-      op: "log",
-      level: 1,
-      msg: `runtime: audio clock (${when}): baseLatency ${ms(ctx.baseLatency)}, outputLatency ${ms(ctx.outputLatency)}, getOutputTimestamp ${typeof ctx.getOutputTimestamp === "function" ? "yes" : "no"}, via ${this.via}, heard ${ms(trails)} after currentTime, frame ${this.period.toFixed(1)} ms, present +${this.presentMs.toFixed(1)} ms, ctx\u2212perf ${this.offset.toFixed(4)} s, ${ctx.sampleRate} Hz`
-    });
-  }
-  /** The clock can't be trusted (suspended, a new context, a stopped timeline):
-   *  play_at voices stop and are rescheduled once it's known again. */
-  invalidateClock(frameToo) {
-    if (frameToo) {
-      this.frameNow = NaN;
-      this.lastFrameNow = NaN;
-    }
-    this.offsetEst = null;
-    this.offset = null;
-    this.farReadings = 0;
-    this.prevMap = null;
-    for (const v of this.voices.values()) if (v.at !== null) this.stopNodes(v);
-  }
-  /** The mapping moved: play_at voices that haven't started yet are rescheduled. */
-  reschedule() {
-    const ctx = this.ctx;
-    if (!ctx) return;
-    for (const v of this.voices.values()) {
-      if (v.at !== null && v.nodes && v.start > ctx.currentTime + LATE_START_LEAD) this.stopNodes(v);
-    }
-  }
-  // --- sounds and voices -------------------------------------------------------
-  /** Returns a sound handle (≥ 1) and decodes in the background. */
-  load(bytes) {
-    const handle = this.sounds.push(null);
-    const gen = this.generation;
-    let decoding = this.decoded.get(bytes);
-    if (!decoding) {
-      this.decoder ??= new OfflineAudioContext({ numberOfChannels: 1, length: 1, sampleRate: 48e3 });
-      decoding = this.decoder.decodeAudioData(bytes.slice().buffer);
-      this.decoded.set(bytes, decoding);
-      decoding.then(
-        (buf) => post({ op: "log", level: 0, msg: `runtime: sound decoded (${buf.duration.toFixed(2)} s)` }),
-        () => {
-        }
-      );
-    }
-    decoding.then((buf) => {
-      if (gen !== this.generation) return;
-      this.sounds[handle - 1] = buf;
-      this.flush();
-    }).catch((e) => post({ op: "log", level: 2, msg: `runtime: sound ${handle} failed to decode: ${e}` }));
-    return handle;
-  }
-  /** mb_play (`at` undefined: as soon as it can) and mb_play_at (heard at game time `at`). */
-  play(sound, vol, pan, pitch, loop, at) {
-    const id = this.nextVoice++;
-    if (sound < 1 || sound > this.sounds.length) return id;
-    if (at === void 0 && !loop && (!this.sounds[sound - 1] || !this.ctx || this.ff)) return id;
-    if (this.voices.size >= MAX_VOICES) {
-      let victim;
-      for (const [k, other] of this.voices) {
-        if (!other.loop) {
-          victim = k;
-          break;
-        }
-      }
-      this.stop(victim ?? this.voices.keys().next().value);
-    }
-    const v = { sound, vol, pan, pitch, loop, at: at ?? null, when: NaN, start: NaN, offset: 0, nodes: null };
-    this.voices.set(id, v);
-    this.tryStart(id, v);
-    return id;
-  }
-  /** Starts every voice that's waiting and now can. */
-  flush() {
-    for (const [id, v] of this.voices) if (!v.nodes) this.tryStart(id, v);
-  }
-  /** Starts a voice if it can: decoded, a context, and for play_at a known clock. */
-  tryStart(id, v) {
-    const ctx = this.ctx;
-    const buf = this.sounds[v.sound - 1];
-    if (v.nodes || !ctx || !this.master || !buf || this.ff) return;
-    if (v.at === null) {
-      if (ctx.state !== "running" && !this.warned) {
-        this.warned = true;
-        post({ op: "log", level: 2, msg: `runtime: playing while audio is ${ctx.state}` });
-      }
-      this.startNodes(id, v, buf, 0, 0);
-      return;
-    }
-    if (!this.clockReady()) return;
-    const when = this.ctxTimeOf(v.at);
-    const earliest = ctx.currentTime + LATE_START_LEAD;
-    let start = when;
-    let offset = 0;
-    if (when < earliest) {
-      const late = earliest - when;
-      offset = late * pitchOf(v);
-      if (v.loop) {
-        offset %= buf.duration;
-      } else if (offset > buf.duration / 2) {
-        this.voices.delete(id);
-        this.timingLog(`runtime: voice ${id} skipped, ${(late * 1e3).toFixed(1)} ms late (sound ${buf.duration.toFixed(2)} s)`);
-        return;
-      }
-      start = earliest;
-      if (late > 2e-3) this.timingLog(`runtime: voice ${id}${v.loop ? " (loop)" : ""} started ${(late * 1e3).toFixed(1)} ms late, offset into its sound`);
-    }
-    v.when = when;
-    this.startNodes(id, v, buf, start, offset);
-  }
-  timingLog(msg) {
-    if (this.timingLogs++ < MAX_TIMING_LOGS) post({ op: "log", level: 0, msg });
-  }
-  startNodes(id, v, buf, start, offset) {
-    const ctx = this.ctx;
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.loop = v.loop;
-    const pan = ctx.createStereoPanner();
-    const gain = ctx.createGain();
-    src.connect(pan).connect(gain).connect(this.master);
-    v.nodes = { src, pan, gain };
-    v.start = start;
-    v.offset = offset;
-    this.apply(v, true);
-    src.onended = () => {
-      if (this.voices.get(id) === v && v.nodes?.src === src) this.voices.delete(id);
-    };
-    src.start(start, offset);
-  }
-  /** Stops a voice's nodes but keeps the voice (to be started again). */
-  stopNodes(v) {
-    const n = v.nodes;
-    if (!n) return;
-    v.nodes = null;
-    n.src.onended = null;
-    try {
-      n.src.stop();
-    } catch {
-    }
-    n.gain.disconnect();
-  }
-  update(voice, vol, pan, pitch) {
-    const v = this.voices.get(voice);
-    if (v) {
-      Object.assign(v, { vol, pan, pitch });
-      this.apply(v, false);
-    }
-  }
-  apply(v, now) {
-    if (!v.nodes || !this.ctx) return;
-    const t = this.ctx.currentTime;
-    const go = (param, value) => {
-      if (now) param.value = value;
-      else param.setTargetAtTime(value, t, GLIDE);
-    };
-    go(v.nodes.gain.gain, Math.min(Math.max(v.vol, 0), 4));
-    go(v.nodes.pan.pan, Math.min(Math.max(v.pan, -1), 1));
-    go(v.nodes.src.playbackRate, pitchOf(v));
-  }
-  stop(voice) {
-    const v = this.voices.get(voice);
-    if (!v) return;
-    this.voices.delete(voice);
-    try {
-      v.nodes?.src.stop();
-    } catch {
-    }
-  }
-  /** Preview aid (`mb.audio()`): the clock and every voice, for checking alignment. */
-  debug() {
-    const ctx = this.ctx;
-    return {
-      state: ctx?.state ?? "none",
-      sampleRate: ctx?.sampleRate ?? 0,
-      baseLatency: ctx?.baseLatency ?? null,
-      outputLatency: ctx?.outputLatency ?? null,
-      getOutputTimestamp: typeof ctx?.getOutputTimestamp === "function",
-      via: this.via,
-      currentTime: ctx?.currentTime ?? 0,
-      /** Context seconds − performance.now seconds for the sample being heard. */
-      offset: this.offset,
-      framePeriodMs: this.period,
-      presentMs: this.presentMs,
-      gameTime: this.frameGame,
-      voices: [...this.voices].map(([id, v]) => ({
-        id,
-        sound: v.sound,
-        loop: v.loop,
-        at: v.at,
-        when: v.when,
-        start: v.start,
-        offset: v.offset,
-        playing: v.nodes !== null
-      }))
-    };
-  }
-};
-function pitchOf(v) {
-  return Math.min(Math.max(v.pitch, 0.125), 8);
-}
-
-// src/boot.ts
-async function loadBoot() {
-  if (window.__MB_BOOT) return window.__MB_BOOT;
-  const res = await fetch("../game/boot.json");
-  if (!res.ok) throw new Error(`no boot config (window.__MB_BOOT or game/boot.json): ${res.status}`);
-  return await res.json();
-}
-
-// src/input.ts
-var Input = class {
-  constructor(el, layout, touchDeclared, mouseDeclared) {
-    this.layout = layout;
-    this.touchDeclared = touchDeclared;
-    this.mouseDeclared = mouseDeclared;
-    el.addEventListener("pointerdown", (e) => this.down(e));
-    el.addEventListener("pointermove", (e) => this.move(e));
-    el.addEventListener("pointerup", (e) => this.up(e, false));
-    el.addEventListener("pointercancel", (e) => this.up(e, true));
-    el.style.touchAction = "none";
-    el.addEventListener("contextmenu", (e) => e.preventDefault());
-  }
-  pending = [];
-  /** When each pending event happened (ms, performance.now clock); NaN = at the frame. */
-  stamps = [];
-  /** pointerId → small id, for pointers the game owns. */
-  owned = /* @__PURE__ */ new Map();
-  nextId = 0;
-  /** A tap at CSS pixels (the native feed forwards the tap that starts play). */
-  tapAt(x, y) {
-    const l = this.layout();
-    const lx = Math.fround((x - l.offsetX) / l.scale);
-    const ly = Math.fround((y - l.offsetY) / l.scale);
-    const [down, up] = this.touchDeclared || !this.mouseDeclared ? [1 /* TouchDown */, 3 /* TouchUp */] : [7 /* MouseDown */, 9 /* MouseUp */];
-    const id = this.nextId++ & 255;
-    const now = performance.now();
-    this.pending.push([down, id, 0, lx, ly, 1, 0, 0], [up, id, 0, lx, ly, 0, 0, 0]);
-    this.stamps.push(now, now);
-  }
-  /** Queues an event from another source (keyboard, gamepad), with its
-   *  timestamp if it has one (otherwise it counts as happening at the frame). */
-  push(e, stamp = NaN) {
-    this.pending.push(e);
-    this.stamps.push(stamp);
-  }
-  /** Moves queued events to the guest's frame. Call once per frame boundary.
-   *  With `frame`, each event gets its lag behind the frame's game time:
-   *  whole microseconds, within the frame's dt, never growing along the
-   *  queue (so times stay monotonic). Without it (input being dropped) no
-   *  lags are computed. */
-  take(frame) {
-    const events = this.pending;
-    const stamps = this.stamps;
-    this.pending = [];
-    this.stamps = [];
-    if (!frame) return events;
-    const max = Math.max(0, Math.floor(frame.dt * 1e6));
-    let prev = max;
-    return events.map((ev, i) => {
-      const stamp = stamps[i] ?? NaN;
-      let lag = Number.isFinite(stamp) ? Math.round((frame.now - stamp) * 1e3 * frame.scale) : 0;
-      lag = Math.min(Math.max(lag, 0), max, prev);
-      prev = lag;
-      if (lag === 0) return ev;
-      const out = ev.slice(0, 8);
-      out.push(lag);
-      return out;
-    });
-  }
-  asTouch(e) {
-    return e.pointerType !== "mouse" || !this.mouseDeclared;
-  }
-  pointer(kind, id, e) {
-    const l = this.layout();
-    const x = Math.fround((e.clientX - l.offsetX) / l.scale);
-    const y = Math.fround((e.clientY - l.offsetY) / l.scale);
-    this.push([kind, id, 0, x, y, Math.fround(e.pressure), 0, 0], e.timeStamp);
-  }
-  down(e) {
-    const l = this.layout();
-    if (e.clientY >= l.height - l.stripHeight) return;
-    const touch = this.asTouch(e);
-    if (touch ? !this.touchDeclared : !this.mouseDeclared) return;
-    const id = touch ? this.nextId++ & 255 : e.button & 255;
-    this.owned.set(e.pointerId, id);
-    e.target.setPointerCapture?.(e.pointerId);
-    this.pointer(touch ? 1 /* TouchDown */ : 7 /* MouseDown */, id, e);
-  }
-  move(e) {
-    const id = this.owned.get(e.pointerId);
-    if (id === void 0) {
-      if (e.pointerType === "mouse" && this.mouseDeclared) this.pointer(8 /* MouseMove */, 0, e);
-      return;
-    }
-    this.pointer(this.asTouch(e) ? 2 /* TouchMove */ : 8 /* MouseMove */, id, e);
-  }
-  up(e, cancel) {
-    const id = this.owned.get(e.pointerId);
-    if (id === void 0) return;
-    this.owned.delete(e.pointerId);
-    const kind = this.asTouch(e) ? cancel ? 4 /* TouchCancel */ : 3 /* TouchUp */ : 9 /* MouseUp */;
-    this.pointer(kind, id, e);
-  }
-};
-function writeEvents(view, ptr, events, times) {
-  events.forEach((ev, i) => {
-    const o = ptr + i * 32;
-    view.setUint8(o, ev[0]);
-    view.setUint8(o + 1, ev[1]);
-    view.setUint16(o + 2, ev[2], true);
-    view.setFloat32(o + 4, ev[3], true);
-    view.setFloat32(o + 8, ev[4], true);
-    view.setFloat32(o + 12, ev[5], true);
-    view.setFloat32(o + 16, ev[6], true);
-    view.setUint32(o + 20, ev[7], true);
-    view.setFloat64(o + 24, times[i] ?? 0, true);
-  });
-}
-
-// src/motion.ts
-var q = (v, steps, lo, hi) => Math.round(Math.max(lo, Math.min(hi, v)) * steps) / steps;
-var vec = (x, y, z, max) => [x, y, z].every(Number.isFinite) ? [q(x, 4096, -max, max), q(y, 4096, -max, max), q(z, 4096, -max, max)] : null;
-var Sensors = class {
-  constructor(want, emulate) {
-    this.want = want;
-    if (emulate) this.emulate();
-  }
-  /** Latest samples; null until the first one arrives. */
-  tilt = null;
-  motion = null;
-  /** 0–1, or −1 when the mic is unavailable (denied, missing). */
-  loudness = null;
-  /** Native: gravity and user acceleration, game axes, in g. */
-  set(gx, gy, gz, ax, ay, az) {
-    if (this.want.tilt) this.tilt = vec(gx, gy, gz, 4) ?? this.tilt;
-    if (this.want.motion) this.motion = vec(ax, ay, az, 16) ?? this.motion;
-  }
-  setLoudness(v) {
-    if (!this.want.loudness || !Number.isFinite(v)) return;
-    this.loudness = v < 0 ? -1 : q(v, 1024, 0, 1);
-  }
-  /** Preview: a console-pinned loudness that the emulation leaves alone (undefined unpins). */
-  pinned;
-  /** `mb.loudness()` from outside: native samples, or a preview pin. */
-  external(v) {
-    if (this.emulated) {
-      this.pinned = v;
-      if (v !== void 0) this.setLoudness(v);
-    } else if (v !== void 0) {
-      this.setLoudness(v);
-    }
-  }
-  emulated = false;
-  emulate() {
-    this.emulated = true;
-    if (this.want.tilt) this.tilt = [0, 1, 0];
-    if (this.want.motion) this.motion = [0, 0, 0];
-    let last = null;
-    window.addEventListener("pointermove", (e) => {
-      const angle = (pos, size) => Math.max(-1, Math.min(1, (pos / size - 0.5) * 3)) * (Math.PI / 2);
-      const roll = angle(e.clientX, window.innerWidth);
-      const pitch = angle(e.clientY, window.innerHeight);
-      if (this.want.tilt) this.tilt = vec(Math.sin(roll) * Math.cos(pitch), Math.cos(roll) * Math.cos(pitch), -Math.sin(pitch), 4);
-      const t = e.timeStamp / 1e3;
-      if (last && t > last.t) {
-        const dt = t - last.t;
-        const vx = (e.clientX - last.x) / dt;
-        const vy = (e.clientY - last.y) / dt;
-        const k = 6e-3;
-        if (this.want.motion) this.motion = vec((vx - last.vx) * k, (vy - last.vy) * k, 0, 16);
-        last = { x: e.clientX, y: e.clientY, vx, vy, t };
-      } else {
-        last = { x: e.clientX, y: e.clientY, vx: 0, vy: 0, t };
-      }
-    });
-    if (this.want.motion) {
-      setInterval(() => {
-        if (this.motion) this.motion = vec(this.motion[0] * 0.5, this.motion[1] * 0.5, this.motion[2] * 0.5, 16);
-      }, 50);
-    }
-    if (this.want.loudness) this.emulateMic();
-  }
-  /** Desktop preview: the real microphone if the browser allows it, else keys (see top). */
-  emulateMic() {
-    this.loudness = 0;
-    let held = null;
-    let mic = null;
-    let level = 0;
-    const keyLevel = (e) => e.code === "Space" ? 0.85 : /^Digit[0-9]$/.test(e.code) ? Number(e.code.slice(5)) / 10 : null;
-    window.addEventListener("keydown", (e) => {
-      const k = keyLevel(e);
-      if (k !== null) held = k;
-    });
-    window.addEventListener("keyup", (e) => {
-      if (keyLevel(e) !== null) held = null;
-    });
-    const start = async () => {
-      window.removeEventListener("pointerdown", start);
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } });
-        const ctx = new AudioContext();
-        mic = ctx.createAnalyser();
-        mic.fftSize = 1024;
-        ctx.createMediaStreamSource(stream).connect(mic);
-        console.log("[mb] preview: loudness from the microphone (or hold 1\u20139 / Space)");
-      } catch {
-        console.log("[mb] preview: no microphone; hold 1\u20139 for 0.1\u20130.9, Space for a blow (0.85)");
-      }
-    };
-    window.addEventListener("pointerdown", start);
-    const buf = new Float32Array(1024);
-    setInterval(() => {
-      if (this.pinned !== void 0) return;
-      let target = held ?? 0;
-      if (mic) target = Math.max(target, levelOf(mic, buf));
-      level += (target - level) * (target > level ? 0.6 : 0.15);
-      this.setLoudness(level);
-    }, 16);
-  }
-};
-function levelOf(a, buf) {
-  a.getFloatTimeDomainData(buf);
-  let s = 0;
-  for (const v of buf) s += v * v;
-  const db = 10 * Math.log10(s / buf.length + 1e-12);
-  return Math.max(0, Math.min(1, (db + 60) / 60));
-}
-
-// src/keys.ts
-var HID = {
-  Enter: 40,
-  Escape: 41,
-  Backspace: 42,
-  Tab: 43,
-  Space: 44,
-  Minus: 45,
-  Equal: 46,
-  BracketLeft: 47,
-  BracketRight: 48,
-  Backslash: 49,
-  Semicolon: 51,
-  Quote: 52,
-  Backquote: 53,
-  Comma: 54,
-  Period: 55,
-  Slash: 56,
-  CapsLock: 57,
-  ArrowRight: 79,
-  ArrowLeft: 80,
-  ArrowDown: 81,
-  ArrowUp: 82,
-  ControlLeft: 224,
-  ShiftLeft: 225,
-  AltLeft: 226,
-  MetaLeft: 227,
-  ControlRight: 228,
-  ShiftRight: 229,
-  AltRight: 230,
-  MetaRight: 231
-};
-for (let i = 0; i < 26; i++) HID[`Key${String.fromCharCode(65 + i)}`] = 4 + i;
-for (let i = 1; i <= 9; i++) HID[`Digit${i}`] = 29 + i;
-HID.Digit0 = 39;
-for (let i = 1; i <= 12; i++) HID[`F${i}`] = 57 + i;
-var KEY_DOWN = 5;
-var KEY_UP = 6;
-var PAD_BUTTON = 11;
-var PAD_AXIS = 12;
-var Keyboard = class {
-  constructor(push) {
-    const on = (kind) => (e) => {
-      const code = HID[e.code];
-      if (code === void 0 || e.repeat) return;
-      e.preventDefault();
-      push([kind, 0, 0, 0, 0, 0, 0, code], e.timeStamp);
-    };
-    window.addEventListener("keydown", on(KEY_DOWN));
-    window.addEventListener("keyup", on(KEY_UP));
-  }
-};
-var Gamepads = class {
-  last = /* @__PURE__ */ new Map();
-  poll(push) {
-    for (const pad of navigator.getGamepads?.() ?? []) {
-      if (!pad) continue;
-      const prev = this.last.get(pad.index) ?? { buttons: [], axes: [] };
-      const buttons = pad.buttons.map((b) => Math.fround(b.value));
-      const axes = pad.axes.map((a) => Math.fround(Math.abs(a) < 0.1 ? 0 : a));
-      buttons.forEach((v, i) => {
-        if (v > 0.5 !== (prev.buttons[i] ?? 0) > 0.5) push([PAD_BUTTON, 0, pad.index, 0, 0, v, 0, i]);
-      });
-      axes.forEach((v, i) => {
-        if (Math.abs(v - (prev.axes[i] ?? 0)) > 0.02) push([PAD_AXIS, 0, pad.index, 0, 0, v, 0, i]);
-      });
-      this.last.set(pad.index, { buttons, axes });
-    }
-  }
-};
-
-// src/probe.ts
-async function probe() {
-  const out = {
-    userAgent: navigator.userAgent,
-    webgpu: "gpu" in navigator,
-    offscreenCanvas: typeof OffscreenCanvas !== "undefined",
-    transferControlToOffscreen: "transferControlToOffscreen" in HTMLCanvasElement.prototype,
-    crossOriginIsolated: self.crossOriginIsolated
-  };
-  try {
-    out.worker = await new Promise((resolve) => {
-      const w = new Worker(new URL("probe-worker.js", import.meta.url), { type: "module" });
-      const timer = setTimeout(() => resolve({ error: "timeout" }), 3e3);
-      w.onmessage = (e) => {
-        clearTimeout(timer);
-        resolve(e.data);
-        w.terminate();
-      };
-      w.onerror = (e) => {
-        clearTimeout(timer);
-        resolve({ error: e.message || "worker failed to start" });
-      };
-      const c = new OffscreenCanvas(16, 16);
-      w.postMessage({ canvas: c }, [c]);
-    });
-  } catch (e) {
-    out.worker = { error: String(e) };
-  }
-  return out;
-}
-
 // src/replay.ts
 var Recorder = class {
   log;
@@ -4030,14 +5370,16 @@ var Recorder = class {
 };
 
 // src/session.ts
+var NOTES_PER_FRAME = 8;
+var LEVELS = ["debug", "info", "warn", "error"];
 var Session = class {
-  constructor(audio, seed, dailySeed, playerId, locale, screen, gameBase, store, assetCache) {
+  constructor(audio, seed, dailySeed, playerId, locale, screen2, gameBase, store, assetCache) {
     this.audio = audio;
     this.seed = seed;
     this.dailySeed = dailySeed;
     this.playerId = playerId;
     this.locale = locale;
-    this.screen = screen;
+    this.screen = screen2;
     this.assets = new Assets(gameBase, assetCache);
     for (const [k, v] of Object.entries(store)) this.store.set(k, Uint8Array.from(atob(v), (c) => c.charCodeAt(0)));
   }
@@ -4056,12 +5398,26 @@ var Session = class {
   replaying = false;
   /** Called when saved data changes (key, base64 value or null). */
   onStore = null;
+  /** What the game reports, replay or not: the headless runner's (`mb replay`)
+   *  view of a run. Nothing here reaches native. */
+  observer = null;
   /** Last SPEC §5.1 round state the game reported (0 idle, 1 playing, 2 over). */
   round = 0;
   /** This frame's sensor snapshot (SPEC §5.7); null before the first sample. */
   tilt = null;
   motion = null;
+  /** Quaternion xyzw and rotation rate xyz (rad/s). */
+  attitude = null;
   loudness = null;
+  /** What the game marked (`mb_mark`) and logged (`mb_log`) since its frame
+   *  began, for the tools (`mb.step()` timings, `mb.stats()` frames): never
+   *  hashed, recorded or visible to the guest. */
+  marks = [];
+  logs = [];
+  begun = false;
+  /** Debug parameters (SPEC §5.1 `mb_param`): the preview tools' `--param`,
+   *  fixed for the session and recorded in its log; always empty on a device. */
+  params = /* @__PURE__ */ new Map();
   /** Total bytes of keys + values, for the 256 KB quota. */
   storeBytes() {
     let n = 0;
@@ -4076,9 +5432,15 @@ var Session = class {
   beginFrame(dt, events, sensors = {}, lost = 0) {
     const prev = this.gameTime;
     this.gameTime += dt;
+    if (this.begun) {
+      this.marks = [];
+      this.logs = [];
+    }
+    this.begun = true;
     this.timeLost = lost;
-    if (sensors.tilt) this.tilt = sensors.tilt;
-    if (sensors.motion) this.motion = sensors.motion;
+    if (sensors.tilt !== void 0) this.tilt = sensors.tilt;
+    if (sensors.motion !== void 0) this.motion = sensors.motion;
+    if (sensors.att !== void 0) this.attitude = sensors.att;
     if (sensors.loud !== void 0) this.loudness = sensors.loud;
     this.frameEvents = events;
     let last = prev;
@@ -4101,6 +5463,11 @@ var Session = class {
     const fn = level >= 3 ? console.error : level === 2 ? console.warn : console.log;
     fn(`[game] ${msg}`);
     post({ op: "log", level, msg: msg.slice(0, 2e3) });
+    if (this.logs.length < NOTES_PER_FRAME) this.logs.push(`${LEVELS[level] ?? "info"}: ${msg.slice(0, 200)}`);
+  }
+  /** SPEC §5.1 `mb_mark`: a no-op for the game; the tools see it. */
+  mark(label) {
+    if (this.marks.length < NOTES_PER_FRAME) this.marks.push(label);
   }
 };
 var Assets = class {
@@ -4130,6 +5497,10 @@ var Assets = class {
   }
   state(h) {
     return this.get(h)?.state ?? -1;
+  }
+  /** The bundle path an asset handle was loaded from. */
+  path(h) {
+    return this.get(h)?.path;
   }
   data(h) {
     return this.get(h)?.data;
@@ -4165,9 +5536,9 @@ var Assets = class {
       this.publish(a);
     }
   }
-  /** Watch-mode restore: publishes the recorded handles that exist and are
-   *  still pending (the new code may load other assets), waiting for their
-   *  fetches; returns the ones published. */
+  /** Watch-mode restore and the headless runner: publishes the recorded
+   *  handles that exist and are still pending (other code may load other
+   *  assets), waiting for their fetches; returns the ones published. */
   async publishKnown(handles) {
     const out = [];
     for (const h of handles) {
@@ -4184,6 +5555,535 @@ var Assets = class {
     a.data = a.arrived?.data;
   }
 };
+
+// src/run.ts
+var INIT_BUDGET_MS = 500;
+var CALLBACK_BUDGET_MS = 250;
+var HEARTBEAT_EVERY = 15;
+var FUEL_PER_CALLBACK = 3e8;
+var PREROLL_MIN_FRAMES = 6;
+var PREROLL_MAX_MS = 3e3;
+var GPU_WAIT_MAX_MS = 1e3;
+var MAX_DT = 0.1;
+var TOP_OVER = 8;
+var MAX_FRAME_HASHES = 216e3;
+var Runtime = class _Runtime {
+  constructor(guest, session, input, recorder, gamepads, sensors, stats, latency, source) {
+    this.guest = guest;
+    this.session = session;
+    this.input = input;
+    this.recorder = recorder;
+    this.gamepads = gamepads;
+    this.sensors = sensors;
+    this.stats = stats;
+    this.latency = latency;
+    this.source = source;
+  }
+  running = false;
+  suspended = false;
+  /** mb_suspend was called and mb_resume is owed (live sessions only). */
+  guestSuspended = false;
+  last = null;
+  /** Previous displayed frame's timestamp, for mb3d's adaptive render scale. */
+  lastShown = null;
+  /** Frames this session has run: one per mb_update. */
+  frames = 0;
+  /** Display ticks, for the heartbeat (a replay waiting on an asset ticks without running a frame). */
+  ticks = 0;
+  /** Draw hash after mb_init (index 0) and after each frame. */
+  hashes = [];
+  stopped = false;
+  raf = 0;
+  /** Next frame of a replay being played back. */
+  cursor = 0;
+  /** Lifecycle callbacks made since the last recorded frame. */
+  calls = [];
+  /** Serializes `stepFrames` (a replay step may wait for an asset). */
+  stepping = Promise.resolve();
+  /** The rAF timestamp of the frame being run (null outside a display frame). */
+  frameNow = null;
+  /** rAF to rAF (ms) for the frame being run, for `mb.stats()`; null outside a display frame. */
+  frameInterval = null;
+  /** Sensor readings last handed to the guest (recorded only when they change). */
+  seen = { tilt: "", motion: "", att: "", loud: null };
+  onReplayEnd = null;
+  /** Preview only (SPEC §9): multiplies live dt, for watching fast moments slowly. */
+  static timeScale = 1;
+  /** The SPEC §3 wall-clock budgets apply (a phone, a browser). The headless
+   *  runner turns them off: how fast a server is mustn't change how a replay
+   *  goes. Loop fuel still applies; it counts iterations, not time. */
+  static budgets = true;
+  /** CPU ms of the last 120 calls of each callback and of presenting (`mb.stats()`). */
+  static timings = /* @__PURE__ */ new Map();
+  static cpu(name, ms) {
+    let t = _Runtime.timings.get(name);
+    if (!t) _Runtime.timings.set(name, t = []);
+    t.push(ms);
+    if (t.length > 120) t.shift();
+  }
+  /** Runs mb_init; the draw hash at frame 0 covers what it did. */
+  init() {
+    this.timed("mb_init", () => this.guest.mb_init(), INIT_BUDGET_MS);
+    this.hashes.push(host_draw_hash());
+  }
+  start() {
+    this.running = true;
+    this.session.audio.resume();
+    this.raf = requestAnimationFrame((t) => this.tick(t));
+  }
+  /** Preview (SPEC §9): no frames at all until `mb.step(n)` or `mb.resume()`,
+   *  so a live run and its replay can be stepped side by side from frame 0. */
+  startHeld() {
+    this.running = true;
+    this.suspended = true;
+    this.session.audio.suspend();
+  }
+  /** Feed neighbour: run silently until the assets it asked for have loaded
+   *  (so the waiting card shows the real game, not its loading fallback),
+   *  then hold that frame until `resume()`. */
+  startPaused() {
+    this.running = true;
+    this.suspended = true;
+    this.prerolling = true;
+    this.session.audio.setMuted(true);
+    const deadline = performance.now() + PREROLL_MAX_MS;
+    let n = 0;
+    const frame = () => {
+      if (!this.prerolling || this.stopped) return;
+      this.presenting = false;
+      if (this.source.kind === "replay") this.replayTick();
+      else this.liveFrame(Math.fround(1 / 60));
+      this.presenting = true;
+      n++;
+      const loaded = this.session.assets.allArrived() && n >= PREROLL_MIN_FRAMES;
+      if (loaded || performance.now() > deadline) {
+        this.prerolling = false;
+        this.session.audio.setMuted(false);
+        if (!this.stopped) present(host_end_frame);
+        return;
+      }
+      this.raf = requestAnimationFrame(frame);
+    };
+    frame();
+  }
+  /** Running silently ahead of being shown (startPaused). */
+  prerolling = false;
+  /** False while prerolling: frames render without being presented. */
+  presenting = true;
+  suspend() {
+    if (this.suspended || this.stopped) return;
+    this.suspended = true;
+    cancelFrame(this.raf);
+    this.session.audio.suspend();
+    if (this.source.kind === "live") {
+      this.lifecycle("suspend");
+      this.calls.push("suspend");
+      this.guestSuspended = true;
+    }
+    post({ op: "suspended" });
+  }
+  resume() {
+    if (!this.suspended || this.stopped) return;
+    if (this.prerolling) {
+      this.prerolling = false;
+      cancelFrame(this.raf);
+      this.session.audio.setMuted(false);
+    }
+    this.suspended = false;
+    this.last = null;
+    this.lastShown = null;
+    this.input.take();
+    this.session.audio.resume();
+    if (this.guestSuspended) {
+      this.guestSuspended = false;
+      this.lifecycle("resume");
+      this.calls.push("resume");
+    }
+    post({ op: "resumed" });
+    this.raf = requestAnimationFrame((t) => this.tick(t));
+  }
+  lifecycle(c) {
+    if (c === "suspend") this.timed("mb_suspend", () => this.guest.mb_suspend?.());
+    else this.timed("mb_resume", () => this.guest.mb_resume?.());
+  }
+  tick(now) {
+    if (!this.running || this.suspended || this.stopped) return;
+    this.frameInterval = this.lastShown !== null ? now - this.lastShown : null;
+    if (this.frameInterval !== null) host_frame_time(this.frameInterval);
+    this.lastShown = now;
+    this.frameNow = now;
+    if (this.source.kind === "replay") {
+      this.replayTick();
+    } else {
+      const raw = this.last === null ? 1 / 60 : Math.max((now - this.last) / 1e3, 0);
+      this.last = now;
+      const scaled = raw * _Runtime.timeScale;
+      const dt = Math.fround(Math.min(scaled, MAX_DT));
+      const lost = scaled > MAX_DT ? Math.fround(scaled - dt) : 0;
+      this.liveFrame(dt, { now, dt, scale: _Runtime.timeScale }, lost);
+    }
+    this.frameNow = null;
+    this.frameInterval = null;
+    if (++this.ticks % HEARTBEAT_EVERY === 0) {
+      post({ op: "heartbeat", frame: this.ticks, time: this.session.gameTime });
+    }
+    if (!this.stopped) this.raf = requestAnimationFrame((t) => this.tick(t));
+  }
+  /** A live frame. With `clock` (a real display frame), events get their own
+   *  times within it; without (prerolling, stepping), the frame's time. */
+  liveFrame(dt, clock, lost = 0) {
+    this.gamepads?.poll((e) => this.input.push(e));
+    const events = this.input.take(clock);
+    const assets = this.session.assets.publishArrived();
+    const sensors = this.sampleSensors();
+    this.latency.deliver(this.input.taken, this.frames + 1, this.frameNow);
+    this.recorder.frame(dt, events, assets, sensors, this.calls.splice(0), lost);
+    return this.step(dt, events, sensors, [], lost);
+  }
+  /** Preview: advance a suspended session by `n` frames — a live one by
+   *  `dt` seconds each (1/60 s unless given; recorded like any frame), a
+   *  replay by its next `n` recorded frames (waiting for assets as needed;
+   *  it stops at the end rather than looping). Resolves once they have run,
+   *  with what each cost.
+   *
+   *  `paced` (the default) waits for the GPU to finish each frame before
+   *  running the next, as the display does: submitting frames back to back
+   *  backs up the GPU queue until a submit blocks, which reads as a hitch
+   *  the game doesn't have.
+   *
+   *  `until` stops early, after the first frame whose marks (`mb_mark`)
+   *  include one of these labels (`mb shot --at mark:<label>`). */
+  stepFrames(n, paced = true, dt = 1 / 60, until) {
+    if (!(dt > 0 && dt <= MAX_DT)) return Promise.reject(new Error(`mb.step: dt ${dt} is not seconds in (0, ${MAX_DT}]`));
+    const frameDt = Math.fround(dt);
+    const run = async () => {
+      const timings = [];
+      if (paced) await gpuDone();
+      for (let i = 0; i < n && this.suspended && !this.stopped; i++) {
+        let stat;
+        if (this.source.kind === "live") {
+          stat = this.liveFrame(frameDt);
+        } else {
+          const f = this.source.log.frames[this.cursor];
+          if (!f) break;
+          await this.session.assets.publishRecorded(f.assets ?? []);
+          this.cursor++;
+          stat = this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
+        }
+        if (!stat) break;
+        if (paced && stat.present !== null) {
+          const submitted = performance.now();
+          await gpuDone();
+          stat.gpu = performance.now() - submitted;
+        }
+        const t = { frame: stat.frame, mb_update: stat.mb_update, mb_render: stat.mb_render, present: stat.present, gpu: stat.gpu };
+        if (stat.camera) t.camera = stat.camera;
+        if (stat.track) t.track = stat.track;
+        if (stat.marks) t.marks = stat.marks;
+        if (stat.logs) t.logs = stat.logs;
+        timings.push(t);
+        if (until?.length && stat.marks?.some((m) => until.includes(m))) break;
+      }
+      return { ...this.brief(), timings };
+    };
+    const p = this.stepping.then(run);
+    this.stepping = p.catch(() => {
+    });
+    return p;
+  }
+  /** Preview (SPEC §9 `mb.gpu`): draws the frame on screen again `n` times,
+   *  each after the GPU has finished everything before it, and resolves to
+   *  each one's GPU ms (submit until done), so one scene can be timed as
+   *  often as it takes to trust the number. Presentation only: no guest
+   *  call, nothing hashed, recorded or simulated. */
+  redrawTimed(n) {
+    if (!this.held) return Promise.reject(new Error("mb.gpu: pause the session first (mb.suspend(), or restart with hold)"));
+    const run = async () => {
+      const ms = [];
+      await gpuDone();
+      for (let i = 0; i < n && !this.stopped; i++) {
+        present(host_redraw);
+        const submitted = performance.now();
+        await gpuDone();
+        ms.push(performance.now() - submitted);
+      }
+      return ms;
+    };
+    const p = this.stepping.then(run);
+    this.stepping = p.catch(() => {
+    });
+    return p;
+  }
+  /** Preview (`mb.isolate`, `mb shot --readability`): draws the frame on
+   *  screen again with the mb3d node `node` (and what hangs under it) left
+   *  out of the camera's pass (0: none), and without the mb2d HUD unless
+   *  `hud`; `plain` also without the retro look, fog, film and grade, brighter
+   *  (for a silhouette mask). Presentation only, like `redrawTimed`. */
+  redrawIsolated(node, hud, plain) {
+    if (!this.held) return Promise.reject(new Error("mb.isolate: pause the session first (mb.suspend(), or restart with hold)"));
+    const run = async () => {
+      await gpuDone();
+      present(() => host_redraw_isolated(node, hud, plain));
+      await gpuDone();
+    };
+    const p = this.stepping.then(run);
+    this.stepping = p.catch(() => {
+    });
+    return p;
+  }
+  /** The sensor readings that differ from what the guest saw last frame. */
+  sampleSensors() {
+    const s = this.sensors;
+    const d = {};
+    if (!s) return d;
+    const tilt = s.tilt?.join() ?? "";
+    if (tilt !== this.seen.tilt) {
+      this.seen.tilt = tilt;
+      d.tilt = s.tilt ? [...s.tilt] : null;
+    }
+    const motion = s.motion?.join() ?? "";
+    if (motion !== this.seen.motion) {
+      this.seen.motion = motion;
+      d.motion = s.motion ? [...s.motion] : null;
+    }
+    const attitude = s.attitude?.join() ?? "";
+    if (attitude !== this.seen.att) {
+      this.seen.att = attitude;
+      d.att = s.attitude ? [...s.attitude] : null;
+    }
+    if (s.loudness !== null && s.loudness !== this.seen.loud) {
+      this.seen.loud = s.loudness;
+      d.loud = s.loudness;
+    }
+    return d;
+  }
+  /** Plays one recorded frame per display frame; live input is ignored. */
+  replayTick() {
+    if (this.source.kind !== "replay") return;
+    this.input.take();
+    const f = this.source.log.frames[this.cursor];
+    if (!f) {
+      this.onReplayEnd?.();
+      return;
+    }
+    if (!this.session.assets.tryPublishRecorded(f.assets ?? [])) return;
+    this.cursor++;
+    this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
+  }
+  /** One frame: replay recorded lifecycle calls, deliver input, update, render,
+   *  present. Returns what it cost (also kept for `mb.stats()`), or null if
+   *  the session stopped. */
+  step(dt, events, sensors, calls, lost = 0) {
+    for (const c of calls ?? []) this.lifecycle(c);
+    if (this.stopped) return null;
+    this.session.beginFrame(dt, events, sensors, lost);
+    host_step(dt);
+    this.session.audio.frame(this.frameNow ?? performance.now(), this.session.gameTime, this.source.kind === "live" ? _Runtime.timeScale : 1);
+    const update = this.timed("mb_update", () => this.guest.mb_update(dt));
+    if (this.stopped) return null;
+    this.frames++;
+    host_begin_frame();
+    const render = this.timed("mb_render", () => this.guest.mb_render());
+    if (this.stopped) return null;
+    let presentMs = null;
+    let submitted = null;
+    if (this.presenting) {
+      const t0 = performance.now();
+      present(host_end_frame);
+      submitted = performance.now();
+      presentMs = submitted - t0;
+      _Runtime.cpu("present", presentMs);
+    }
+    this.latency.submitted(submitted);
+    if (this.hashes.length < MAX_FRAME_HASHES) this.hashes.push(host_draw_hash());
+    const kept = presentMs !== null && this.stats.drawn;
+    const drawn = kept ? JSON.parse(host_stats()) : {};
+    const stat = { ...drawn, frame: this.frames, interval: this.frameInterval, mb_update: update, mb_render: render, present: presentMs, gpu: null };
+    const pose2 = kept ? host_pose() : null;
+    if (pose2 && pose2.length >= 9) {
+      stat.camera = Array.from(pose2.subarray(0, 9));
+      if (pose2.length >= 12) stat.track = Array.from(pose2.subarray(9, 12));
+    }
+    if (this.session.marks.length) stat.marks = this.session.marks;
+    if (this.session.logs.length) stat.logs = this.session.logs;
+    const over = kept ? overBudget(drawn) : [];
+    if (over.length) {
+      stat.over = over;
+      stat.top = JSON.parse(host_top_draws(TOP_OVER));
+    }
+    this.stats.push(stat);
+    return stat;
+  }
+  /** Runs a guest callback under the watchdogs; returns how long it took (ms). */
+  timed(name, f, budget = CALLBACK_BUDGET_MS) {
+    this.guest.__mb_fuel.value = FUEL_PER_CALLBACK;
+    const t = performance.now();
+    try {
+      f();
+    } catch (e) {
+      this.stop();
+      if (this.guest.__mb_fuel.value === 0) {
+        post({ op: "watchdog", callback: `${name} (loop fuel exhausted)`, ms: performance.now() - t });
+      } else {
+        post({ op: "error", message: `${name} trapped: ${e instanceof Error ? e.message : String(e)}` });
+      }
+      return performance.now() - t;
+    }
+    const ms = performance.now() - t;
+    _Runtime.cpu(name, ms);
+    if (ms > budget && _Runtime.budgets) {
+      this.stop();
+      post({ op: "watchdog", callback: name, ms });
+    }
+    return ms;
+  }
+  stop() {
+    this.stopped = true;
+    cancelFrame(this.raf);
+  }
+  brief() {
+    return { frames: this.frames, time: this.session.gameTime, hash: host_draw_hash(), replay: this.source.kind === "replay" };
+  }
+  /** Paused, held or not started: no frames run on their own. */
+  get held() {
+    return this.suspended || !this.running;
+  }
+  /** Watch mode (`mb serve --watch`): runs another run's recorded frames in
+   *  this fresh, not yet started live session as fast as it can, recording
+   *  them as its own, so the session carries on live from where that run
+   *  was (with new code or assets). Compares the draw hash after mb_init and
+   *  after every frame with that run's (`expected`) to tell whether it went
+   *  the same way. Silent and unpresented until the last frame. */
+  async fastForward(frames, expected, progress) {
+    this.presenting = false;
+    this.session.audio.fastForward(true);
+    let firstMismatch = expected.length > 0 && this.hashes[0] !== expected[0] ? 0 : null;
+    let missingAssets = 0;
+    let slice = performance.now();
+    try {
+      for (let i = 0; i < frames.length && !this.stopped; i++) {
+        const f = frames[i];
+        let assets = [];
+        if (f.assets?.length) {
+          assets = await this.session.assets.publishKnown(f.assets);
+          missingAssets += f.assets.length - assets.length;
+        }
+        const sensors = {};
+        if (f.tilt !== void 0) sensors.tilt = f.tilt;
+        if (f.motion !== void 0) sensors.motion = f.motion;
+        if (f.att !== void 0) sensors.att = f.att;
+        if (f.loud !== void 0) sensors.loud = f.loud;
+        this.recorder.frame(f.dt, f.events ?? [], assets, sensors, f.calls ?? [], f.lost ?? 0);
+        this.step(f.dt, f.events ?? [], sensors, f.calls, f.lost);
+        if (firstMismatch === null && i + 1 < expected.length && this.hashes[i + 1] !== expected[i + 1]) firstMismatch = i + 1;
+        if (performance.now() - slice > 16) {
+          progress?.(i + 1, frames.length);
+          await yieldTask();
+          slice = performance.now();
+        }
+      }
+    } finally {
+      this.presenting = true;
+      this.session.audio.fastForward(false);
+    }
+    if (!this.stopped) present(host_end_frame);
+    return { frames: this.frames, of: frames.length, firstMismatch, compared: Math.min(expected.length, this.frames + 1), missingAssets };
+  }
+  /** Headless (`mb replay`): plays a replay session's whole log as fast as it
+   *  can, unpresented, waiting for each asset the run saw arrive. `onFrame`
+   *  is told the 1-based number of the frame about to run. Stops early if the
+   *  guest traps or runs out of fuel. On another build the log may name
+   *  assets this one never asked for: those are skipped and counted
+   *  (`missingAssets`), as watch mode's restore does, and the run goes on. */
+  async replayAll(onFrame) {
+    if (this.source.kind !== "replay") throw new Error("replayAll needs a replay session");
+    this.presenting = false;
+    const frames = this.source.log.frames;
+    let missingAssets = 0;
+    while (this.cursor < frames.length && !this.stopped) {
+      const f = frames[this.cursor];
+      if (f.assets?.length) missingAssets += f.assets.length - (await this.session.assets.publishKnown(f.assets)).length;
+      this.cursor++;
+      onFrame?.(this.frames + 1);
+      this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
+    }
+    return { ...this.brief(), missingAssets };
+  }
+  /** The draw hash after mb_init (0) and after each frame since, as far as kept. */
+  frameHashes() {
+    return this.hashes;
+  }
+  snapshot() {
+    const log2 = this.source.kind === "replay" ? { ...this.source.log, frames: this.source.log.frames.slice(0, this.cursor) } : this.recorder.log;
+    return { ...this.brief(), log: structuredClone(log2) };
+  }
+};
+function gpuDone() {
+  return Promise.race([host_gpu_done(), new Promise((r) => setTimeout(r, GPU_WAIT_MAX_MS))]);
+}
+function cancelFrame(id) {
+  if (typeof cancelAnimationFrame !== "undefined") cancelAnimationFrame(id);
+}
+function yieldTask() {
+  return new Promise((resolve) => {
+    const ch = new MessageChannel();
+    ch.port1.onmessage = () => resolve();
+    ch.port2.postMessage(null);
+  });
+}
+function hexBytes(hex) {
+  const out = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16) || 0;
+  return out;
+}
+var MAX_PARAMS = 32;
+function checkParams(p) {
+  const out = {};
+  for (const [k, v] of Object.entries(p ?? {}).slice(0, MAX_PARAMS)) {
+    if (k.length > 0 && k.length <= 64 && typeof v === "string" && v.length <= 256) out[k] = v;
+  }
+  return out;
+}
+async function createSession(page2, source, seedOverride, from, paramsOverride) {
+  const { boot, manifest: m } = page2;
+  const log2 = source.kind === "replay" ? source.log : from;
+  const params = hasNative ? {} : checkParams(log2 ? log2.params : paramsOverride ?? page2.params);
+  const seed = BigInt(log2?.seed ?? seedOverride ?? boot.seed);
+  const dailySeed = BigInt(log2?.dailySeed ?? boot.dailySeed);
+  const store = log2?.store ?? { ...page2.store };
+  const playerId = log2?.playerId ?? boot.playerId;
+  const locale = log2?.locale ?? boot.locale;
+  const screen2 = log2 ? new Float32Array(log2.screen) : page2.screen;
+  host_new_session();
+  host_set_stdlib(boot.manifest.stdlib.mb3d ?? 0);
+  page2.audio.newSession();
+  const session = new Session(page2.audio, seed, dailySeed, hexBytes(playerId), locale, screen2, page2.gameBase, store, page2.assets);
+  session.replaying = source.kind === "replay";
+  for (const [k, v] of Object.entries(params)) session.params.set(k, v);
+  session.observer = page2.observer ?? null;
+  session.onStore = (key, value) => {
+    if (value === null) delete page2.store[key];
+    else page2.store[key] = value;
+  };
+  const instance = await WebAssembly.instantiate(page2.module, { mb: buildImports(session, page2.host, m) });
+  const guest = instance.exports;
+  if (!(guest.__mb_fuel instanceof WebAssembly.Global)) throw new Error("game.wasm is not loop-metered; refusing to run it");
+  session.memory = () => guest.memory;
+  const recorder = new Recorder({
+    game: m.id,
+    ...boot.bundle ? { bundle: boot.bundle } : {},
+    seed: seed.toString(),
+    dailySeed: dailySeed.toString(),
+    store,
+    playerId,
+    locale,
+    screen: Array.from(screen2),
+    ...Object.keys(params).length ? { params } : {}
+  });
+  const rt = new Runtime(guest, session, page2.input, recorder, page2.gamepads, page2.sensors, page2.stats, page2.latency, source);
+  rt.init();
+  return rt;
+}
 
 // src/dev.ts
 var SAVED_KEY = "mb.dev.saved";
@@ -4599,346 +6499,7 @@ var Ui = class {
 };
 
 // src/main.ts
-var INIT_BUDGET_MS = 500;
-var CALLBACK_BUDGET_MS = 250;
-var HEARTBEAT_EVERY = 15;
-var FUEL_PER_CALLBACK = 3e8;
-var GAME = "../game/";
-var PREROLL_MIN_FRAMES = 6;
-var PREROLL_MAX_MS = 3e3;
-var MAX_DT = 0.1;
-var MAX_FRAME_HASHES = 216e3;
-var Runtime = class _Runtime {
-  constructor(guest, session, input, recorder, gamepads, sensors, source) {
-    this.guest = guest;
-    this.session = session;
-    this.input = input;
-    this.recorder = recorder;
-    this.gamepads = gamepads;
-    this.sensors = sensors;
-    this.source = source;
-  }
-  running = false;
-  suspended = false;
-  /** mb_suspend was called and mb_resume is owed (live sessions only). */
-  guestSuspended = false;
-  last = null;
-  /** Previous displayed frame's timestamp, for mb3d's adaptive render scale. */
-  lastShown = null;
-  /** Frames this session has run: one per mb_update. */
-  frames = 0;
-  /** Display ticks, for the heartbeat (a replay waiting on an asset ticks without running a frame). */
-  ticks = 0;
-  /** Draw hash after mb_init (index 0) and after each frame. */
-  hashes = [];
-  stopped = false;
-  raf = 0;
-  /** Next frame of a replay being played back. */
-  cursor = 0;
-  /** Lifecycle callbacks made since the last recorded frame. */
-  calls = [];
-  /** Serializes `stepFrames` (a replay step may wait for an asset). */
-  stepping = Promise.resolve();
-  /** The rAF timestamp of the frame being run (null outside a display frame). */
-  frameNow = null;
-  /** Sensor readings last handed to the guest (recorded only when they change). */
-  seen = { tilt: "", motion: "", loud: null };
-  onReplayEnd = null;
-  /** Preview only (SPEC §9): multiplies live dt, for watching fast moments slowly. */
-  static timeScale = 1;
-  /** CPU ms of the last 120 calls of each callback and of presenting (`mb.stats()`). */
-  static timings = /* @__PURE__ */ new Map();
-  static cpu(name, ms) {
-    let t = _Runtime.timings.get(name);
-    if (!t) _Runtime.timings.set(name, t = []);
-    t.push(ms);
-    if (t.length > 120) t.shift();
-  }
-  /** Runs mb_init; the draw hash at frame 0 covers what it did. */
-  init() {
-    this.timed("mb_init", () => this.guest.mb_init(), INIT_BUDGET_MS);
-    this.hashes.push(host_draw_hash());
-  }
-  start() {
-    this.running = true;
-    this.session.audio.resume();
-    this.raf = requestAnimationFrame((t) => this.tick(t));
-  }
-  /** Preview (SPEC §9): no frames at all until `mb.step(n)` or `mb.resume()`,
-   *  so a live run and its replay can be stepped side by side from frame 0. */
-  startHeld() {
-    this.running = true;
-    this.suspended = true;
-    this.session.audio.suspend();
-  }
-  /** Feed neighbour: run silently until the assets it asked for have loaded
-   *  (so the waiting card shows the real game, not its loading fallback),
-   *  then hold that frame until `resume()`. */
-  startPaused() {
-    this.running = true;
-    this.suspended = true;
-    this.prerolling = true;
-    this.session.audio.setMuted(true);
-    const deadline = performance.now() + PREROLL_MAX_MS;
-    let n = 0;
-    const frame = () => {
-      if (!this.prerolling || this.stopped) return;
-      this.presenting = false;
-      if (this.source.kind === "replay") this.replayTick();
-      else this.liveFrame(Math.fround(1 / 60));
-      this.presenting = true;
-      n++;
-      const loaded = this.session.assets.allArrived() && n >= PREROLL_MIN_FRAMES;
-      if (loaded || performance.now() > deadline) {
-        this.prerolling = false;
-        this.session.audio.setMuted(false);
-        if (!this.stopped) present(host_end_frame);
-        return;
-      }
-      this.raf = requestAnimationFrame(frame);
-    };
-    frame();
-  }
-  /** Running silently ahead of being shown (startPaused). */
-  prerolling = false;
-  /** False while prerolling: frames render without being presented. */
-  presenting = true;
-  suspend() {
-    if (this.suspended || this.stopped) return;
-    this.suspended = true;
-    cancelAnimationFrame(this.raf);
-    this.session.audio.suspend();
-    if (this.source.kind === "live") {
-      this.lifecycle("suspend");
-      this.calls.push("suspend");
-      this.guestSuspended = true;
-    }
-    post({ op: "suspended" });
-  }
-  resume() {
-    if (!this.suspended || this.stopped) return;
-    if (this.prerolling) {
-      this.prerolling = false;
-      cancelAnimationFrame(this.raf);
-      this.session.audio.setMuted(false);
-    }
-    this.suspended = false;
-    this.last = null;
-    this.lastShown = null;
-    this.input.take();
-    this.session.audio.resume();
-    if (this.guestSuspended) {
-      this.guestSuspended = false;
-      this.lifecycle("resume");
-      this.calls.push("resume");
-    }
-    post({ op: "resumed" });
-    this.raf = requestAnimationFrame((t) => this.tick(t));
-  }
-  lifecycle(c) {
-    if (c === "suspend") this.timed("mb_suspend", () => this.guest.mb_suspend?.());
-    else this.timed("mb_resume", () => this.guest.mb_resume?.());
-  }
-  tick(now) {
-    if (!this.running || this.suspended || this.stopped) return;
-    if (this.lastShown !== null) host_frame_time(now - this.lastShown);
-    this.lastShown = now;
-    this.frameNow = now;
-    if (this.source.kind === "replay") {
-      this.replayTick();
-    } else {
-      const raw = this.last === null ? 1 / 60 : Math.max((now - this.last) / 1e3, 0);
-      this.last = now;
-      const scaled = raw * _Runtime.timeScale;
-      const dt = Math.fround(Math.min(scaled, MAX_DT));
-      const lost = scaled > MAX_DT ? Math.fround(scaled - dt) : 0;
-      this.liveFrame(dt, { now, dt, scale: _Runtime.timeScale }, lost);
-    }
-    this.frameNow = null;
-    if (++this.ticks % HEARTBEAT_EVERY === 0) {
-      post({ op: "heartbeat", frame: this.ticks, time: this.session.gameTime });
-    }
-    if (!this.stopped) this.raf = requestAnimationFrame((t) => this.tick(t));
-  }
-  /** A live frame. With `clock` (a real display frame), events get their own
-   *  times within it; without (prerolling, stepping), the frame's time. */
-  liveFrame(dt, clock, lost = 0) {
-    this.gamepads?.poll((e) => this.input.push(e));
-    const events = this.input.take(clock);
-    const assets = this.session.assets.publishArrived();
-    const sensors = this.sampleSensors();
-    this.recorder.frame(dt, events, assets, sensors, this.calls.splice(0), lost);
-    this.step(dt, events, sensors, [], lost);
-  }
-  /** Preview: advance a suspended session by `n` frames — a live one by
-   *  1/60 s each (recorded like any frame), a replay by its next `n`
-   *  recorded frames (waiting for assets as needed; it stops at the end
-   *  rather than looping). Resolves once they have run. */
-  stepFrames(n) {
-    const run = async () => {
-      for (let i = 0; i < n && this.suspended && !this.stopped; i++) {
-        if (this.source.kind === "live") {
-          this.liveFrame(Math.fround(1 / 60));
-        } else {
-          const f = this.source.log.frames[this.cursor];
-          if (!f) break;
-          await this.session.assets.publishRecorded(f.assets ?? []);
-          this.cursor++;
-          this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
-        }
-      }
-      return this.brief();
-    };
-    const p = this.stepping.then(run);
-    this.stepping = p.catch(() => {
-    });
-    return p;
-  }
-  /** The sensor readings that differ from what the guest saw last frame. */
-  sampleSensors() {
-    const s = this.sensors;
-    const d = {};
-    if (!s) return d;
-    if (s.tilt && s.tilt.join() !== this.seen.tilt) {
-      this.seen.tilt = s.tilt.join();
-      d.tilt = [...s.tilt];
-    }
-    if (s.motion && s.motion.join() !== this.seen.motion) {
-      this.seen.motion = s.motion.join();
-      d.motion = [...s.motion];
-    }
-    if (s.loudness !== null && s.loudness !== this.seen.loud) {
-      this.seen.loud = s.loudness;
-      d.loud = s.loudness;
-    }
-    return d;
-  }
-  /** Plays one recorded frame per display frame; live input is ignored. */
-  replayTick() {
-    if (this.source.kind !== "replay") return;
-    this.input.take();
-    const f = this.source.log.frames[this.cursor];
-    if (!f) {
-      this.onReplayEnd?.();
-      return;
-    }
-    if (!this.session.assets.tryPublishRecorded(f.assets ?? [])) return;
-    this.cursor++;
-    this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
-  }
-  /** One frame: replay recorded lifecycle calls, deliver input, update, render, present. */
-  step(dt, events, sensors, calls, lost = 0) {
-    for (const c of calls ?? []) this.lifecycle(c);
-    if (this.stopped) return;
-    this.session.beginFrame(dt, events, sensors, lost);
-    host_step(dt);
-    this.session.audio.frame(this.frameNow ?? performance.now(), this.session.gameTime, this.source.kind === "live" ? _Runtime.timeScale : 1);
-    this.timed("mb_update", () => this.guest.mb_update(dt));
-    if (this.stopped) return;
-    this.frames++;
-    host_begin_frame();
-    this.timed("mb_render", () => this.guest.mb_render());
-    if (this.stopped) return;
-    if (this.presenting) {
-      const t0 = performance.now();
-      present(host_end_frame);
-      _Runtime.cpu("present", performance.now() - t0);
-    }
-    if (this.hashes.length < MAX_FRAME_HASHES) this.hashes.push(host_draw_hash());
-  }
-  timed(name, f, budget = CALLBACK_BUDGET_MS) {
-    this.guest.__mb_fuel.value = FUEL_PER_CALLBACK;
-    const t = performance.now();
-    try {
-      f();
-    } catch (e) {
-      this.stop();
-      if (this.guest.__mb_fuel.value === 0) {
-        post({ op: "watchdog", callback: `${name} (loop fuel exhausted)`, ms: performance.now() - t });
-      } else {
-        post({ op: "error", message: `${name} trapped: ${e instanceof Error ? e.message : String(e)}` });
-      }
-      return;
-    }
-    const ms = performance.now() - t;
-    _Runtime.cpu(name, ms);
-    if (ms > budget) {
-      this.stop();
-      post({ op: "watchdog", callback: name, ms });
-    }
-  }
-  stop() {
-    this.stopped = true;
-    cancelAnimationFrame(this.raf);
-  }
-  brief() {
-    return { frames: this.frames, time: this.session.gameTime, hash: host_draw_hash(), replay: this.source.kind === "replay" };
-  }
-  /** Paused, held or not started: no frames run on their own. */
-  get held() {
-    return this.suspended || !this.running;
-  }
-  /** Watch mode (`mb serve --watch`): runs another run's recorded frames in
-   *  this fresh, not yet started live session as fast as it can, recording
-   *  them as its own, so the session carries on live from where that run
-   *  was (with new code or assets). Compares the draw hash after mb_init and
-   *  after every frame with that run's (`expected`) to tell whether it went
-   *  the same way. Silent and unpresented until the last frame. */
-  async fastForward(frames, expected, progress) {
-    this.presenting = false;
-    this.session.audio.fastForward(true);
-    let firstMismatch = expected.length > 0 && this.hashes[0] !== expected[0] ? 0 : null;
-    let missingAssets = 0;
-    let slice = performance.now();
-    try {
-      for (let i = 0; i < frames.length && !this.stopped; i++) {
-        const f = frames[i];
-        let assets = [];
-        if (f.assets?.length) {
-          assets = await this.session.assets.publishKnown(f.assets);
-          missingAssets += f.assets.length - assets.length;
-        }
-        const sensors = {};
-        if (f.tilt) sensors.tilt = f.tilt;
-        if (f.motion) sensors.motion = f.motion;
-        if (f.loud !== void 0) sensors.loud = f.loud;
-        this.recorder.frame(f.dt, f.events ?? [], assets, sensors, f.calls ?? [], f.lost ?? 0);
-        this.step(f.dt, f.events ?? [], sensors, f.calls, f.lost);
-        if (firstMismatch === null && i + 1 < expected.length && this.hashes[i + 1] !== expected[i + 1]) firstMismatch = i + 1;
-        if (performance.now() - slice > 16) {
-          progress?.(i + 1, frames.length);
-          await yieldTask();
-          slice = performance.now();
-        }
-      }
-    } finally {
-      this.presenting = true;
-      this.session.audio.fastForward(false);
-    }
-    if (!this.stopped) present(host_end_frame);
-    return { frames: this.frames, of: frames.length, firstMismatch, compared: Math.min(expected.length, this.frames + 1), missingAssets };
-  }
-  /** The draw hash after mb_init (0) and after each frame since, as far as kept. */
-  frameHashes() {
-    return this.hashes;
-  }
-  snapshot() {
-    const log2 = this.source.kind === "replay" ? { ...this.source.log, frames: this.source.log.frames.slice(0, this.cursor) } : this.recorder.log;
-    return { ...this.brief(), log: structuredClone(log2) };
-  }
-};
-function yieldTask() {
-  return new Promise((resolve) => {
-    const ch = new MessageChannel();
-    ch.port1.onmessage = () => resolve();
-    ch.port2.postMessage(null);
-  });
-}
-function hexBytes(hex) {
-  const out = new Uint8Array(16);
-  for (let i = 0; i < 16; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16) || 0;
-  return out;
-}
+var TOP_STATS = 8;
 function fit(canvas, boot) {
   const [lw, lh] = boot.manifest.logical_size;
   const cssW = window.innerWidth;
@@ -4952,7 +6513,7 @@ function fit(canvas, boot) {
   canvas.height = size[1];
   const ins = boot.insets;
   const toLogical = (css, off) => Math.max(0, css - off) / scale;
-  const screen = new Float32Array([
+  const screen2 = new Float32Array([
     lw,
     lh,
     toLogical(ins.top, offsetY),
@@ -4962,55 +6523,20 @@ function fit(canvas, boot) {
     k * scale,
     0
   ]);
-  return { layout: { scale, offsetX, offsetY, height: cssH, stripHeight: boot.stripHeight }, screen, size };
+  return { layout: { scale, offsetX, offsetY, height: cssH, stripHeight: boot.stripHeight }, screen: screen2, size };
 }
-function drawOverlays(layout, screen, mic) {
+function drawOverlays(layout, screen2, mic, bannerTop) {
   const root = document.createElement("div");
   root.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:10";
   document.body.append(root);
   const draw = () => {
     const l = layout();
-    const lw = screen[0] ?? 360, lh = screen[1] ?? 640, insetTop = screen[2] ?? 0;
+    const lw = screen2[0] ?? 360, lh = screen2[1] ?? 640, insetTop = screen2[2] ?? 0;
     const box = (x, y, w, h, label) => `<div style="position:absolute;left:${l.offsetX + x * l.scale}px;top:${l.offsetY + y * l.scale}px;width:${w * l.scale}px;height:${h * l.scale}px;background:rgba(255,0,128,.25);outline:1px dashed #f08;color:#fff;font:10px system-ui;padding:2px;box-sizing:border-box">${label}</div>`;
-    root.innerHTML = box(0, lh - 70, lw, 70, "card: title + creator") + box(lw - 56, lh * 0.45, 56, lh * 0.55 - 70, "card: buttons") + box(8, insetTop + 4, mic ? 110 : 64, 44, mic ? "pause pill + mic badge (play)" : "pause pill (play)");
+    root.innerHTML = box(0, lh - 70, lw, 70, "card: title + creator") + box(lw - 56, lh * 0.45, 56, lh * 0.55 - 70, "card: buttons") + (bannerTop ? box(72, insetTop, lw - 144, 110, "replay card: Beat \u2026 (top)") : box(0, lh - 230, lw - 56, 160, "replay card: Beat \u2026")) + box(8, insetTop + 4, mic ? 110 : 64, 44, mic ? "pause pill + mic badge (play)" : "pause pill (play)");
   };
   draw();
   return draw;
-}
-async function createSession(page, source, seedOverride, from) {
-  const { boot, manifest: m } = page;
-  const log2 = source.kind === "replay" ? source.log : from;
-  const seed = BigInt(log2?.seed ?? seedOverride ?? boot.seed);
-  const dailySeed = BigInt(log2?.dailySeed ?? boot.dailySeed);
-  const store = log2?.store ?? { ...page.store };
-  const playerId = log2?.playerId ?? boot.playerId;
-  const locale = log2?.locale ?? boot.locale;
-  const screen = log2 ? new Float32Array(log2.screen) : page.screen;
-  host_new_session();
-  host_set_stdlib(boot.manifest.stdlib.mb3d ?? 0);
-  page.audio.newSession();
-  const session = new Session(page.audio, seed, dailySeed, hexBytes(playerId), locale, screen, GAME, store, page.assets);
-  session.replaying = source.kind === "replay";
-  session.onStore = (key, value) => {
-    if (value === null) delete page.store[key];
-    else page.store[key] = value;
-  };
-  const instance = await WebAssembly.instantiate(page.module, { mb: buildImports(session, page.host, m) });
-  const guest = instance.exports;
-  if (!(guest.__mb_fuel instanceof WebAssembly.Global)) throw new Error("game.wasm is not loop-metered; refusing to run it");
-  session.memory = () => guest.memory;
-  const recorder = new Recorder({
-    game: m.id,
-    seed: seed.toString(),
-    dailySeed: dailySeed.toString(),
-    store,
-    playerId,
-    locale,
-    screen: Array.from(screen)
-  });
-  const rt = new Runtime(guest, session, page.input, recorder, page.gamepads, page.sensors, source);
-  rt.init();
-  return rt;
 }
 var dev = !hasNative && document.querySelector('meta[name="mb-dev"]') ? startDev() : null;
 async function main() {
@@ -5020,28 +6546,43 @@ async function main() {
   const boot = await loadBoot();
   const m = boot.manifest;
   const canvas = document.getElementById("game");
-  let { layout, screen } = fit(canvas, boot);
+  let { layout, screen: screen2 } = fit(canvas, boot);
   const host = await __wbg_init({ module_or_path: new URL("mb_host_bg.wasm", import.meta.url) });
   await host_init(canvas, m.logical_size[0], m.logical_size[1]);
-  const module = await WebAssembly.compile(await (await fetch(`${GAME}game.wasm`)).arrayBuffer());
+  const gameBase = boot.gameBase ?? "../game/";
+  const module = await WebAssembly.compile(await (await fetch(`${gameBase}game.wasm`)).arrayBuffer());
   const input = new Input(canvas, () => layout, m.inputs.includes("touch"), m.inputs.includes("mouse"));
   if (m.inputs.includes("keyboard")) new Keyboard((e, stamp) => input.push(e, stamp));
-  const page = {
+  const page2 = {
     boot,
     manifest: m,
+    gameBase,
     module,
     host,
     audio: new Audio(),
     input,
     gamepads: m.inputs.includes("gamepad") ? new Gamepads() : null,
-    sensors: ["tilt", "motion", "loudness"].some((x) => m.sensors.includes(x)) ? new Sensors(
-      { tilt: m.sensors.includes("tilt"), motion: m.sensors.includes("motion"), loudness: m.sensors.includes("loudness") },
-      !hasNative
+    sensors: ["tilt", "motion", "attitude", "loudness"].some((x) => m.sensors.includes(x)) ? new Sensors(
+      {
+        tilt: m.sensors.includes("tilt"),
+        motion: m.sensors.includes("motion"),
+        attitude: m.sensors.includes("attitude"),
+        loudness: m.sensors.includes("loudness")
+      },
+      hasNative ? "native" : boot.web && Sensors.deviceHasMotion() ? "device" : "emulate",
+      // Preview (SPEC §9): ?sensors=none previews a device without tilt, motion or attitude.
+      !hasNative && new URLSearchParams(location.search).get("sensors") === "none"
     ) : null,
-    screen,
+    screen: screen2,
     store: { ...boot.store ?? {} },
-    assets: /* @__PURE__ */ new Map()
+    assets: /* @__PURE__ */ new Map(),
+    stats: new Stats(!hasNative),
+    latency: new Latency(),
+    params: hasNative ? {} : checkParams(Object.fromEntries(new URLSearchParams(location.search).getAll("param").map((p) => [p.split("=")[0] ?? "", p.slice(p.indexOf("=") + 1)])))
   };
+  input.latency = page2.latency;
+  const sampleKind = m.sensors.includes("attitude") ? "attitude" : "tilt";
+  if (page2.sensors) page2.sensors.onEmulatedTilt = (stamp) => page2.latency.tilt(stamp, performance.now(), sampleKind);
   let drawOverlayLayer = null;
   const refit = () => {
     const f = fit(canvas, boot);
@@ -5055,7 +6596,7 @@ async function main() {
   const restart = async (opts) => {
     rt?.stop();
     const source = opts.replay ? { kind: "replay", log: opts.replay, loop: opts.loop ?? true } : { kind: "live" };
-    const next = await createSession(page, source, opts.seed);
+    const next = await createSession(page2, source, opts.seed, void 0, opts.params);
     if (source.kind === "replay") {
       next.onReplayEnd = () => {
         if (source.loop) void restart({ ...opts, paused: false });
@@ -5070,7 +6611,7 @@ async function main() {
   };
   const restore2 = async (saved, progress) => {
     rt?.stop();
-    const next = await createSession(page, { kind: "live" }, void 0, saved.log);
+    const next = await createSession(page2, { kind: "live" }, void 0, saved.log);
     rt = next;
     const result = await next.fastForward(saved.log.frames, saved.hashes, progress);
     if (rt === next) {
@@ -5080,21 +6621,42 @@ async function main() {
     }
     return result;
   };
-  page.audio.setPlayback(boot.soundOn === true);
-  page.audio.setUserMuted(boot.muted === true);
+  page2.audio.setPlayback(boot.soundOn === true);
+  page2.audio.setUserMuted(boot.muted === true);
   window.mb = {
-    sound: (on) => page.audio.setPlayback(on),
-    mute: (on) => page.audio.setUserMuted(on),
+    sound: (on) => page2.audio.setPlayback(on),
+    mute: (on) => page2.audio.setUserMuted(on),
     suspend: () => rt.suspend(),
     resume: () => rt.resume(),
     snapshot: () => rt.snapshot(),
     resize: refit,
     restart: (json) => restart(JSON.parse(json)),
     tap: (x, y) => input.tapAt(x, y),
-    sensors: (gx, gy, gz, ax, ay, az) => page.sensors?.set(gx, gy, gz, ax, ay, az),
-    loudness: (v) => page.sensors?.external(v),
-    step: (n = 1) => rt.stepFrames(n),
-    audio: () => page.audio.debug(),
+    sensors: (...a) => {
+      const s = page2.sensors;
+      if (!s) return;
+      if (a.length === 0) s.on();
+      else if (a[0] === null) s.off();
+      else {
+        const received = performance.now();
+        const v = (i) => a[i] ?? NaN;
+        s.set(v(0), v(1), v(2), v(3), v(4), v(5), a.slice(7, 14).map((x) => x ?? NaN));
+        if (s.want.tilt || s.want.attitude) page2.latency.tilt(received - (Number.isFinite(v(6)) ? v(6) : 0), received, sampleKind);
+      }
+    },
+    presented: (frame, t) => page2.latency.presented(frame, t),
+    latency: (on) => {
+      if (on !== void 0 && on !== page2.latency.enabled) {
+        page2.latency.clear();
+        page2.latency.enabled = on;
+      }
+      return page2.latency.report();
+    },
+    loudness: (v) => page2.sensors?.external(v),
+    step: (n = 1, opts) => rt.stepFrames(n, opts?.paced ?? true, opts?.dt ?? 1 / 60, opts?.until),
+    gpu: (n = 30) => rt.redrawTimed(Math.max(1, Math.min(1e3, n | 0))),
+    isolate: (node = 0, opts) => rt.redrawIsolated(node >>> 0, opts?.hud ?? true, opts?.plain ?? false),
+    audio: () => page2.audio.debug(),
     verify: async () => {
       rt.suspend();
       const live = rt.snapshot();
@@ -5102,7 +6664,7 @@ async function main() {
       await restart({ replay: live.log, hold: true });
       let firstMismatch = rt.frameHashes()[0] === expected[0] ? null : 0;
       for (let i = 1; i <= live.frames; i++) {
-        const b = await rt.stepFrames(1);
+        const b = await rt.stepFrames(1, false);
         if (b.frames !== i) break;
         if (firstMismatch === null && i < expected.length && b.hash !== expected[i]) firstMismatch = i;
       }
@@ -5121,13 +6683,16 @@ async function main() {
       if (!r.ok) throw new Error(`mb.load: ${name}: ${r.status} (only \`mb serve\` has saved files)`);
       return r.text();
     },
-    stats: () => {
+    stats: (opts) => {
       const cpu = {};
       for (const [k, v] of Runtime.timings) {
         if (v.length) cpu[k] = { avg: v.reduce((a, b) => a + b, 0) / v.length, max: Math.max(...v) };
       }
-      return { ...JSON.parse(host_stats()), cpu };
+      page2.stats.drawn = true;
+      const top = JSON.parse(host_top_draws(TOP_STATS));
+      return { ...JSON.parse(host_stats()), top, budgets: BUDGETS, cpu, ...page2.stats.report(opts) };
     },
+    track: (node = 0) => host_track(node >>> 0),
     screenshot: async (name = `shot-${rt.brief().frames}`) => {
       present(host_redraw);
       const blob = await new Promise((ok) => canvas.toBlob(ok, "image/png"));
@@ -5138,10 +6703,12 @@ async function main() {
   if (!hasNative) {
     const q2 = new URLSearchParams(location.search);
     if (q2.has("speed")) window.mb.speed(Number(q2.get("speed")) || 1);
-    if (q2.has("overlays")) drawOverlayLayer = drawOverlays(() => layout, screen, m.sensors.includes("loudness"));
+    if (q2.has("overlays")) drawOverlayLayer = drawOverlays(() => layout, screen2, m.sensors.includes("loudness"), m.replay_banner === "top");
+    if (q2.has("stats")) drawStatsOverlay(page2.stats);
+    if (q2.has("latency")) page2.latency.enabled = true;
   }
   if (boot.replay) {
-    rt = await createSession(page, { kind: "replay", log: boot.replay, loop: false });
+    rt = await createSession(page2, { kind: "replay", log: boot.replay, loop: false });
     post({ op: "ready", info: JSON.parse(host_info()), bootMs: performance.now() - t0, paused: false });
     for (const f of boot.replay.frames) {
       await rt.session.assets.publishRecorded(f.assets ?? []);
@@ -5150,7 +6717,7 @@ async function main() {
     post({ op: "replay-done", frames: boot.replay.frames.length, hash: host_draw_hash() });
     return;
   }
-  rt = await createSession(page, { kind: "live" });
+  rt = await createSession(page2, { kind: "live" });
   const paused = boot.startPaused === true;
   post({ op: "ready", info: JSON.parse(host_info()), bootMs: performance.now() - t0, paused });
   void probe().then((p) => post({ op: "probe", probe: p }));
@@ -5165,11 +6732,11 @@ async function main() {
       return { v: 1, game: m.id, frames: snap.frames, time: snap.time, held: rt.held, log: snap.log, hashes: [...rt.frameHashes()] };
     },
     swapCode: (module2) => {
-      page.module = module2;
+      page2.module = module2;
     },
     invalidate: (paths) => {
-      if (paths === null) page.assets.clear();
-      else for (const p of paths) page.assets.delete(p);
+      if (paths === null) page2.assets.clear();
+      else for (const p of paths) page2.assets.delete(p);
     },
     fresh: (held) => restart({ hold: held }),
     restore: restore2,

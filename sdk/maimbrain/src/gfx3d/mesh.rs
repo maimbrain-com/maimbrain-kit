@@ -1,5 +1,7 @@
 //! Mesh data built in code: primitives, lathes, extrusions, flat shading,
 //! vertex colors, merging and transforming, and packing for `mb3d_mesh`.
+//! Organic shapes (lofts, subdivision, smooth normals, the fish) are in
+//! `organic.rs`; skin weights for meshes animated by bones (mb3d 2) are here.
 //!
 //! Triangles wind counter-clockwise seen from outside (the front face).
 
@@ -16,8 +18,17 @@ pub struct MeshData {
     /// Per-vertex sRGB colors `0xRRGGBBAA`, multiplied with the material's
     /// base color. Empty means white.
     pub colors: Vec<u32>,
+    /// Skinning (mb3d 2): per vertex, four joint indices into the joints the
+    /// mesh's node is bound to ([`Skeleton::bind`](super::Skeleton::bind),
+    /// [`Node::set_skin`](super::Node::set_skin)), ≤ 63. Empty means not skinned.
+    pub joints: Vec<[u16; 4]>,
+    /// The four joints' weights per vertex (the host renormalizes them to sum to 1).
+    pub weights: Vec<[f32; 4]>,
     pub indices: Vec<u32>,
 }
+
+/// A vertex skinned wholly to joint 0.
+const RIGID: ([u16; 4], [f32; 4]) = ([0; 4], [1.0, 0.0, 0.0, 0.0]);
 
 impl MeshData {
     pub fn new() -> MeshData {
@@ -36,7 +47,16 @@ impl MeshData {
         if !self.colors.is_empty() {
             self.colors.push(0xffff_ffff);
         }
+        if self.is_skinned() {
+            self.joints.push(RIGID.0);
+            self.weights.push(RIGID.1);
+        }
         self.positions.len() as u32 - 1
+    }
+
+    /// Whether the mesh has joints and weights (mb3d 2).
+    pub fn is_skinned(&self) -> bool {
+        !self.joints.is_empty()
     }
 
     pub fn tri(&mut self, a: u32, b: u32, c: u32) {
@@ -79,7 +99,41 @@ impl MeshData {
         m
     }
 
+    /// A Mode 7 floor (mb3d 2): a big square ground plane `2 × radius` across
+    /// in the xz plane, facing +y, cut into `segments × segments` quads (so
+    /// fog, lighting and the retro look's vertex snap have vertices to work
+    /// with), its UVs the position over `tile` meters: a tiling pixel-art
+    /// texture repeats once per tile, in world units. Draw it with
+    /// [`Texture::nearest`](super::Texture::nearest) and an unlit material
+    /// (the SNES look) and keep it centered under the camera with
+    /// [`mode7_anchor`](super::mode7_anchor) so it never runs out; fog with
+    /// the backdrop's horizon color fades its far edge into the
+    /// [`backdrop`](super::backdrop). Turning or sliding the node rotates and
+    /// scrolls the ground, as Mode 7 did.
+    pub fn mode7_floor(radius: f32, tile: f32, segments: u32) -> MeshData {
+        let n = segments.clamp(1, 128);
+        let tile = if tile > 0.0 { tile } else { 1.0 };
+        let mut m = MeshData::new();
+        for j in 0..=n {
+            for i in 0..=n {
+                let x = -radius + 2.0 * radius * i as f32 / n as f32;
+                let z = -radius + 2.0 * radius * j as f32 / n as f32;
+                m.push(vec3(x, 0.0, z), vec3(0.0, 1.0, 0.0), [x / tile, z / tile]);
+            }
+        }
+        let w = n + 1;
+        for j in 0..n {
+            for i in 0..n {
+                let (a, b) = (j * w + i, (j + 1) * w + i);
+                m.tri(a, b, a + 1);
+                m.tri(a + 1, b, b + 1);
+            }
+        }
+        m
+    }
+
     /// A latitude/longitude sphere: `segments` around, `rings` from pole to pole.
+
     pub fn uv_sphere(radius: f32, segments: u32, rings: u32) -> MeshData {
         let (segments, rings) = (segments.max(3), rings.max(2));
         let mut m = MeshData::new();
@@ -334,6 +388,10 @@ impl MeshData {
                 if colored {
                     m.colors.push(self.colors[i]);
                 }
+                if self.is_skinned() {
+                    m.joints.push(self.joints[i]);
+                    m.weights.push(self.weights[i]);
+                }
             }
             let k = m.positions.len() as u32;
             m.tri(k - 3, k - 2, k - 1);
@@ -353,6 +411,29 @@ impl MeshData {
         self
     }
 
+    /// Skins every vertex wholly to joint `joint` (mb3d 2): a rigid part (an
+    /// eye, a horn, a lantern on a pole) that moves with one bone. Merge it
+    /// into a skinned mesh.
+    pub fn with_joint(mut self, joint: u16) -> MeshData {
+        self.joints = vec![[joint, 0, 0, 0]; self.positions.len()];
+        self.weights = vec![[1.0, 0.0, 0.0, 0.0]; self.positions.len()];
+        self
+    }
+
+    /// Skins the mesh to a chain of joints at `points` (mb3d 2), in the same
+    /// space as the mesh: each vertex follows the joint whose bone (the
+    /// segment to the next point) it's nearest, blending smoothly into the
+    /// next joint around each joint so bends are soft. Vertices beyond the
+    /// ends follow the first or last joint. Pass the same points to
+    /// [`Skeleton::chain`](super::Skeleton::chain). At most 64 points.
+    pub fn with_chain_weights(mut self, points: &[Vec3]) -> MeshData {
+        let n = points.len().min(64);
+        let weights: Vec<([u16; 4], [f32; 4])> = self.positions.iter().map(|&p| chain_weight(&points[..n], p)).collect();
+        self.joints = weights.iter().map(|w| w.0).collect();
+        self.weights = weights.iter().map(|w| w.1).collect();
+        self
+    }
+
     /// Appends `other`'s geometry.
     pub fn merge(&mut self, other: &MeshData) {
         let base = self.positions.len() as u32;
@@ -360,6 +441,13 @@ impl MeshData {
         let colored = !self.colors.is_empty() || !other.colors.is_empty();
         if self.colors.is_empty() && !other.colors.is_empty() {
             self.colors = vec![0xffff_ffff; self.positions.len()];
+        }
+        // Likewise skinned if either side is: unskinned vertices follow joint 0
+        // (use `with_joint` first to put a rigid part on another joint).
+        let skinned = self.is_skinned() || other.is_skinned();
+        if !self.is_skinned() && other.is_skinned() {
+            self.joints = vec![RIGID.0; self.positions.len()];
+            self.weights = vec![RIGID.1; self.positions.len()];
         }
         self.positions.extend(&other.positions);
         self.normals.extend(&other.normals);
@@ -369,6 +457,15 @@ impl MeshData {
                 self.colors.extend(std::iter::repeat_n(0xffff_ffff, other.positions.len()));
             } else {
                 self.colors.extend(&other.colors);
+            }
+        }
+        if skinned {
+            if other.is_skinned() {
+                self.joints.extend(&other.joints);
+                self.weights.extend(&other.weights);
+            } else {
+                self.joints.extend(std::iter::repeat_n(RIGID.0, other.positions.len()));
+                self.weights.extend(std::iter::repeat_n(RIGID.1, other.positions.len()));
             }
         }
         self.indices.extend(other.indices.iter().map(|i| i + base));
@@ -394,7 +491,7 @@ impl MeshData {
         out
     }
 
-    fn drop_degenerate(&mut self) {
+    pub(super) fn drop_degenerate(&mut self) {
         let p = &self.positions;
         let mut kept = Vec::with_capacity(self.indices.len());
         for t in self.indices.chunks_exact(3) {
@@ -409,9 +506,11 @@ impl MeshData {
     /// The packed form `mb3d_mesh` takes (SPEC §5.4).
     pub fn pack(&self) -> Vec<u8> {
         let colored = !self.colors.is_empty();
-        let stride = 32 + if colored { 4 } else { 0 };
+        let skinned = self.is_skinned();
+        let stride = 32 + if colored { 4 } else { 0 } + if skinned { 16 } else { 0 };
         let mut b = Vec::with_capacity(12 + self.positions.len() * stride + self.indices.len() * 4);
-        for w in [self.positions.len() as u32, self.indices.len() as u32, if colored { 2 } else { 0 }] {
+        let flags = if colored { 2 } else { 0 } | if skinned { 4 } else { 0 };
+        for w in [self.positions.len() as u32, self.indices.len() as u32, flags] {
             b.extend(w.to_le_bytes());
         }
         for i in 0..self.positions.len() {
@@ -423,12 +522,58 @@ impl MeshData {
             if colored {
                 b.extend(self.colors.get(i).copied().unwrap_or(0xffff_ffff).to_be_bytes());
             }
+            if skinned {
+                let (j, w) = (self.joints.get(i).copied().unwrap_or(RIGID.0), self.weights.get(i).copied().unwrap_or(RIGID.1));
+                let w = w.map(|x| if x.is_finite() { x.max(0.0) } else { 0.0 });
+                let sum: f32 = w.iter().sum();
+                for k in j {
+                    b.extend(k.to_le_bytes());
+                }
+                for x in w {
+                    let q = if sum > 1e-9 { (x / sum * 65535.0).round() as u16 } else { 0 };
+                    b.extend(q.to_le_bytes());
+                }
+            }
         }
         for i in &self.indices {
             b.extend(i.to_le_bytes());
         }
         b
     }
+}
+
+/// A vertex's joints and weights along a chain (see `with_chain_weights`).
+pub(super) fn chain_weight(points: &[Vec3], p: Vec3) -> ([u16; 4], [f32; 4]) {
+    if points.len() < 2 {
+        return RIGID;
+    }
+    // Where the vertex is along the chain, in joints: i + t on the nearest
+    // bone (clamped to the chain, so vertices past an end follow that end's joint).
+    let mut best = (f32::MAX, 0.0f32);
+    for i in 0..points.len() - 1 {
+        let (a, ab) = (points[i], points[i + 1] - points[i]);
+        let t = ((p - a).dot(ab) / ab.length_squared().max(1e-12)).clamp(0.0, 1.0);
+        let d = (a + ab * t).distance(p);
+        if d < best.0 - 1e-6 {
+            best = (d, i as f32 + t);
+        }
+    }
+    let s = best.1;
+    // Around joint k (k ≥ 1) the weight moves from joint k − 1 to joint k
+    // over half a bone either side (a smoothstep); the last joint takes
+    // everything past it.
+    let k = s.round();
+    let d = s - k;
+    if k < 0.5 {
+        return RIGID;
+    }
+    let k = k as u16;
+    if k as usize == points.len() - 1 && d >= 0.0 {
+        return ([k, 0, 0, 0], [1.0, 0.0, 0.0, 0.0]);
+    }
+    let x = (d + 0.5).clamp(0.0, 1.0);
+    let w = x * x * (3.0 - 2.0 * x);
+    ([k, k - 1, 0, 0], [w, 1.0 - w, 0.0, 0.0])
 }
 
 /// Ear clipping for a counter-clockwise simple polygon.
@@ -533,6 +678,27 @@ mod tests {
         // Colors are stored as bytes r, g, b, a.
         let first_colored = 12 + 24 * 36 + 32;
         assert_eq!(&p[first_colored..first_colored + 4], &[0x11, 0x22, 0x33, 0x44]);
+    }
+
+    /// Skinned meshes (mb3d 2) pack joints u16×4 and weights unorm16×4 after
+    /// the color, with flag 4; merging keeps skins, rigid parts on joint 0.
+    #[test]
+    fn skinned_meshes_pack_joints_and_weights() {
+        let mut m = MeshData::cube(1.0).with_vertex_colors(0x11223344).with_joint(3);
+        m.weights[0] = [3.0, 1.0, 0.0, 0.0];
+        m.joints[0] = [3, 5, 0, 0];
+        let p = m.pack();
+        assert_eq!(&p[8..12], &6u32.to_le_bytes(), "colors and skin");
+        assert_eq!(p.len(), 12 + 24 * 52 + 36 * 4);
+        let skin = &p[12 + 36..12 + 52];
+        let u16s: Vec<u16> = skin.chunks_exact(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+        assert_eq!(u16s, vec![3, 5, 0, 0, 49151, 16384, 0, 0], "weights normalized to unorm16");
+        let mut whole = MeshData::cube(1.0);
+        whole.merge(&m);
+        assert_eq!((whole.joints.len(), whole.joints[0], whole.joints[24]), (48, [0; 4], [3, 5, 0, 0]));
+        whole.merge(&MeshData::cube(1.0));
+        assert_eq!((whole.weights.len(), whole.weights[47][0], whole.weights[48][0]), (72, 1.0, 1.0));
+        assert_eq!(whole.flat_shaded().joints.len(), whole.indices.len());
     }
 
     /// Mothglass friction #1: merging colored meshes into an empty one keeps their colors.

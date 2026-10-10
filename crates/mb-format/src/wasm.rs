@@ -115,6 +115,22 @@ pub fn check(wasm: &[u8], manifest: &Manifest, errors: &mut Vec<String>) {
     }
 }
 
+/// The custom section the SDK's `export_game!` writes its version into.
+pub const SDK_SECTION: &str = "maimbrain-sdk";
+
+/// The SDK version recorded in `wasm` (None without the section, or if it
+/// doesn't hold a short version string).
+pub fn sdk_version(wasm: &[u8]) -> Option<String> {
+    Parser::new(0).parse_all(wasm).find_map(|p| match p {
+        Ok(Payload::CustomSection(c)) if c.name() == SDK_SECTION => {
+            let v = std::str::from_utf8(c.data()).ok()?;
+            let ok = !v.is_empty() && v.len() <= 32 && v.chars().all(|c| c.is_ascii_alphanumeric() || ".+-".contains(c));
+            ok.then(|| v.to_string())
+        }
+        _ => None,
+    })
+}
+
 /// Why an unknown import can't work and what to do instead: games reach the
 /// host only through the SDK, so this is a hand-written declaration (or a
 /// crate that isn't the Maimbrain SDK) for a function the host doesn't have.

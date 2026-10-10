@@ -10,3 +10,5 @@ inputs = ["touch", "keyboard"]
 perf_tier = "lite"
 
 stdlib = { mb2d = 1 }
+# The AIM page points the phone (attitude), falls back to tilt, and ticks on a hit.
+sensors = ["attitude", "tilt", "haptics"]

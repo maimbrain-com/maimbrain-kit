@@ -26,9 +26,10 @@ jobs:
       - run: cargo test -p maimbrain --features physics2d,physics3d
       # The font library parses and lists (fonts themselves download on demand; mb new below bakes some).
       - run: cargo run -q -p mb-cli -- fonts --category pixel
-      # A fresh game from each template must build and validate (needs the wasm
-      # target), created outside this workspace and pointed at this checkout's SDK.
-      - name: New games from both templates build and validate
+      # A fresh game from each template must pass its own tests (rules, and the
+      # bot's difficulty report) and build and validate (needs the wasm target),
+      # created outside this workspace and pointed at this checkout's SDK.
+      - name: New games from both templates test, build and validate
         shell: bash
         run: |
           set -eux
@@ -40,6 +41,7 @@ jobs:
           grep -q physics3d "$RUNNER_TEMP/ci3d/Cargo.toml"
           for g in ci2d ci3d; do
             printf '\n[patch."https://github.com/terracatta/maimbrain-kit"]\nmaimbrain = { path = "%s/sdk/maimbrain" }\n' "$kit" >> "$RUNNER_TEMP/$g/Cargo.toml"
+            cargo test -q --manifest-path "$RUNNER_TEMP/$g/Cargo.toml"
             cargo run -q -p mb-cli -- build "$RUNNER_TEMP/$g"
           done
       # Every genre starter kit (`mb new --kit`) must scaffold into a game that passes

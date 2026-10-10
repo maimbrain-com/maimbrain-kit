@@ -1,0 +1,12 @@
+abi = 0
+id = "dev.maimbrain.mb3d-demo"
+name = "mb3d demo"
+version = "0.1.0"
+creator = "@maimbrain"
+
+orientation = "portrait"
+logical_size = [360, 640]
+inputs = ["touch"]
+perf_tier = "full"
+
+stdlib = { mb3d = 2, mb2d = 1 }

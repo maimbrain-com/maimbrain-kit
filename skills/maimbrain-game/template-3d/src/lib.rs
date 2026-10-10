@@ -1,13 +1,18 @@
 //! 3D template: copy this directory to games/<name>, replace NAME in
 //! Cargo.toml and manifest.toml (`mb new --3d <name>` does both), and keep
-//! the shape: pure rules in `sim`, the scene built once in `scene`, and a
-//! thin host layer here (input, round state, saving, moving nodes, the HUD).
+//! the shape: pure rules in `sim`, what touches mean in `control`, the scene
+//! built once in `scene`, and a thin host layer here (round state, saving,
+//! moving nodes, the HUD). `bot` (tests only) plays through `control` with
+//! touches, to tune difficulty.
 //!
 //! The HUD, title card and game-over card are the SDK's UI kit
 //! (`maimbrain::ui`, docs/UI.md) drawn with mb2d over the 3D image, in the
 //! look of IDENTITY below: replace the one `mb new` picked at random with the
 //! game's own (the skill's art-direction step) and match the scene to it.
 
+#[cfg(test)]
+mod bot;
+mod control;
 mod scene;
 mod sim;
 
@@ -17,25 +22,25 @@ use maimbrain::sys::{self, Round};
 use maimbrain::ui::{Hud, Layout, ResultsAction, ResultsCard, Theme, TitleCard, shape, text, with_alpha};
 use maimbrain::{Game, Rng, export_game, gfx2d, input, store};
 
+use control::{Action, Control};
 use sim::{H, Sim, W};
 
 /// The game's identity: a kit identity name or a few words composing one
 /// (`Theme::from_identity`, docs/UI.md); `mb font add --identity` bakes its fonts.
 const IDENTITY: &str = "__IDENTITY__";
 const BOARD: u32 = 0;
-/// Taps right after a round ends don't restart it (a frantic tap during the failure).
-const RETRY_GUARD: f32 = 0.35;
 
 #[derive(PartialEq)]
 enum Mode {
     Title,
     Play,
-    Over(f32),
+    Over,
 }
 
 struct Drone {
     mode: Mode,
     sim: Sim,
+    control: Control,
     scene: scene::Scene,
     rng: Rng,
     best: u32,
@@ -71,6 +76,7 @@ impl Game for Drone {
         Drone {
             mode: Mode::Title,
             sim,
+            control: Control::default(),
             scene: scene::build(),
             rng,
             best,
@@ -90,25 +96,22 @@ impl Game for Drone {
     fn update(&mut self, dt: f32) {
         self.time += dt;
         for e in input::poll() {
-            if let (Mode::Over(t), Some(card)) = (&self.mode, &mut self.results) {
-                let retry = *t > RETRY_GUARD && card.handle(&e) == Some(ResultsAction::Retry);
-                if retry {
+            if let (Mode::Over, Some(card)) = (&self.mode, &mut self.results) {
+                // The card keeps the feed's rule: its retry button, or (after
+                // a guard against a frantic tap during the failure) any tap.
+                if card.input(&e) == Some(ResultsAction::Retry) {
                     self.start();
-                    continue;
                 }
-            }
-            if !e.is_press() {
                 continue;
             }
-            match self.mode {
+            match (&self.mode, self.control.event(&e)) {
                 // The tap that enters play is also the first move (SPEC §5.2).
-                Mode::Title => {
+                (Mode::Title, Some(a)) => {
                     self.start();
-                    self.try_catch(e.x, e.y);
+                    self.act(a);
                 }
-                Mode::Play => self.try_catch(e.x, e.y),
-                Mode::Over(t) if t > RETRY_GUARD && !self.results.as_ref().is_some_and(|c| c.claims(e.x, e.y)) => self.start(),
-                Mode::Over(_) => {}
+                (Mode::Play, Some(a)) => self.act(a),
+                _ => {}
             }
         }
         match &mut self.mode {
@@ -126,11 +129,11 @@ impl Game for Drone {
                     self.title.set_best(self.best as i64);
                     let seed = self.rng.next_u32() as u64;
                     self.results = Some(ResultsCard::new(self.sim.score as i64, prev as i64, self.theme, &self.layout, seed).heading("ESCAPED!").label("CAUGHT"));
-                    self.mode = Mode::Over(0.0);
+                    self.mode = Mode::Over;
                     sys::round(Round::Over);
                 }
             }
-            Mode::Over(t) => *t += dt,
+            Mode::Over => {}
             // The title card is live: let the drone fly its loop.
             Mode::Title => self.sim.phase += 0.6 * dt,
         }
@@ -172,7 +175,7 @@ impl Game for Drone {
                     }
                 }
             }
-            Mode::Over(_) => {
+            Mode::Over => {
                 gfx2d::rect(0.0, 0.0, W, H, with_alpha(self.theme.outline, 0.35));
                 if let Some(card) = &self.results {
                     card.draw();
@@ -184,9 +187,9 @@ impl Game for Drone {
 }
 
 impl Drone {
-    fn try_catch(&mut self, x: f32, y: f32) {
+    fn act(&mut self, a: Action) {
         let velocity = self.sim.drone_velocity();
-        if let Some(at) = self.sim.tap(x, y) {
+        if let Some(at) = control::apply(&mut self.sim, a) {
             self.scene.caught(at, velocity);
             self.caught_at = Some(self.time);
             self.hud.set_score(self.sim.score as i64);

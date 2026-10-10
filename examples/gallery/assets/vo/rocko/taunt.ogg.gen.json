@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.7.0-dev voice",
+  "date": "2026-10-10T02:04:03Z",
+  "provider": "elevenlabs",
+  "model": "eleven_v4",
+  "prompt": "Is that all you got? My grandma hits harder!",
+  "full_prompt": "[smug] Is that all you got? My grandma hits harder!",
+  "seed": 1022529995,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "7d7fac5d65970e00533ba62436e6630d4060c2aa34ab676c261cc0c567d42150"
+  },
+  "est_cost_usd": 0.00408,
+  "cost_usd": 0.00408,
+  "raw": "art/raw/vo/rocko/taunt.pcm",
+  "raw_sha256": "eada8cd391ace4c6d76aa014d13744edcfefa3040daf6b9278240899f408907a",
+  "output_sha256": "a2cea95585221944d8af37385d806cfd377d6ddd587e1f18a3d6b47ccce65084",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "rocko",
+    "delivery": "natural",
+    "emotion": "smug",
+    "kind": "voice",
+    "line": "taunt",
+    "model": "eleven_v4",
+    "out": "assets/vo/rocko/taunt.ogg",
+    "provider": "elevenlabs",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1022529995,
+    "speed": null,
+    "style": null,
+    "text": "Is that all you got? My grandma hits harder!",
+    "voice_id": "QXuuxXQVjYqzo0FzWn7B"
+  },
+  "result": {
+    "key": "b6674e8ea93b4367",
+    "lips": "assets/vo/rocko/taunt.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -16.386680603027344,
+    "peak_db": -2.8772451877593994,
+    "phone_loss_db": -0.0,
+    "seconds": 3.2404308319091797,
+    "subtitle": "Is that all you got? My grandma hits harder!",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Generated with ElevenLabs from a voice designed for this game (not a clone); check your plan's license terms."
+}

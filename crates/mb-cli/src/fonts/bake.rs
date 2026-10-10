@@ -28,9 +28,11 @@ pub struct Options {
     pub meta: String,
 }
 
-/// The characters behind a `--chars` value: `ascii` (the default), `latin1`,
-/// `caps` (ASCII, lowercase drawn as capitals), `digits`, or literal
-/// characters; join with `+` (e.g. `caps+ÄÖÜ`). Space and `?` are always in.
+/// The characters behind a `--chars` value: `latin1` (the default: ASCII and
+/// U+00A0–U+00FF, so "Touché" and "Señor" draw), `ascii`, `caps` (Latin-1,
+/// lowercase drawn as capitals), `digits`, or literal characters; join with
+/// `+` (e.g. `caps+ŁŚ`). Each set but `digits` adds curly quotes, dashes,
+/// `…`, `•` and a few HUD symbols. Space and `?` are always in.
 pub fn charset(spec: &str) -> Result<Vec<(char, char)>, String> {
     let mut out: Vec<(char, char)> = Vec::new();
     let mut push = |c: char, from: char| {
@@ -41,9 +43,9 @@ pub fn charset(spec: &str) -> Result<Vec<(char, char)>, String> {
     const SYMBOLS: &str = "‘’“”•…–—←↑→↓★♥×·°€";
     for part in spec.split('+') {
         match part {
-            "ascii" | "" => (0x20u8..0x7f).map(char::from).chain(SYMBOLS.chars()).for_each(|c| push(c, c)),
-            "latin1" => (0x20u32..0x7f).chain(0xa0..0x100).filter(|&c| c != 0xad).filter_map(char::from_u32).chain(SYMBOLS.chars()).for_each(|c| push(c, c)),
-            "caps" => (0x20u8..0x7f).map(char::from).chain(SYMBOLS.chars()).for_each(|c| push(c, c.to_ascii_uppercase())),
+            "ascii" => (0x20u8..0x7f).map(char::from).chain(SYMBOLS.chars()).for_each(|c| push(c, c)),
+            "latin1" | "" => latin1().chain(SYMBOLS.chars()).for_each(|c| push(c, c)),
+            "caps" => latin1().chain(SYMBOLS.chars()).for_each(|c| push(c, upper(c))),
             "digits" => "0123456789 +-×x.,:%!?/★♥".chars().for_each(|c| push(c, c)),
             lit => lit.chars().filter(|c| !c.is_control()).for_each(|c| push(c, c)),
         }
@@ -54,6 +56,20 @@ pub fn charset(spec: &str) -> Result<Vec<(char, char)>, String> {
         return Err(format!("{} characters; a font holds at most {MAX_GLYPHS}", out.len()));
     }
     Ok(out)
+}
+
+/// Printable ASCII and Latin-1 but the soft hyphen.
+fn latin1() -> impl Iterator<Item = char> {
+    (0x20u32..0x7f).chain(0xa0..0x100).filter(|&c| c != 0xad).filter_map(char::from_u32)
+}
+
+/// The capital a caps font draws for `c`: only within Latin-1 (`µ` isn't `Μ`, `ß` stays).
+fn upper(c: char) -> char {
+    let mut u = c.to_uppercase();
+    match (u.next(), u.next()) {
+        (Some(u), None) if (u as u32) < 0x100 => u,
+        _ => c,
+    }
 }
 
 pub fn bake(data: &[u8], o: &Options) -> Result<MbFont, String> {
@@ -496,8 +512,16 @@ mod tests {
     fn charsets() {
         let a = charset("ascii").unwrap();
         assert!(a.iter().any(|&(c, _)| c == 'a') && a.iter().any(|&(c, _)| c == '★'));
+        assert!(!a.iter().any(|&(c, _)| c == 'é'));
         let caps = charset("caps").unwrap();
         assert_eq!(caps.iter().find(|(c, _)| *c == 'q'), Some(&('q', 'Q')));
+        assert_eq!(caps.iter().find(|(c, _)| *c == 'é'), Some(&('é', 'É')));
+        assert_eq!(caps.iter().find(|(c, _)| *c == 'µ'), Some(&('µ', 'µ')));
+        assert_eq!(caps.iter().find(|(c, _)| *c == 'ß'), Some(&('ß', 'ß')));
+        // The default: "Touché" draws.
+        let l = charset("").unwrap();
+        assert!("Touché «Señor» — “ÿ” ¿ü?".chars().all(|ch| l.iter().any(|&(c, _)| c == ch)));
+        assert!(!l.iter().any(|&(c, _)| c == '\u{ad}'));
         let d = charset("0123").unwrap();
         assert_eq!(d.len(), 6, "digits plus space and ?");
         assert!(charset("latin1+ŁŚ").unwrap().iter().any(|&(c, _)| c == 'Ł'));

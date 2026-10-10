@@ -5,7 +5,9 @@
 //! Off wasm32 (e.g. `cargo test` on the host), every import is a no-op stub
 //! that returns zero (or "absent" / "not ready" where zero would mean
 //! success, and handle 1 for mb3d's constructors), so game logic can be
-//! tested natively (SPEC §9).
+//! tested natively (SPEC §9). The clock and debug parameters are the
+//! exceptions: `mb_time`, `mb_time_lost` and `mb_param` read per-thread
+//! state that tests set (`sys::test`).
 
 macro_rules! imports {
     ($( pub fn $name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty $(= $stub:expr)?)?; )*) => {
@@ -29,8 +31,10 @@ macro_rules! imports {
 imports! {
     // 5.1 sys
     pub fn mb_log(level: u32, ptr: *const u8, len: u32);
-    pub fn mb_time() -> f64;
-    pub fn mb_time_lost() -> f32;
+    pub fn mb_mark(ptr: *const u8, len: u32);
+    pub fn mb_param(name: *const u8, name_len: u32, out: *mut u8, cap: u32) -> i32 = unsafe { crate::sys::test::param_raw(name, name_len, out, cap) };
+    pub fn mb_time() -> f64 = crate::sys::test::time();
+    pub fn mb_time_lost() -> f32 = crate::sys::test::time_lost();
     pub fn mb_rand_seed() -> u64;
     pub fn mb_daily_seed() -> u64;
     pub fn mb_round(state: u32);
@@ -107,22 +111,51 @@ imports! {
     pub fn mb3d_node_morph(node: u32, w0: f32, w1: f32, w2: f32, w3: f32);
     pub fn mb3d_node_world(node: u32, out: *mut u8) -> i32;
     pub fn mb3d_node_material(node: u32) -> i32 = 1;
+    pub fn mb3d_node_fade(node: u32, start: f32, end: f32);
+    pub fn mb3d_draw_distance(start: f32, end: f32);
+    pub fn mb3d_skin(node: u32, ptr: *const u8, count: u32) -> i32;
     pub fn mb3d_fog(ptr: *const u8);
     pub fn mb3d_material_style(material: u32, ptr: *const u8) -> i32;
     pub fn mb3d_text(node: u32, desc: *const u8, text: *const u8, len: u32) -> i32;
     pub fn mb3d_dof(ptr: *const u8);
     pub fn mb3d_speed(ptr: *const u8);
+    pub fn mb3d_reflector(ptr: *const u8);
+    pub fn mb3d_atmosphere(ptr: *const u8);
+    pub fn mb3d_clouds(ptr: *const u8);
+    pub fn mb3d_sky_disc(ptr: *const u8);
+    pub fn mb3d_sky_texture(texture: u32, ptr: *const u8) -> i32;
+    pub fn mb3d_ripple(x: f32, z: f32, strength: f32, speed: f32, seconds: f32);
+    pub fn mb3d_wake(wake: u32, x: f32, z: f32, vx: f32, vz: f32, size: f32, strength: f32) -> i32;
+    pub fn mb3d_water(ptr: *const u8);
+    pub fn mb3d_grade(ptr: *const u8);
+    pub fn mb3d_shafts(ptr: *const u8);
+    pub fn mb3d_halos(ptr: *const u8);
+    pub fn mb3d_film(ptr: *const u8);
+    pub fn mb3d_material_get(material: u32, out: *mut u8) -> i32 = -1;
+    pub fn mb3d_model_materials(model: u32, out: *mut u8, cap: u32) -> i32;
+    pub fn mb3d_model_node_names(model: u32, out: *mut u8, cap: u32) -> i32;
+    pub fn mb3d_retro(ptr: *const u8);
+    pub fn mb3d_texture_filter(kind: u32, handle: u32, mode: u32) -> i32;
+    pub fn mb3d_backdrop(ptr: *const u8, count: u32) -> i32;
+    pub fn mb3d_anim_mask(node: u32, clip: u32, time: f32, weight: f32, ptr: *const u8, count: u32) -> i32;
+    pub fn mb3d_anim_take(node: u32, out: *mut u8) -> i32;
+    pub fn mb3d_node_get_parent(node: u32) -> i32;
 
     // 5.6 audio
     pub fn mb_sound(asset: u32) -> i32;
     pub fn mb_play(sound: u32, vol: f32, pan: f32, pitch: f32, looped: u32) -> u32;
     pub fn mb_play_at(sound: u32, vol: f32, pan: f32, pitch: f32, looped: u32, at: f64) -> u32;
+    pub fn mb_play_from(sound: u32, vol: f32, pan: f32, pitch: f32, looped: u32, at: f64, from: f64, fade: f32) -> u32;
     pub fn mb_voice_set(voice: u32, vol: f32, pan: f32, pitch: f32);
     pub fn mb_voice_stop(voice: u32);
+    pub fn mb_voice_stop_at(voice: u32, at: f64, fade: f32);
+    pub fn mb_voice_bus(voice: u32, bus: u32);
+    pub fn mb_bus_fx(bus: u32, kind: u32, ptr: *const u8) -> i32;
 
     // 5.7 sensors
     pub fn mb_tilt(out: *mut u8) -> i32 = -6;
     pub fn mb_motion(out: *mut u8) -> i32 = -6;
+    pub fn mb_attitude(out: *mut u8) -> i32 = -6;
     pub fn mb_loudness() -> f32 = -1.0;
     pub fn mb_haptic(kind: u32);
 

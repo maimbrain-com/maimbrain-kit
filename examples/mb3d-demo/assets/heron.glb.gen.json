@@ -1,0 +1,273 @@
+{
+  "generator": "mb 0.7.0-dev model",
+  "date": "2026-10-10T01:21:03Z",
+  "provider": "import",
+  "model": "file",
+  "prompt": "heron",
+  "full_prompt": "heron. A single game-ready 3D model with clean, readable shapes that read well small on a phone; the whole object, no base, ground or background. An original design.",
+  "seed": 849269188,
+  "seed_honored": true,
+  "references": [
+    {
+      "path": "/private/tmp/claude-501/-Users-jmeller-code-terracatta-maimbrain/9d3bdf5a-997d-4948-aa14-76c01d5b9110/scratchpad/assets/heron.glb",
+      "sha256": "6e3896fe83b7c886d1f7dcb08c489e53c1cdf99025b345e93551cf2718e2b6b1"
+    }
+  ],
+  "style": null,
+  "est_cost_usd": null,
+  "cost_usd": 0.0,
+  "raw": "art/raw/heron-849269188.glb",
+  "raw_sha256": "6e3896fe83b7c886d1f7dcb08c489e53c1cdf99025b345e93551cf2718e2b6b1",
+  "output_sha256": "4fd4431cb53a2fe42dfa97af8003a3d1b7c8d276647d90dc92b66fdc4b62dede",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "animate": [],
+    "facing": "-z",
+    "glow": null,
+    "glow_above": 0.6000000238418579,
+    "kind": "model",
+    "lengthwise": false,
+    "model": "file",
+    "name": "heron",
+    "negative": null,
+    "no_style": false,
+    "origin": "center",
+    "out": "assets/heron.glb",
+    "polys": 8000,
+    "provider": "import",
+    "reference": null,
+    "rig": false,
+    "rig_type": null,
+    "seed": 849269188,
+    "size": 2.4000000953674316,
+    "spine": "auto",
+    "spine_joints": null,
+    "subject": "heron",
+    "texture_format": "auto",
+    "texture_size": 512,
+    "turn": 0.0
+  },
+  "result": {
+    "bytes": 855960,
+    "clips": [],
+    "dropped": [],
+    "facing": "-z",
+    "facing_check": null,
+    "glowing_materials": 0,
+    "joints": 12,
+    "normals_added": false,
+    "notes": [
+      "imported from /private/tmp/claude-501/-Users-jmeller-code-terracatta-maimbrain/9d3bdf5a-997d-4948-aa14-76c01d5b9110/scratchpad/assets/heron.glb"
+    ],
+    "placement": {
+      "origin": "center",
+      "scale": 1.0000001192092896,
+      "size_m": [
+        2.4000000953674316,
+        1.8082200288772583,
+        1.7988256216049194
+      ],
+      "source_size": [
+        2.3999998569488525,
+        1.8082197904586792,
+        1.7988253831863403
+      ],
+      "turn_degrees": 360.0,
+      "turned_lengthwise": false
+    },
+    "raw_clips": [],
+    "rig": {
+      "joints_from_provider": 9,
+      "merged_leaves": 0,
+      "symmetric": false,
+      "tree": [
+        "Body (2200 verts)",
+        "  WingA1 (235 verts)",
+        "    WingA2 (481 verts)",
+        "      WingA3 (360 verts)",
+        "  WingB1 (321 verts)",
+        "    WingB2 (341 verts)",
+        "      WingB3 (225 verts)",
+        "  Neck (2895 verts)",
+        "  Legs (3177 verts)"
+      ]
+    },
+    "rigged": true,
+    "simplify_error": 0.001376823172904551,
+    "source_generator": "mb 0.7.0-dev model",
+    "spine": {
+      "axis_head_to_tail": [
+        0.0,
+        -0.7639999985694885,
+        0.6449999809265137
+      ],
+      "bones": [
+        {
+          "at": [
+            0.125,
+            0.8759999871253967,
+            -0.8320000171661377
+          ],
+          "name": "spine_0"
+        },
+        {
+          "at": [
+            0.11299999803304672,
+            0.8040000200271606,
+            -0.3959999978542328
+          ],
+          "name": "spine_1"
+        },
+        {
+          "at": [
+            0.0860000029206276,
+            0.5440000295639038,
+            -0.18199999630451202
+          ],
+          "name": "spine_2"
+        },
+        {
+          "at": [
+            0.054999999701976776,
+            0.19499999284744263,
+            -0.0729999989271164
+          ],
+          "name": "spine_3"
+        },
+        {
+          "at": [
+            0.02199999988079071,
+            -0.029999999329447746,
+            0.18199999630451202
+          ],
+          "name": "spine_4"
+        },
+        {
+          "at": [
+            0.04699999839067459,
+            -0.18299999833106995,
+            0.5220000147819519
+          ],
+          "name": "spine_5"
+        },
+        {
+          "at": [
+            0.07000000029802322,
+            -0.4050000011920929,
+            0.781000018119812
+          ],
+          "name": "spine_6"
+        },
+        {
+          "at": [
+            -0.12700000405311584,
+            -0.9279999732971191,
+            0.6830000281333923
+          ],
+          "name": "spine_7"
+        },
+        {
+          "at": [
+            -0.19200000166893005,
+            -0.328000009059906,
+            0.4020000100135803
+          ],
+          "name": "wing_l_0"
+        },
+        {
+          "at": [
+            -0.6600000262260437,
+            0.1379999965429306,
+            0.20999999344348907
+          ],
+          "name": "wing_l_1"
+        },
+        {
+          "at": [
+            0.19200000166893005,
+            -0.328000009059906,
+            0.4020000100135803
+          ],
+          "name": "wing_r_0"
+        },
+        {
+          "at": [
+            0.6600000262260437,
+            0.1379999965429306,
+            0.20999999344348907
+          ],
+          "name": "wing_r_1"
+        }
+      ],
+      "head": "-z",
+      "joints": 12,
+      "length_m": 2.3570001125335693,
+      "replaced_clips": [],
+      "spine_joints": 8,
+      "wings": true
+    },
+    "tasks": [],
+    "texture_sizes": [
+      [
+        512,
+        512
+      ],
+      [
+        512,
+        512
+      ],
+      [
+        512,
+        512
+      ]
+    ],
+    "textures": [
+      {
+        "format": "jpeg",
+        "kb": 49,
+        "role": "data",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 65,
+        "role": "color",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 113,
+        "role": "data",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      }
+    ],
+    "triangles": 7999,
+    "triangles_from_provider": 8955,
+    "vertices": 10235,
+    "warnings": []
+  },
+  "note": ""
+}

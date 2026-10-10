@@ -90,6 +90,11 @@ impl Font {
     /// `assets/fonts/<name>.mbf`). Draws in `fallback` until the asset is
     /// ready, or if it can't load. Calling it again with the same path gives
     /// the same font. Up to 16 per game.
+    ///
+    /// Not a `const fn`: the first call starts loading the asset and claims
+    /// a slot for it, which needs the host. For a font used everywhere, keep
+    /// the path in a `const` and the `Font` in your state (or in the
+    /// `Theme`), or call this again where it's needed: it's cheap.
     pub fn asset(path: &str, fallback: Font) -> Font {
         LOADER.with(|l| l.set(Some(load_font)));
         let fallback = Font(fallback.resolve().0);

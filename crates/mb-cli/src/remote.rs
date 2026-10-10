@@ -1,4 +1,4 @@
-//! Talking to the Maimbrain server: `mb login`, `mb publish`, `mb submit`, `mb whoami`,
+//! Talking to the Maimbrain server: `mb login`, `mb publish`, `mb submit`, `mb describe`, `mb whoami`,
 //! and whether you may use Maimbrain's generation keys (generate/maimbrain.rs makes those calls).
 //!
 //! Credentials live in `~/.config/maimbrain/credentials.json` (mode 0600), or
@@ -181,14 +181,29 @@ pub fn whoami() -> Result<Value, String> {
 
 /// Uploads a bundle and waits for validation; prints where it ended up. It
 /// becomes a private draft to play in the app, unless `submit` sends it
-/// straight to review. `source` is what to pass to `mb submit` afterwards.
-pub fn publish(bundle: &Path, submit: bool, source: &str) -> Result<(), String> {
+/// straight to review, as `level` (fix, update or season; None: what its
+/// number suggests). `model` is the AI model that built it (None: a person);
+/// `notes` what's new in it for players. `source` is what to pass to `mb submit`
+/// afterwards.
+pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&str>, notes: Option<&str>, source: &str) -> Result<(), String> {
     let c = credentials()?;
     let bytes = std::fs::read(bundle).map_err(|e| format!("{}: {e}", bundle.display()))?;
     eprintln!("Uploading {} ({} KB) to {}…", bundle.display(), bytes.len() / 1024, c.server);
+    let mut request = agent().post(format!("{}/api/v1/games/versions", c.server));
+    if submit {
+        request = request.query("submit", "true");
+        if let Some(l) = level {
+            request = request.query("level", l);
+        }
+    }
+    if let Some(m) = model {
+        request = request.query("model", m);
+    }
+    if let Some(n) = notes {
+        request = request.query("notes", n);
+    }
     let (status, body) = json_of(
-        agent()
-            .post(format!("{}/api/v1/games/versions{}", c.server, if submit { "?submit=true" } else { "" }))
+        request
             .header("Authorization", format!("Bearer {}", c.token))
             .header("Content-Type", "application/octet-stream")
             .header("X-Filename", bundle.file_name().and_then(|n| n.to_str()).unwrap_or("game.mbx"))
@@ -209,17 +224,40 @@ pub fn publish(bundle: &Path, submit: bool, source: &str) -> Result<(), String> 
         v = b;
     }
     let name = format!("{} {}", v["game_id"].as_str().unwrap_or("?"), v["version"].as_str().unwrap_or(""));
+    // With --submit, why the server kept it a draft instead (the board rule
+    // needed a level it wasn't given): shown as the outcome, not a warning.
+    let warnings: Vec<&str> = v["warnings"].as_array().into_iter().flatten().filter_map(|w| w.as_str()).collect();
+    let not_sent = warnings.iter().find_map(|w| w.strip_prefix("Not sent for review: "));
+    let season_only = !season_reasons(&v).is_empty();
+    if matches!(v["state"].as_str(), Some("draft" | "pending")) {
+        release_summary(&v, source);
+        for w in warnings.iter().filter(|w| !w.starts_with("Not sent for review: ")) {
+            eprintln!("  Warning: {w}");
+        }
+    }
+    let submit_command = if season_only { format!("mb submit {source} --season") } else { format!("mb submit {source}") };
     match v["state"].as_str().unwrap_or("") {
+        "draft" if submit => {
+            eprintln!("✗ {name} passed validation but was NOT sent for review.");
+            if let Some(reason) = not_sent {
+                eprintln!("  {reason}");
+            }
+            eprintln!("  It's a private draft: only you can see it.");
+            Err(format!("{name} was not submitted; to submit it: {submit_command}"))
+        }
         "draft" => {
             eprintln!("✓ {name} passed validation. It's a private draft: only you can see it.");
             eprintln!("  Test it on your phone: open Maimbrain → Account → My games (it's also first in your feed).");
             eprintln!("  Fix something? Run mb publish again; the new upload replaces the draft.");
-            eprintln!("  When it's ready, submit it for review:  mb submit {source}");
+            eprintln!("  When it's ready, submit it for review:  {submit_command}");
             eprintln!("  (or tap Submit for review in the app, or at {}/create)", c.server);
             Ok(())
         }
         "pending" => {
-            eprintln!("✓ {name} passed validation and is waiting for review.");
+            match v["level"].as_str().and_then(level_name) {
+                Some(level) => eprintln!("✓ {name} passed validation and was submitted for review as {level}."),
+                None => eprintln!("✓ {name} passed validation and is waiting for review."),
+            }
             eprintln!("  Track it at {}/create", c.server);
             Ok(())
         }
@@ -238,6 +276,72 @@ pub fn publish(bundle: &Path, submit: bool, source: &str) -> Result<(), String> 
     }
 }
 
+/// A release level as players' kind of release: "an update".
+fn level_name(level: &str) -> Option<&'static str> {
+    match level {
+        "launch" => Some("the first release"),
+        "fix" => Some("a fix"),
+        "update" => Some("an update"),
+        "season" => Some("a new season"),
+        _ => None,
+    }
+}
+
+/// Why only a new season fits a draft (the board rule); empty when any level does.
+fn season_reasons(v: &Value) -> Vec<&str> {
+    v["season_reasons"].as_array().into_iter().flatten().filter_map(|r| r.as_str()).collect()
+}
+
+/// What kind of release a valid upload is (docs/UPDATES.md "Version levels"):
+/// for a draft what its number suggests and how to choose, or that only a new
+/// season fits and why; and what's new in it, or a nudge to say when players
+/// will want to know. A submitted one's level is said with the outcome.
+fn release_summary(v: &Value, source: &str) {
+    let reasons = season_reasons(v);
+    let suggested = v["suggested_level"].as_str().or(v["level"].as_str());
+    if v["state"] == "draft" {
+        if !reasons.is_empty() {
+            eprintln!("  Release: only a new season fits, because:");
+            for r in &reasons {
+                let mut chars = r.chars();
+                let first = chars.next().map(|c| c.to_uppercase().collect::<String>()).unwrap_or_default();
+                eprintln!("    {first}{}.", chars.as_str());
+            }
+            eprintln!("  A new season gives every player fresh leaderboards (the old ones are archived). Submit it with --season.");
+        } else {
+            match suggested {
+                Some("launch") => eprintln!("  Release: the first release."),
+                Some(l @ ("fix" | "update" | "season")) => {
+                    let why = match l {
+                        "fix" => "only the last number changed",
+                        "update" => "the middle number changed",
+                        _ => "the first number changed",
+                    };
+                    eprintln!("  Suggested: {} ({why}).", level_name(l).unwrap_or(l));
+                    if l == "season" {
+                        eprintln!("  A new season gives every player fresh leaderboards (the old ones are archived).");
+                    }
+                    eprintln!("  When you submit, choose: mb submit {source} --fix | --update | --season");
+                }
+                _ => {}
+            }
+        }
+    }
+    match v["release_notes"].as_str() {
+        Some(notes) => eprintln!("  What's new: {}", notes.lines().next().unwrap_or("")),
+        None if matches!(v["level"].as_str(), Some("update" | "season")) => {
+            if Path::new(source).is_dir() {
+                let notes = Path::new(source).join("NOTES.md");
+                eprintln!("  No notes for players, and an update or a new season needs them before it's submitted:");
+                eprintln!("  add a `## {}` entry to {} and publish again, or write what's new in My Game Studio.", v["version"].as_str().unwrap_or("?"), notes.display());
+            } else {
+                eprintln!("  No notes for players, and an update or a new season needs them before it's submitted: write what's new in My Game Studio.");
+            }
+        }
+        None => {}
+    }
+}
+
 /// The game `mb submit` was given, and what it expects the draft to be.
 pub struct SubmitTarget {
     /// A game id, or the last part of one (`frogger`).
@@ -250,25 +354,60 @@ pub struct SubmitTarget {
     pub source: String,
 }
 
-/// Sends the game's draft to review (`POST /games/versions/:id/submit`).
-pub fn submit(t: &SubmitTarget) -> Result<(), String> {
-    let c = credentials()?;
-    let auth = format!("Bearer {}", c.token);
-    let (status, body) = json_of(agent().get(format!("{}/api/v1/me/games", c.server)).header("Authorization", &auth).call())?;
+/// Your uploads (`GET /me/games`, newest first) and the id of the one game
+/// among them that `query` names: its whole id, or the last part of it.
+fn my_game(c: &Credentials, query: &str) -> Result<(Vec<Value>, String), String> {
+    let (status, body) = json_of(agent().get(format!("{}/api/v1/me/games", c.server)).header("Authorization", format!("Bearer {}", c.token)).call())?;
     if status != 200 {
         return Err(format!("listing your games: {} (try mb login)", error_text(status, &body)));
     }
     let mine = body.as_array().cloned().unwrap_or_default();
-    let game_id = |v: &Value| v["game_id"].as_str().unwrap_or("").to_string();
-    let suffix = format!(".{}", t.query);
-    let mut ids: Vec<String> = mine.iter().map(game_id).filter(|id| *id == t.query || id.ends_with(&suffix)).collect();
+    let suffix = format!(".{query}");
+    let mut ids: Vec<String> = mine.iter().map(game_id).filter(|id| *id == query || id.ends_with(&suffix)).collect();
     ids.sort();
     ids.dedup();
-    let id = match ids.as_slice() {
-        [] => return Err(format!("you haven't uploaded {}; run mb publish first", t.query)),
-        [one] => one.clone(),
-        many => return Err(format!("{} matches several games: {}", t.query, many.join(", "))),
-    };
+    match ids.as_slice() {
+        [] => Err(format!("you haven't uploaded {query}; run mb publish first")),
+        [one] => Ok((mine, one.clone())),
+        many => Err(format!("{query} matches several games: {}", many.join(", "))),
+    }
+}
+
+fn game_id(v: &Value) -> String {
+    v["game_id"].as_str().unwrap_or("").to_string()
+}
+
+/// Sets (or with None, removes) a game's description (`PATCH /games/:game_id`).
+pub fn describe(query: &str, description: Option<&str>) -> Result<(), String> {
+    let c = credentials()?;
+    let (_, id) = my_game(&c, query)?;
+    let (status, body) = json_of(
+        agent()
+            .patch(format!("{}/api/v1/games/{id}", c.server))
+            .header("Authorization", format!("Bearer {}", c.token))
+            .send_json(serde_json::json!({ "description": description })),
+    )?;
+    if status != 200 {
+        return Err(format!("couldn't describe {id}: {}", error_text(status, &body)));
+    }
+    match body["description"].as_str() {
+        Some(d) => {
+            let first: String = d.lines().next().unwrap_or("").chars().take(40).collect();
+            let more = if d.chars().count() > first.chars().count() { "…" } else { "" };
+            eprintln!("✓ Described {id}. Its card in the feed starts: {first}{more}");
+            eprintln!("  All of it is under About this game, and in links people share.");
+        }
+        None => eprintln!("✓ Removed the description of {id}."),
+    }
+    Ok(())
+}
+
+/// Sends the game's draft to review (`POST /games/versions/:id/submit`) as
+/// `level` (fix, update or season; None: what its number suggests).
+pub fn submit(t: &SubmitTarget, level: Option<&str>) -> Result<(), String> {
+    let c = credentials()?;
+    let auth = format!("Bearer {}", c.token);
+    let (mine, id) = my_game(&c, &t.query)?;
     // Newest first (GET /me/games); a game has at most one draft.
     let versions: Vec<&Value> = mine.iter().filter(|v| game_id(v) == id).collect();
     let Some(draft) = versions.iter().find(|v| v["state"] == "draft") else {
@@ -293,16 +432,17 @@ pub fn submit(t: &SubmitTarget) -> Result<(), String> {
     {
         return Err(format!("{} isn't your draft of {id} {version}; run mb publish {} to upload it first", t.source, t.source));
     }
-    let (status, body) = json_of(
-        agent()
-            .post(format!("{}/api/v1/games/versions/{}/submit", c.server, draft["id"]))
-            .header("Authorization", &auth)
-            .send_empty(),
-    )?;
+    let mut request = agent().post(format!("{}/api/v1/games/versions/{}/submit", c.server, draft["id"]));
+    if let Some(l) = level {
+        request = request.query("level", l);
+    }
+    let (status, body) = json_of(request.header("Authorization", &auth).send_empty())?;
     if status != 200 {
+        // A 422 says why (the board rule needs a new season) and how to choose one.
         return Err(format!("couldn't submit {id} {version}: {}", error_text(status, &body)));
     }
-    eprintln!("✓ Submitted {id} {version} for review. A moderator will play it before it goes into the feed.");
+    let what = body["level"].as_str().and_then(level_name).map(|l| format!(" as {l}")).unwrap_or_default();
+    eprintln!("✓ Submitted {id} {version} for review{what}. A moderator will play it before it goes into the feed.");
     eprintln!("  Track it at {}/create (or in the app under My games).", c.server);
     Ok(())
 }

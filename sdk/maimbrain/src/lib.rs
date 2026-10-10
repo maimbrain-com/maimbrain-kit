@@ -29,11 +29,13 @@
 //! docs/PHYSICS.md.
 
 pub mod audio;
+pub mod foley;
 pub mod gfx2d;
 pub mod gfx3d;
 pub mod input;
 pub mod juice;
 pub mod motion;
+pub mod music;
 #[cfg(feature = "physics2d")]
 pub mod physics2d;
 #[cfg(feature = "physics3d")]
@@ -66,12 +68,24 @@ pub trait Game: Sized + 'static {
     fn resume(&mut self) {}
 }
 
+/// This SDK's version: the creator kit's (crates/mb-cli), which a test keeps
+/// it equal to. Every game records it (see [`export_game!`]).
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 /// Exports `mb_init`, `mb_update`, `mb_render`, `mb_suspend`, `mb_resume` and
-/// `mb_alloc` for a [`Game`] type.
+/// `mb_alloc` for a [`Game`] type, and records the SDK's [`VERSION`] in the
+/// wasm's `maimbrain-sdk` custom section (SPEC §3), which the About sheet shows.
 #[macro_export]
 macro_rules! export_game {
     ($game:ty) => {
         static __MB_GAME: $crate::__private::Slot<$game> = $crate::__private::Slot::new();
+
+        // In the game's own crate, so the linker always keeps it. Only in the
+        // wasm: a native build (tests) has no such section, and Mach-O rejects the name.
+        #[cfg(target_arch = "wasm32")]
+        #[used]
+        #[unsafe(link_section = "maimbrain-sdk")]
+        static __MB_SDK: [u8; $crate::VERSION.len()] = $crate::__private::version_bytes();
 
         #[unsafe(no_mangle)]
         pub extern "C" fn mb_init() {
@@ -132,6 +146,18 @@ pub mod __private {
         std::panic::set_hook(Box::new(|info| {
             crate::sys::log(crate::sys::Level::Error, &format!("panic: {info}"));
         }));
+    }
+
+    /// [`crate::VERSION`] as an array, for the `maimbrain-sdk` custom section.
+    pub const fn version_bytes<const N: usize>() -> [u8; N] {
+        let v = crate::VERSION.as_bytes();
+        let mut out = [0; N];
+        let mut i = 0;
+        while i < N {
+            out[i] = v[i];
+            i += 1;
+        }
+        out
     }
 
     /// Hands the host a buffer it can fill; the guest takes ownership.

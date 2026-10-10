@@ -1,6 +1,8 @@
 //! Template: copy this directory to games/<name>, replace NAME in Cargo.toml
-//! and manifest.toml, and keep the shape — pure rules in `sim`, a thin host
-//! layer here (input, round state, saving, sound, drawing).
+//! and manifest.toml, and keep the shape — pure rules in `sim`, what touches
+//! mean in `control`, a thin host layer here (round state, saving, sound,
+//! drawing), and in `bot` (tests only) a player that plays through `control`
+//! with touches, to tune difficulty.
 //!
 //! The title card, HUD and game-over card come from the SDK's UI kit
 //! (`maimbrain::ui`, docs/UI.md), the pops' juice from `maimbrain::juice`.
@@ -9,6 +11,9 @@
 //! (the skill's art-direction step), bake its fonts with `mb font add`, and
 //! draw the scene in its palette.
 
+#[cfg(test)]
+mod bot;
+mod control;
 mod sim;
 
 use maimbrain::juice::{Particles, Popups};
@@ -17,6 +22,7 @@ use maimbrain::sys::{self, Round};
 use maimbrain::ui::{Hud, Layout, ResultsAction, ResultsCard, Theme, TitleCard, shape, with_alpha};
 use maimbrain::{Game, Rng, export_game, gfx2d, input, store};
 
+use control::{Action, Control};
 use sim::Sim;
 
 /// The game's identity: a kit identity (`riso`, `crt`, `neon`, `storybook`,
@@ -26,19 +32,18 @@ use sim::Sim;
 /// (`Theme::from_identity`, docs/UI.md). Its fonts come from `mb font add`.
 const IDENTITY: &str = "__IDENTITY__";
 const BOARD: u32 = 0;
-/// Taps right after a round ends don't restart it (a frantic tap during the failure).
-const RETRY_GUARD: f32 = 0.35;
 
 #[derive(PartialEq)]
 enum Mode {
     Title,
     Play,
-    Over(f32),
+    Over,
 }
 
 struct Bubble {
     mode: Mode,
     sim: Sim,
+    control: Control,
     rng: Rng,
     best: u32,
     time: f32,
@@ -61,9 +66,9 @@ impl Bubble {
         sys::round(Round::Playing);
     }
 
-    fn tap(&mut self, x: f32, y: f32) {
+    fn act(&mut self, a: Action) {
         let (bx, by) = (self.sim.x, self.sim.y);
-        if self.sim.tap(x, y) {
+        if control::apply(&mut self.sim, a) {
             // Juice: a puff and a ring where it popped, "+1" floating up, a little shake.
             self.fx.burst(bx, by, 18, self.theme.accent);
             self.fx.ring(bx, by, 70.0, 0xffffffc0);
@@ -87,6 +92,7 @@ impl Game for Bubble {
         Bubble {
             mode: Mode::Title,
             sim,
+            control: Control::default(),
             best,
             time: 0.0,
             layout: Layout::new(),
@@ -106,26 +112,22 @@ impl Game for Bubble {
     fn update(&mut self, dt: f32) {
         self.time += dt;
         for e in input::poll() {
-            if let (Mode::Over(t), Some(card)) = (&self.mode, &mut self.results) {
-                // The card's retry button; any other tap retries too, after the guard.
-                let retry = *t > RETRY_GUARD && card.handle(&e) == Some(ResultsAction::Retry);
-                if retry {
+            if let (Mode::Over, Some(card)) = (&self.mode, &mut self.results) {
+                // The card keeps the feed's rule: its retry button, or (after
+                // a guard against a frantic tap during the failure) any tap.
+                if card.input(&e) == Some(ResultsAction::Retry) {
                     self.start();
-                    continue;
                 }
-            }
-            if !e.is_press() {
                 continue;
             }
-            match self.mode {
+            match (&self.mode, self.control.event(&e)) {
                 // The tap that enters play is also the first move (SPEC §5.2).
-                Mode::Title => {
+                (Mode::Title, Some(a)) => {
                     self.start();
-                    self.tap(e.x, e.y);
+                    self.act(a);
                 }
-                Mode::Play => self.tap(e.x, e.y),
-                Mode::Over(t) if t > RETRY_GUARD && !self.results.as_ref().is_some_and(|c| c.claims(e.x, e.y)) => self.start(),
-                Mode::Over(_) => {}
+                (Mode::Play, Some(a)) => self.act(a),
+                _ => {}
             }
         }
         match &mut self.mode {
@@ -144,12 +146,11 @@ impl Game for Bubble {
                     self.results = Some(ResultsCard::new(self.sim.score as i64, prev as i64, self.theme, &self.layout, seed).heading("POP!").label("SCORE"));
                     self.fx.burst(self.sim.x, self.sim.y, 30, self.theme.bad);
                     self.shake.add(0.6);
-                    self.mode = Mode::Over(0.0);
+                    self.mode = Mode::Over;
                     sys::round(Round::Over);
                 }
             }
-            Mode::Over(t) => *t += dt,
-            Mode::Title => {}
+            Mode::Title | Mode::Over => {}
         }
         self.title.update(dt);
         self.hud.update(dt);
@@ -189,7 +190,7 @@ impl Game for Bubble {
                     maimbrain::ui::text(&th.case("Pop it!")).font(th.body_font).size(th.fit(th.body_font, 20.0)).color(th.text).outline(0.1, th.outline).middle().draw(s.x, s.y + s.r + 24.0 + bob);
                 }
             }
-            Mode::Over(_) => {
+            Mode::Over => {
                 if let Some(card) = &self.results {
                     card.draw();
                 }

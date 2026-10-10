@@ -294,6 +294,21 @@ impl Mat4 {
         let (x, y, z) = (b.cross(c), c.cross(a), a.cross(b));
         (x * n.x + y * n.y + z * n.z).normalize() * if a.dot(x) < 0.0 { -1.0 } else { 1.0 }
     }
+    /// The inverse of an affine matrix (rotation, scale and translation, as
+    /// `from_trs` makes); the identity if it's singular.
+    pub fn inverse(&self) -> Mat4 {
+        let m = &self.0;
+        let (a, b, c) = (vec3(m[0], m[1], m[2]), vec3(m[4], m[5], m[6]), vec3(m[8], m[9], m[10]));
+        let det = a.dot(b.cross(c));
+        if det.abs() < 1e-20 || !det.is_finite() {
+            return Mat4::IDENTITY;
+        }
+        // Rows of the inverse 3×3 are the cross products over the determinant.
+        let (r0, r1, r2) = (b.cross(c) / det, c.cross(a) / det, a.cross(b) / det);
+        let t = vec3(m[12], m[13], m[14]);
+        let it = -vec3(r0.dot(t), r1.dot(t), r2.dot(t));
+        Mat4([r0.x, r1.x, r2.x, 0.0, r0.y, r1.y, r2.y, 0.0, r0.z, r1.z, r2.z, 0.0, it.x, it.y, it.z, 1.0])
+    }
 }
 
 impl Mul for Mat4 {
@@ -359,6 +374,20 @@ pub fn srgb(hex: u32) -> [f32; 3] {
 pub fn srgba(hex: u32) -> [f32; 4] {
     let [r, g, b] = srgb(hex >> 8);
     [r, g, b, (hex & 0xff) as f32 / 255.0]
+}
+
+/// Tweens and keyed poses (`motion::PoseKeys`) of positions.
+impl crate::motion::Lerp for Vec3 {
+    fn lerp(a: Vec3, b: Vec3, t: f32) -> Vec3 {
+        a.lerp(b, t)
+    }
+}
+
+/// Tweens and keyed poses of rotations: along the shorter arc.
+impl crate::motion::Lerp for Quat {
+    fn lerp(a: Quat, b: Quat, t: f32) -> Quat {
+        a.slerp(b, t)
+    }
 }
 
 #[cfg(test)]

@@ -7,7 +7,7 @@ different points of the beat. This stretches the second loop to exactly the
 first's length, or a whole fraction of it (a 4-bar layer under an 8-bar loop
 plays twice per loop; the stretch is a fraction of a percent: inaudible), and
 rotates it (a seamless loop stays seamless from any start point) to where its
-onsets line up best with the first's. Needs oggdec/oggenc; stdlib only.
+onsets line up best with the first's. Needs `mb ogg` (or oggenc/oggdec); stdlib only.
 
     python3 tools/align_loop.py assets/music.ogg assets/tense.ogg [-q 3]
 """
@@ -15,16 +15,39 @@ onsets line up best with the first's. Needs oggdec/oggenc; stdlib only.
 import array
 import math
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import wave
 
+_MB = None  # the mb that has `mb ogg` ("" if there isn't one), found on first use
+
+
+def _ogg(src: str, dst: str, quality: float = 5) -> None:
+    """WAV -> mono Ogg Vorbis (dst ends in .ogg) or Ogg -> 16-bit WAV, with
+    `mb ogg` (built into mb, on every OS) or else vorbis-tools' oggenc/oggdec."""
+    global _MB
+    if _MB is None:
+        mb = shutil.which("mb")
+        _MB = mb if mb and subprocess.run([mb, "ogg", "--help"], capture_output=True).returncode == 0 else ""
+    enc = dst.lower().endswith(".ogg")
+    if _MB:
+        cmd = [_MB, "ogg", "-Q", "-q", str(quality), src, dst]
+    elif shutil.which("oggenc" if enc else "oggdec"):
+        cmd = ["oggenc", "-Q", "-q", str(quality), "-o", dst, src] if enc else ["oggdec", "-Q", "-o", dst, src]
+    else:
+        raise SystemExit("no Ogg Vorbis tool: update mb, which has `mb ogg` built in "
+                         "(curl -fsSL https://maimbrain.com/install.sh | sh; on Windows irm https://maimbrain.com/install.ps1 | iex)")
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"{' '.join(cmd)}: {r.stderr.strip()}")
+
 
 def read(path):
     with tempfile.TemporaryDirectory() as d:
         wav = os.path.join(d, "a.wav")
-        subprocess.run(["oggdec", "-Q", "-o", wav, path], check=True)
+        _ogg(path, wav)
         with wave.open(wav) as w:
             assert w.getsampwidth() == 2 and w.getnchannels() == 1, "expects mono 16-bit"
             rate = w.getframerate()
@@ -40,7 +63,7 @@ def write(path, rate, samples, quality):
             w.setsampwidth(2)
             w.setframerate(rate)
             w.writeframes(array.array("h", (max(-32767, min(32767, round(v * 32767))) for v in samples)).tobytes())
-        subprocess.run(["oggenc", "-Q", "-q", str(quality), "-o", path, wav], check=True)
+        _ogg(wav, path, quality)
 
 
 def onsets(s, hop):

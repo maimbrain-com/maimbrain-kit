@@ -4,6 +4,7 @@
 
 use maimbrain::Rng;
 use maimbrain::gfx3d::{Camera, Vec3, look_at, vec3};
+use maimbrain::motion::Follow;
 
 /// The logical screen (manifest.toml's `logical_size`).
 pub const W: f32 = 360.0;
@@ -13,9 +14,17 @@ pub const START_CLOCK: f32 = 6.0;
 pub const CATCH_BONUS: f32 = 1.5;
 /// How close to the drone (logical units) a tap must land.
 pub const TAP_RADIUS: f32 = 46.0;
-/// Radians per second along the flight loop, and the speed-up per catch.
+/// The difficulty curve, tuned against the bot (bot.rs): the drone flies
+/// `START_SPEED + SPEED_UP × √catches` radians per second along its loop, so
+/// it speeds up fast at first and ever more slowly after (1.4 after 4
+/// catches, 2.15 after 25, 3.4 after 100). A fixed step per catch ends every
+/// player's round at the same place: a good player then lasts barely longer
+/// than a first-timer.
 const START_SPEED: f32 = 0.9;
-const SPEED_UP: f32 = 0.12;
+const SPEED_UP: f32 = 0.25;
+/// The camera looks between the platform's centre and the drone, this far
+/// toward the drone.
+const LOOK_TOWARD_DRONE: f32 = 0.3;
 
 /// A drone loops over the platform; tap it before the clock runs out.
 pub struct Sim {
@@ -27,12 +36,22 @@ pub struct Sim {
     pub clock: f32,
     pub score: u32,
     pub over: bool,
+    /// Where the camera looks: a critically damped spring following a point
+    /// near the drone, so the view drifts after it and glides (never snaps)
+    /// when it jumps away.
+    look: Follow<Vec3>,
     rng: Rng,
 }
 
 impl Sim {
     pub fn new(seed: u64) -> Sim {
-        Sim { t: 0.0, phase: 0.0, speed: START_SPEED, clock: START_CLOCK, score: 0, over: false, rng: Rng::new(seed) }
+        let mut s = Sim { t: 0.0, phase: 0.0, speed: START_SPEED, clock: START_CLOCK, score: 0, over: false, look: Follow::new(Vec3::ZERO, 0.25), rng: Rng::new(seed) };
+        s.look.snap(s.look_target());
+        s
+    }
+
+    fn look_target(&self) -> Vec3 {
+        vec3(0.0, 1.0, 0.0).lerp(self.drone(), LOOK_TOWARD_DRONE)
     }
 
     /// Where the drone is: a figure-eight over the platform.
@@ -47,11 +66,10 @@ impl Sim {
         vec3(1.7 * a.cos(), 1.0 * (a * 2.0).cos(), 2.4 * (a * 2.0).cos()) * self.speed
     }
 
-    /// The camera: a slow sway, a function of time only.
+    /// The camera: a slow sway, looking where `look` has got to.
     pub fn camera(&self) -> Camera {
         let pos = vec3(0.6 * (self.t * 0.2).sin(), 4.0, 8.5);
-        let target = vec3(0.0, 1.0, 0.0);
-        Camera { pos, rot: look_at(pos, target, Vec3::Y), fov_y: 0.9, near: 0.1, far: 100.0 }
+        Camera { pos, rot: look_at(pos, self.look.value, Vec3::Y), fov_y: 0.9, near: 0.1, far: 100.0 }
     }
 
     pub fn step(&mut self, dt: f32) {
@@ -60,6 +78,7 @@ impl Sim {
         }
         self.t += dt;
         self.phase += self.speed * dt;
+        self.look.update(self.look_target(), dt);
         self.clock -= dt;
         if self.clock <= 0.0 {
             self.clock = 0.0;
@@ -76,7 +95,7 @@ impl Sim {
             return None;
         }
         self.score += 1;
-        self.speed += SPEED_UP;
+        self.speed = START_SPEED + SPEED_UP * (self.score as f32).sqrt();
         self.clock = (self.clock + CATCH_BONUS).min(START_CLOCK);
         self.phase += self.rng.range(1.5, 3.5);
         Some(at)
@@ -122,6 +141,35 @@ mod tests {
             s.step(1.0 / 60.0);
         }
         assert!((s.t - START_CLOCK).abs() < 0.05);
+    }
+
+    /// Anything the camera follows must move in continuous curves. The
+    /// camera's peak acceleration (the second difference of where it looks)
+    /// stays about the same at 60 and 120 Hz; a snap or a kink in what it
+    /// follows shows up as a peak that doubles with the frame rate.
+    #[test]
+    fn the_camera_moves_smoothly_at_60_and_120_hz() {
+        let peak = |hz: f32| {
+            let (mut s, dt) = (Sim::new(3), 1.0 / hz);
+            let (mut seen, mut peak, mut catches) = (Vec::new(), 0.0f32, 0);
+            while s.t < 4.0 {
+                // A catch every second: the drone jumps away.
+                if s.t >= 1.0 + catches as f32 {
+                    let (x, y) = screen_pos(&s);
+                    assert!(s.tap(x, y).is_some());
+                    catches += 1;
+                }
+                s.step(dt);
+                let c = s.camera();
+                seen.push(c.pos + c.rot.forward() * 8.0);
+                if let [.., a, b, c] = seen[..] {
+                    peak = peak.max((c - b * 2.0 + a).length() / (dt * dt));
+                }
+            }
+            peak
+        };
+        let (a60, a120) = (peak(60.0), peak(120.0));
+        assert!(a120 < a60 * 1.3 && a120 < 40.0, "peak camera acceleration (m/s²): {a60:.1} at 60 Hz, {a120:.1} at 120 Hz");
     }
 
     #[test]

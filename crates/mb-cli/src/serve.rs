@@ -47,19 +47,38 @@ fn require_runtime() -> Result<(), String> {
     Ok(())
 }
 
+/// How many ports after the one asked for `mb serve` tries when it's taken.
+const PORT_TRIES: u16 = 20;
+
+/// Listens on 127.0.0.1:`port`, or on the next free port after it when it's
+/// taken (two previews on one machine), saying which; 0 takes any free port.
+pub fn listen(port: u16) -> Result<(tiny_http::Server, u16), String> {
+    let mut last = String::new();
+    let tries = if port == 0 { 1 } else { PORT_TRIES.min(u16::MAX - port + 1) };
+    for p in (0..tries).map(|i| port + i) {
+        match tiny_http::Server::http(("127.0.0.1", p)) {
+            Ok(server) => {
+                let got = server.server_addr().to_ip().map(|a| a.port()).ok_or("the server has no TCP address")?;
+                if got != port && port != 0 {
+                    eprintln!("[mb] port {port} is taken (another preview?); using {got}");
+                }
+                return Ok((server, got));
+            }
+            Err(e) => last = e.to_string(),
+        }
+    }
+    Err(format!("can't listen on ports {port}–{}: {last} (pass --port)", port.saturating_add(tries - 1)))
+}
+
 pub fn serve(
     path: &Path,
     port: u16,
     build: impl Fn(&Path) -> Result<PathBuf, String>,
     stage: impl Fn(&Path, &Path, &Path) -> Result<(), String>,
 ) -> Result<(), String> {
-    require_runtime()?;
     let work = std::env::temp_dir().join(format!("mb-serve-{}", std::process::id()));
     let runtime_dir = work.join("runtime-src");
-    std::fs::create_dir_all(&runtime_dir).map_err(|e| e.to_string())?;
-    for (name, bytes) in RUNTIME {
-        std::fs::write(runtime_dir.join(name), bytes).map_err(|e| e.to_string())?;
-    }
+    write_runtime(&runtime_dir)?;
     let site = work.join("site");
     let is_dir = path.is_dir();
     let rebuild = |site: &Path| -> Result<(), String> {
@@ -69,7 +88,7 @@ pub fn serve(
     rebuild(&site)?;
     let mut built_at = SystemTime::now();
 
-    let server = tiny_http::Server::http(("127.0.0.1", port)).map_err(|e| format!("can't listen on port {port}: {e}"))?;
+    let (server, port) = listen(port)?;
     eprintln!("\nPreview: http://127.0.0.1:{port}/runtime/index.html?overlays");
     eprintln!("Reload the page after saving to rebuild. Ctrl-C to stop.\n");
     // Preview saves (`mb.screenshot`, `mb.save`) land here.
@@ -91,19 +110,48 @@ pub fn serve(
                 continue;
             }
         }
-        let rel = url.trim_start_matches('/');
-        let file = site.join(rel);
-        if rel.split('/').any(|c| c == "..") || !file.is_file() {
-            let _ = req.respond(tiny_http::Response::from_string("not found").with_status_code(404));
-            continue;
-        }
-        let bytes = std::fs::read(&file).unwrap_or_default();
-        let r = tiny_http::Response::from_data(bytes)
-            .with_header(header("Content-Type", content_type(&file)))
-            .with_header(header("Cache-Control", "no-store"));
-        let _ = req.respond(r);
+        site_file(&site, &url, req);
     }
     Ok(())
+}
+
+/// Writes the embedded web runtime (what `mb stage --runtime` takes) into `dir`.
+pub fn write_runtime(dir: &Path) -> Result<(), String> {
+    require_runtime()?;
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    for (name, bytes) in RUNTIME {
+        std::fs::write(dir.join(name), bytes).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Serves the staged `site` (runtime/ and game/) on 127.0.0.1:`port` (0: any
+/// free port) from a background thread, for `mb shot`. Returns the port.
+pub fn serve_site(site: PathBuf, port: u16) -> Result<u16, String> {
+    let server = tiny_http::Server::http(("127.0.0.1", port)).map_err(|e| format!("can't listen on port {port}: {e}"))?;
+    let port = server.server_addr().to_ip().map(|a| a.port()).ok_or("the server has no TCP address")?;
+    std::thread::spawn(move || {
+        for req in server.incoming_requests() {
+            let url = req.url().split('?').next().unwrap_or("/").to_string();
+            site_file(&site, &url, req);
+        }
+    });
+    Ok(port)
+}
+
+/// Answers with the file at `url` under `site`, or 404.
+fn site_file(site: &Path, url: &str, req: tiny_http::Request) {
+    let rel = url.trim_start_matches('/');
+    let file = site.join(rel);
+    if rel.split('/').any(|c| c == "..") || !file.is_file() {
+        let _ = req.respond(tiny_http::Response::from_string("not found").with_status_code(404));
+        return;
+    }
+    let bytes = std::fs::read(&file).unwrap_or_default();
+    let r = tiny_http::Response::from_data(bytes)
+        .with_header(header("Content-Type", content_type(&file)))
+        .with_header(header("Cache-Control", "no-store"));
+    let _ = req.respond(r);
 }
 
 /// `mb.screenshot` / `mb.save` (POST) and `mb.load` (GET) at [`SAVE_URL`],
@@ -221,7 +269,7 @@ pub fn watch(path: &Path, port: u16, boot: fn(&Manifest) -> Value) -> Result<(),
         let scan = scan.clone();
         Hub::new(move || scan().fingerprint())
     };
-    let server = tiny_http::Server::http(("127.0.0.1", port)).map_err(|e| format!("can't listen on port {port}: {e}"))?;
+    let (server, port) = listen(port)?;
     if is_dir {
         status!("watching {}", watch::describe(path));
     } else {
@@ -348,7 +396,10 @@ impl Builder {
                 None => crate::package_name(&self.path).map_err(|e| devbuild::Failure::message("Cargo.toml", e))?,
             };
             self.package = Some(name.clone());
-            let b = devbuild::build(&self.path, &name)?;
+            let b = {
+                let _lock = devbuild::lock(&self.path);
+                devbuild::build(&self.path, &name)?
+            };
             (b.manifest, b.wasm, Files::Dir(self.path.clone()), b.cargo_s)
         } else {
             let fail = |e: String| devbuild::Failure::message("", e);
@@ -507,6 +558,17 @@ mod tests {
         let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         assert_eq!(short_list(&p(&["src/lib.rs"])), "src/lib.rs");
         assert_eq!(short_list(&p(&["a", "b", "c", "d", "e"])), "a, b and 3 more");
+    }
+
+    #[test]
+    fn a_taken_port_moves_to_the_next_free_one() {
+        // Ports 8820–8823 are this crate's to test with.
+        let held = std::net::TcpListener::bind(("127.0.0.1", 8821)).expect("port 8821 for the test");
+        let (_s, port) = listen(8821).unwrap();
+        assert!(port > 8821 && port < 8821 + PORT_TRIES, "{port}");
+        drop(held);
+        let (_s, any) = listen(0).unwrap();
+        assert_ne!(any, 0, "0 takes any free port");
     }
 
     #[test]

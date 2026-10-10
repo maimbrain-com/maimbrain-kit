@@ -371,6 +371,9 @@ pub fn hex(c: [u8; 3]) -> String {
 #[derive(Debug)]
 pub struct KeyReport {
     pub background: [u8; 3],
+    /// Every color keyed out (the first is `background`): a model sometimes
+    /// paints the flat background in two tones.
+    pub backgrounds: Vec<[u8; 3]>,
     /// Share of the border that is background (low: the subject touches the edges).
     pub border_bg: f32,
     /// How much the background varies (90th percentile Oklab distance of its
@@ -379,28 +382,88 @@ pub struct KeyReport {
     pub cleared: f32,
 }
 
+/// Where [`key_out_with`] looks for the background's color.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct KeyHint {
+    /// The color the model was asked to paint behind the subject (`key` in
+    /// art/style.toml): the border colors near it are the background, even
+    /// when the subject covers most of the border.
+    pub expected: Option<[u8; 3]>,
+    /// Sample the top rows instead of the whole border: a parallax layer's
+    /// scenery fills the bottom and sides, its sky is at the top.
+    pub top: bool,
+}
+
+/// How far (Oklab) a second background tone may be from the first, or from
+/// the expected key color, and still count as background.
+const SECOND_TONE: f32 = 0.3;
+
+/// The background's colors from a sample of edge pixels: their median, or,
+/// when the expected key color is there, the median of the pixels near it;
+/// then a second tone when a good share of the rest is flat and close to the
+/// first or to the expected color (a two-tone magenta).
+fn background_colors(sample: &[[u8; 3]], tolerance: f32, expected: Option<[u8; 3]>) -> Vec<[u8; 3]> {
+    let near_expected: Vec<[u8; 3]> = expected
+        .map(|e| sample.iter().copied().filter(|c| oklab_dist(oklab(*c), oklab(e)) < SECOND_TONE).collect())
+        .unwrap_or_default();
+    let first = if near_expected.len() * 10 >= sample.len() { median_color(&near_expected) } else { median_color(sample) };
+    let mut out = vec![first];
+    let rest: Vec<[u8; 3]> = sample.iter().copied().filter(|c| oklab_dist(oklab(*c), oklab(first)) >= tolerance).collect();
+    if rest.len() * 100 >= sample.len() * 15 {
+        let second = median_color(&rest);
+        let s_lab = oklab(second);
+        let mut spread: Vec<f32> = rest.iter().map(|c| oklab_dist(oklab(*c), s_lab)).collect();
+        spread.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let flat = spread[spread.len() * 3 / 4] < tolerance;
+        let close = match expected {
+            Some(e) => oklab_dist(s_lab, oklab(e)) < SECOND_TONE,
+            None => oklab_dist(s_lab, oklab(first)) < SECOND_TONE,
+        };
+        if flat && close {
+            out.push(second);
+        }
+    }
+    out
+}
+
 /// Removes a flat background: estimates its color from the image border
 /// (the median of the border pixels), clears pixels close to it with a soft
 /// edge, removes the background's color from the semi-transparent edge
 /// pixels ("despill"), and drops specks.
+#[cfg(test)]
 pub fn key_out(img: &Image, tolerance: f32) -> (Image, KeyReport) {
+    key_out_with(img, tolerance, KeyHint::default())
+}
+
+/// [`key_out`] with a hint: the expected key color, and whether to sample
+/// the top rows rather than the border. Two background tones are both keyed.
+pub fn key_out_with(img: &Image, tolerance: f32, hint: KeyHint) -> (Image, KeyReport) {
     let border_px: Vec<[u8; 3]> = border(img.w, img.h).map(|(x, y)| img.get(x, y)).map(|p| [p[0], p[1], p[2]]).collect();
-    let bg = median_color(&border_px);
-    let bg_lab = oklab(bg);
-    let mut d: Vec<f32> = border_px.iter().map(|c| oklab_dist(oklab(*c), bg_lab)).filter(|d| *d < tolerance * 2.0).collect();
+    let sample: Vec<[u8; 3]> = if hint.top {
+        let rows = (img.h / 32).max(2).min(img.h);
+        (0..rows).flat_map(|y| (0..img.w).map(move |x| (x, y))).map(|(x, y)| img.get(x, y)).map(|p| [p[0], p[1], p[2]]).collect()
+    } else {
+        border_px.clone()
+    };
+    let bgs = background_colors(&sample, tolerance, hint.expected);
+    let bg = bgs[0];
+    let labs: Vec<[f32; 3]> = bgs.iter().map(|c| oklab(*c)).collect();
+    let nearest = |c: [u8; 3]| -> (usize, f32) {
+        let l = oklab(c);
+        labs.iter().enumerate().map(|(i, b)| (i, oklab_dist(l, *b))).fold((0, f32::MAX), |a, b| if b.1 < a.1 { b } else { a })
+    };
+    let mut d: Vec<f32> = border_px.iter().map(|c| nearest(*c).1).filter(|d| *d < tolerance * 2.0).collect();
     d.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let border_bg = d.len() as f32 / border_px.len().max(1) as f32;
     let noise = d.get(d.len() * 9 / 10).copied().unwrap_or(0.0);
-    // Pixels this close to the background are background.
+    // Pixels this close to a background tone are background.
     let (w, h) = (img.w as usize, img.h as usize);
-    let is_bg: Vec<bool> = img.px.iter().map(|p| p[3] < 8 || oklab_dist(oklab([p[0], p[1], p[2]]), bg_lab) < tolerance).collect();
+    let is_bg: Vec<bool> = img.px.iter().map(|p| p[3] < 8 || nearest([p[0], p[1], p[2]]).1 < tolerance).collect();
     // The edge band: pixels within 2 px of the background, where the model
     // blended subject and background. Their alpha comes from projecting the
     // color onto the line from the background to the nearest solid subject
     // color (observed = a·fg + (1−a)·bg), which also gives the despilled fg.
     let near = dilate(&dilate(&is_bg, w, h), w, h);
-    let bgf = [bg[0] as f32, bg[1] as f32, bg[2] as f32];
-    let dist2 = |p: Rgba| (0..3).map(|c| (p[c] as f32 - bgf[c]).powi(2)).sum::<f32>();
     let mut out = img.clone();
     let mut cleared = 0usize;
     for y in 0..h {
@@ -415,6 +478,10 @@ pub fn key_out(img: &Image, tolerance: f32) -> (Image, KeyReport) {
             if !near[i] {
                 continue;
             }
+            // Unmixed from the background tone closest to it.
+            let tone = bgs[nearest([p[0], p[1], p[2]]).0];
+            let bgf = [tone[0] as f32, tone[1] as f32, tone[2] as f32];
+            let dist2 = |p: Rgba| (0..3).map(|c| (p[c] as f32 - bgf[c]).powi(2)).sum::<f32>();
             // The most subject-like pixel nearby, preferring ones outside the band.
             let mut fg = p;
             let mut best = (false, dist2(p));
@@ -452,7 +519,7 @@ pub fn key_out(img: &Image, tolerance: f32) -> (Image, KeyReport) {
     let min_area = ((img.w * img.h) as f32 * 0.0002).max(12.0) as usize;
     remove_specks(&mut out, min_area);
     let frac = cleared as f32 / img.px.len().max(1) as f32;
-    (out, KeyReport { background: bg, border_bg, noise, cleared: frac })
+    (out, KeyReport { background: bg, backgrounds: bgs, border_bg, noise, cleared: frac })
 }
 
 /// 8-neighbour dilation of a mask.
@@ -919,6 +986,28 @@ pub fn png_dims(bytes: &[u8]) -> Option<(u32, u32)> {
     Some((w, h))
 }
 
+/// A JPEG's width and height, from its first start-of-frame marker.
+pub fn jpeg_dims(bytes: &[u8]) -> Option<(u32, u32)> {
+    if !bytes.starts_with(&[0xff, 0xd8]) {
+        return None;
+    }
+    let mut i = 2;
+    while i + 9 < bytes.len() {
+        if bytes[i] != 0xff {
+            return None;
+        }
+        let marker = bytes[i + 1];
+        let len = u16::from_be_bytes([bytes[i + 2], bytes[i + 3]]) as usize;
+        if (0xc0..=0xcf).contains(&marker) && ![0xc4, 0xc8, 0xcc].contains(&marker) {
+            let h = u16::from_be_bytes([bytes[i + 5], bytes[i + 6]]) as u32;
+            let w = u16::from_be_bytes([bytes[i + 7], bytes[i + 8]]) as u32;
+            return Some((w, h));
+        }
+        i += 2 + len;
+    }
+    None
+}
+
 /// Several images in a grid with gaps, for looking at variants at once.
 pub fn contact_sheet(images: &[Image]) -> Image {
     let cell = images.iter().map(|i| i.w.max(i.h)).max().unwrap_or(1);
@@ -1029,6 +1118,51 @@ mod tests {
         for p in k.px.iter().filter(|p| p[3] > 0 && p[3] < 255) {
             assert!(p[1] < 90, "spill left in {p:?}");
         }
+    }
+
+    #[test]
+    fn a_two_tone_background_is_keyed_whole() {
+        // Magenta with a darker magenta band (as a model sometimes paints it).
+        let mut im = disc(200, [40, 160, 220], [255, 0, 255]);
+        for y in 0..200 {
+            for x in 0..200 {
+                if (x / 25 + y / 25) % 2 == 1 && im.get(x, y) == [255, 0, 255, 255] {
+                    im.set(x, y, [200, 0, 200, 255]);
+                }
+            }
+        }
+        let (k, rep) = key_out(&im, 0.09);
+        assert_eq!(rep.backgrounds.len(), 2, "{:?}", rep.backgrounds);
+        assert_eq!(k.get(0, 0)[3], 0);
+        assert_eq!(k.get(30, 2)[3], 0);
+        assert_eq!(k.get(100, 100), [40, 160, 220, 255]);
+        // The subject's own color is never taken for a second tone.
+        let (_, rep) = key_out(&disc(200, [40, 160, 220], [255, 0, 255]), 0.09);
+        assert_eq!(rep.backgrounds, vec![[255, 0, 255]]);
+    }
+
+    #[test]
+    fn a_layer_is_keyed_from_its_sky_and_the_expected_key() {
+        // Scenery fills the bottom 60% and both sides; sky (pure blue) only at the top.
+        let mut im = Image::new(200, 100, [0, 0, 255, 255]);
+        for y in 40..100 {
+            for x in 0..200 {
+                im.set(x, y, [60, 40, 30, 255]);
+            }
+        }
+        for y in 0..100 {
+            for x in (0..12).chain(188..200) {
+                im.set(x, y, [60, 40, 30, 255]);
+            }
+        }
+        let (_, by_border) = key_out(&im, 0.09);
+        assert_eq!(by_border.background, [60, 40, 30], "the old estimate keys the scenery");
+        let (k, rep) = key_out_with(&im, 0.09, KeyHint { top: true, ..KeyHint::default() });
+        assert_eq!(rep.background, [0, 0, 255]);
+        assert_eq!(k.get(100, 10)[3], 0);
+        assert_eq!(k.get(100, 80)[3], 255);
+        let (_, rep) = key_out_with(&im, 0.09, KeyHint { expected: Some([0, 0, 255]), top: false });
+        assert_eq!(rep.background, [0, 0, 255]);
     }
 
     #[test]

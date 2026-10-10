@@ -2,7 +2,7 @@
 name = "mb-cli"
 description = "The `mb` command: build, pack and validate Maimbrain games"
 edition.workspace = true
-version = "0.6.0"
+version = "0.7.0"
 publish.workspace = true
 
 [dependencies]
@@ -19,9 +19,20 @@ tiny_http = "0.12"
 toml = "1.1.6"
 # Font outlines, metrics, kerning and variations for `mb font add`.
 ttf-parser = "0.25"
+# meshoptimizer (C++, built with cc): simplifying generated 3D models for `mb model`.
+meshopt = "0.6"
 ureq = { version = "3", features = ["json"] }
+# Baseline JPEG for `mb art sky` panoramas (photographic skies are far smaller than PNG)
+# and for `mb model` textures.
+jpeg-encoder = "0.7"
+# Ogg Vorbis encoding (libvorbis with aoTuV, built from source), so no oggenc is needed.
+vorbis_rs = { version = "0.5.6", default-features = false }
 zune-jpeg = "0.5.15"
 
 [[bin]]
 name = "mb"
 path = "src/main.rs"
+
+[dev-dependencies]
+# The music Director, run over a real take in tests (generate/tension_mix.rs).
+maimbrain = { path = "../../sdk/maimbrain" }

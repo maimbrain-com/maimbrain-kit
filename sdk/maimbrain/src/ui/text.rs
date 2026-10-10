@@ -126,9 +126,15 @@ impl<'a> Text<'a> {
         self.valign = v;
         self
     }
-    /// Centred on (x, y) both ways (capitals centred vertically).
+    /// Centred on (x, y) both ways (capitals centred vertically). It sets
+    /// the horizontal alignment too, replacing an earlier `.right()`: for
+    /// right-aligned text centred vertically, use `.right().vcenter()`.
     pub fn middle(self) -> Self {
         self.align(Align::Center).valign(VAlign::Middle)
+    }
+    /// Centred vertically on y (the capitals), keeping the horizontal alignment.
+    pub fn vcenter(self) -> Self {
+        self.valign(VAlign::Middle)
     }
     /// An outline `width` ems wide (0.05–0.1 reads well).
     pub fn outline(mut self, width: f32, color: u32) -> Self {
@@ -351,6 +357,14 @@ pub fn fmt_int_sep(n: i64, sep: char) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn vcenter_keeps_the_alignment_and_middle_replaces_it() {
+        let t = text("9").right().vcenter();
+        assert_eq!((t.align, t.valign), (Align::Right, VAlign::Middle));
+        let t = text("9").right().middle();
+        assert_eq!((t.align, t.valign), (Align::Center, VAlign::Middle));
+    }
 
     #[test]
     fn formats_numbers() {

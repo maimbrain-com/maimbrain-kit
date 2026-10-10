@@ -217,7 +217,7 @@ pub struct Recipe {
     pub source: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<u32>,
-    /// `ascii` (default), `latin1`, `caps`, `digits`, literal characters, joined with `+`.
+    /// `latin1` (default), `ascii`, `caps`, `digits`, literal characters, joined with `+`.
     #[serde(default = "default_chars")]
     pub chars: String,
     /// Pixels per em in the atlas (SDF; 16–64, default 32). Bigger keeps corners sharper at large sizes.
@@ -232,7 +232,7 @@ pub struct Recipe {
 }
 
 fn default_chars() -> String {
-    "ascii".into()
+    "latin1".into()
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -243,7 +243,7 @@ struct FontsToml {
 
 const FONTS_TOML_HEADER: &str = "# Fonts this game bakes into assets/fonts/ (written by `mb font add`; `mb build` re-bakes\n# when an entry changes). Load one with Font::asset(\"assets/fonts/<name>.mbf\", fallback).\n\n";
 
-fn read_fonts_toml(game: &Path) -> Result<Vec<Recipe>, String> {
+pub fn read_fonts_toml(game: &Path) -> Result<Vec<Recipe>, String> {
     let path = game.join("fonts.toml");
     match std::fs::read_to_string(&path) {
         Ok(t) => toml::from_str::<FontsToml>(&t).map(|f| f.fonts).map_err(|e| format!("{}: {e}", path.display())),

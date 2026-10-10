@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.7.0-dev voice",
+  "date": "2026-10-10T02:04:09Z",
+  "provider": "elevenlabs",
+  "model": "eleven_v4",
+  "prompt": "Ow! My hip! You're grounded!",
+  "full_prompt": "[angry] Ow! My hip! You're grounded!",
+  "seed": 1445640617,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "7d7fac5d65970e00533ba62436e6630d4060c2aa34ab676c261cc0c567d42150"
+  },
+  "est_cost_usd": 0.0028799999999999997,
+  "cost_usd": 0.0028799999999999997,
+  "raw": "art/raw/vo/granny/ouch.pcm",
+  "raw_sha256": "1e85a505cc8968f6984c63a5f4bb204b826eab36c05dfa23e4f7ef16643bf203",
+  "output_sha256": "5c3dedd78837a9fedca6266c371f8818c8bff4b6ae006ce5111f0c50b758a112",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "granny",
+    "delivery": "natural",
+    "emotion": "angry",
+    "kind": "voice",
+    "line": "ouch",
+    "model": "eleven_v4",
+    "out": "assets/vo/granny/ouch.ogg",
+    "provider": "elevenlabs",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1445640617,
+    "speed": null,
+    "style": null,
+    "text": "Ow! My hip! You're grounded!",
+    "voice_id": "0xfeQWDUrxAdTk1cqSyR"
+  },
+  "result": {
+    "key": "ff45f65c9f017fad",
+    "lips": "assets/vo/granny/ouch.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -16.693971633911133,
+    "peak_db": -3.056710720062256,
+    "phone_loss_db": -0.0,
+    "seconds": 2.658095121383667,
+    "subtitle": "Ow! My hip! You're grounded!",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Generated with ElevenLabs from a voice designed for this game (not a clone); check your plan's license terms."
+}

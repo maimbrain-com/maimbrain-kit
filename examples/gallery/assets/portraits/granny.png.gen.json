@@ -1,0 +1,96 @@
+{
+  "generator": "mb 0.7.0-dev art portrait",
+  "date": "2026-10-10T01:40:37Z",
+  "provider": "gemini",
+  "model": "gemini-nano-banana-2.1",
+  "prompt": "a grumpy cartoon grandma mech pilot: tight grey bun with a wrench stuck through it, huge round pink glasses, wrinkles, a lavender cardigan over an orange flight suit, pursed lips, chunky outlines",
+  "full_prompt": "A talking-portrait sprite sheet for a game's dialogue: one character, a grumpy cartoon grandma mech pilot: tight grey bun with a wrench stuck through it, huge round pink glasses, wrinkles, a lavender cardigan over an orange flight suit, pursed lips, chunky outlines, drawn 16 times in a grid of 4 columns and 4 rows of equal square cells, with clear gaps of flat background between the cells so no two portraits touch. Every cell is the same head-and-shoulders bust facing the viewer, centered in its cell, at exactly the same position, size, pose, framing, lighting and colors, the shoulders cut off by a straight horizontal line near the bottom of the cell. Keep the character identical in every cell (same face shape, hair, clothes, accessories, proportions and outline): it is one drawing whose mouth, eyes and eyebrows are redrawn, and nothing else moves. Columns are mouth shapes for lip-sync, left to right: 1 mouth closed, 2 mouth slightly open, 3 mouth open, 4 mouth wide open as if shouting. Rows are expressions, top to bottom: row 1 neutral; row 2 smug; row 3 angry; row 4 the neutral face with both eyes fully closed (a blink), the mouth still changing across the columns. Nothing else in the image. Pixel art: big crisp square pixels as if each cell were drawn on a 48×48 grid, no anti-aliasing, no dithering noise, a limited palette. Background: one flat, solid pure blue color (#0000ff) filling everything behind the subject: no gradient, no texture, no shadow, no glow. Don't use that color anywhere in the subject. Avoid: text, letters, watermark, signature, logo, frame or border. An original design: not any existing character, franchise, brand or logo.",
+  "seed": 22,
+  "seed_honored": true,
+  "references": [],
+  "style": null,
+  "est_cost_usd": 0.0336,
+  "cost_usd": null,
+  "raw": "art/raw/granny-22.jpg",
+  "raw_sha256": "ce77b49aafe584612a057ece6c8f67ae4bfb14867caf7b69be4a7fd342f8af62",
+  "output_sha256": "09d05f559883e841eead5b874960f47fd8b63d486cc2b670ef3bc4a9c9cbe0bf",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "anchor": "bottom",
+    "aspect": "1:1",
+    "colors": null,
+    "cols": 4,
+    "expressions": [
+      "neutral",
+      "smug",
+      "angry"
+    ],
+    "frames": 16,
+    "grid": [
+      48,
+      48
+    ],
+    "grid_explicit": true,
+    "horizon": null,
+    "keyed": true,
+    "kind": "portrait",
+    "layer": null,
+    "margin": 1,
+    "max_kb": null,
+    "model": "gemini-nano-banana-2.1",
+    "name": "granny",
+    "no_style": false,
+    "out": "assets/portraits/granny.png",
+    "poles": 12.0,
+    "provider": "gemini",
+    "quality": "medium",
+    "refs": [],
+    "resolution": "1K",
+    "seed": 22,
+    "size": [
+      192,
+      192
+    ],
+    "span": 180.0,
+    "subject": "a grumpy cartoon grandma mech pilot: tight grey bun with a wrench stuck through it, huge round pink glasses, wrinkles, a lavender cardigan over an orange flight suit, pursed lips, chunky outlines",
+    "tolerance": 0.09
+  },
+  "result": {
+    "cell": [
+      192,
+      192
+    ],
+    "cols": 4,
+    "keyed_background": "#0226fe",
+    "pixel_scale": 4,
+    "portrait": {
+      "blink_row": 3,
+      "cell": [
+        192,
+        192
+      ],
+      "cols": 4,
+      "expressions": [
+        "neutral",
+        "smug",
+        "angry"
+      ],
+      "mouths": [
+        "closed",
+        "slightly open",
+        "open",
+        "wide open"
+      ],
+      "rows": 4
+    },
+    "rust": "talking portrait for ui::Portrait (docs/UI.md): cell (col, row) at [col × 192, row × 192, 192, 192]; col = mouth 0 closed, 1 slightly open, 2 open, 3 wide open; row = 0 neutral, 1 smug, 2 angry, 3 blink",
+    "size": [
+      768,
+      768
+    ],
+    "warnings": []
+  },
+  "note": "Generated with a Google model; Google embeds an imperceptible SynthID watermark."
+}

@@ -15,10 +15,23 @@ pub struct Sim {
 }
 
 pub const START_R: f32 = 60.0;
+/// The smallest a tap may be off the bubble's centre and still pop it: a
+/// finger lands within about 9 pt (1 SD) of where its owner means even when
+/// careful (`synth::Skill`), so a target under ~44 pt across punishes aim the
+/// player can't have.
+pub const HIT_MIN: f32 = 26.0;
+/// The difficulty curve, tuned against the bot (bot.rs): the shrink speed
+/// is `SHRINK + SHRINK_RAMP × √pops`, so it climbs fast at first and ever
+/// more slowly after. A first bubble lasts 4.3 s, the 25th 2.4 s, the 100th
+/// 1.6 s: first-timers run out of time around 20 pops, good players play on
+/// for about 110 (the bot's fingers move as fast as real ones, Fitts' law). A fixed step per pop ends every player's round at the
+/// same place: a good player then lasts barely longer than a first-timer.
+const SHRINK: f32 = 12.0;
+const SHRINK_RAMP: f32 = 2.0;
 
 impl Sim {
     pub fn new(seed: u64) -> Sim {
-        Sim { x: 180.0, y: 320.0, r: START_R, score: 0, over: false, shrink: 10.0, rng: Rng::new(seed) }
+        Sim { x: 180.0, y: 320.0, r: START_R, score: 0, over: false, shrink: SHRINK, rng: Rng::new(seed) }
     }
 
     pub fn step(&mut self, dt: f32) {
@@ -33,11 +46,11 @@ impl Sim {
 
     /// A tap at (x, y); true if it popped the bubble.
     pub fn tap(&mut self, x: f32, y: f32) -> bool {
-        if self.over || (x - self.x).hypot(y - self.y) > self.r + 12.0 {
+        if self.over || (x - self.x).hypot(y - self.y) > (self.r + 12.0).max(HIT_MIN) {
             return false;
         }
         self.score += 1;
-        self.shrink += 4.0;
+        self.shrink = SHRINK + SHRINK_RAMP * (self.score as f32).sqrt();
         self.r = START_R;
         self.x = self.rng.range(70.0, 290.0);
         self.y = self.rng.range(160.0, 460.0);

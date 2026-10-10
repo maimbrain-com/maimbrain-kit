@@ -70,7 +70,8 @@ const fn fx(vol: f32, db: f32, pitch: f32, cap: usize, secs: f32) -> Fx {
 
 /// Effect levels, indexed like `FILES` (the loops' rows are unused). Set
 /// against the music (`MUSIC_VOL`), measured with `mix_check.py` on a bot
-/// round: coins (~70 a minute, in runs) sit ~10 dB under the music, lane
+/// round: coins (~70 a minute, in runs) sit ~7 dB under the music over 3 s
+/// and each peaks over half as loud as it on a phone speaker, lane
 /// swishes and pass-bys (~25 a minute each) ~8–10 dB under; the rare events
 /// (near miss, boost, speed-up, crash) may poke above it.
 const FX: [Fx; 20] = [
@@ -80,7 +81,7 @@ const FX: [Fx; 20] = [
     fx(0.6, 0.0, 0.0, 1, 2.0),    // start
     fx(0.5, 1.5, 0.06, 2, 0.5),   // lane
     fx(0.32, 1.0, 0.01, 1, 0.6),  // squeal: tonal (a G), played on E (SQUEAL_PITCH)
-    fx(0.13, 1.5, 0.0, 3, 0.5),   // coin: tonal, so no pitch spread (it's on the scale)
+    fx(0.19, 1.5, 0.0, 3, 0.5),   // coin: tonal, so no pitch spread (it's on the scale)
     fx(0.55, 1.0, 0.0, 2, 0.9),   // near
     fx(0.75, 0.0, 0.0, 1, 1.6),   // boost
     fx(0.7, 1.0, 0.08, 2, 0.8),   // smash

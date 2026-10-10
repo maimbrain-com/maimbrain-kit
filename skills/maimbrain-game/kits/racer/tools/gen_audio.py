@@ -6,7 +6,7 @@ fallback: it overwrites the same files, but makes no wind, pass or blinker
 (those then stay silent) and its music is in A, so set MUSIC_ROOT in
 src/sound.rs back to 0 (coin.ogg here is an A5 pluck).
 
-    python3 tools/gen_audio.py      # needs oggenc (brew install vorbis-tools)
+    python3 tools/gen_audio.py      # encodes with `mb ogg` (or oggenc)
 
 Everything is in A major, so the coin chime (stepped up the A major
 pentatonic by the game, one step per coin in a row) sits inside the music.

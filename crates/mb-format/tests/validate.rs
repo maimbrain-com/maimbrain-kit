@@ -65,6 +65,18 @@ fn minimal_game_is_valid() {
 }
 
 #[test]
+fn reads_the_sdk_version() {
+    let plain = validate(&bundle(MANIFEST, module(EXPORTS), &[]));
+    assert!(plain.ok(), "{:#?}", plain.errors);
+    assert_eq!(plain.sdk_version, None);
+    let built = validate(&bundle(MANIFEST, module(&format!(r#"{EXPORTS} (@custom "maimbrain-sdk" "0.7.0")"#)), &[]));
+    assert!(built.ok(), "{:#?}", built.errors);
+    assert_eq!(built.sdk_version.as_deref(), Some("0.7.0"));
+    let junk = validate(&bundle(MANIFEST, module(&format!(r#"{EXPORTS} (@custom "maimbrain-sdk" "<b>hi</b>")"#)), &[]));
+    assert_eq!(junk.sdk_version, None);
+}
+
+#[test]
 fn pack_is_deterministic() {
     let wasm = module(EXPORTS);
     assert_eq!(bundle(MANIFEST, wasm.clone(), &[]), bundle(MANIFEST, wasm, &[]));
@@ -97,6 +109,34 @@ fn audio_scheduling_and_time_lost_need_no_declaration() {
 }
 
 #[test]
+fn playing_from_an_offset_and_releasing_need_no_declaration() {
+    let no_stdlib = MANIFEST.replace("stdlib = { mb2d = 1 }", "");
+    let wasm = module(&format!(
+        r#"(import "mb" "mb_play_from" (func (param i32 f32 f32 f32 i32 f64 f64 f32) (result i32)))
+           (import "mb" "mb_voice_stop_at" (func (param i32 f64 f32))) {EXPORTS}"#
+    ));
+    let r = validate(&bundle(&no_stdlib, wasm, &[]));
+    assert!(r.ok(), "{:#?}", r.errors);
+    // `from` is seconds into the sound, an f64 like `at`.
+    let wasm = module(&format!(r#"(import "mb" "mb_play_from" (func (param i32 f32 f32 f32 i32 f64 f32 f32) (result i32))) {EXPORTS}"#));
+    assert_error(&errors(MANIFEST, wasm), "mb.mb_play_from has signature");
+}
+
+#[test]
+fn bus_effects_need_no_declaration() {
+    let no_stdlib = MANIFEST.replace("stdlib = { mb2d = 1 }", "");
+    let wasm = module(&format!(
+        r#"(import "mb" "mb_bus_fx" (func (param i32 i32 i32) (result i32)))
+           (import "mb" "mb_voice_bus" (func (param i32 i32))) {EXPORTS}"#
+    ));
+    let r = validate(&bundle(&no_stdlib, wasm, &[]));
+    assert!(r.ok(), "{:#?}", r.errors);
+    // mb_bus_fx returns a status (0 or -2).
+    let wasm = module(&format!(r#"(import "mb" "mb_bus_fx" (func (param i32 i32 i32))) {EXPORTS}"#));
+    assert_error(&errors(MANIFEST, wasm), "mb.mb_bus_fx has signature");
+}
+
+#[test]
 fn rejects_wrong_signatures() {
     let wasm = module(&format!(r#"(import "mb" "mb2d_clear" (func (param f32))) {EXPORTS}"#));
     assert_error(&errors(MANIFEST, wasm), "mb.mb2d_clear has signature (f32) -> ()");
@@ -110,6 +150,11 @@ fn rejects_undeclared_stdlib_sensors_and_capabilities() {
 
     let wasm = module(&format!(r#"(import "mb" "mb_tilt" (func (param i32) (result i32))) {EXPORTS}"#));
     assert_error(&errors(MANIFEST, wasm), "sensors = [\"tilt\"]");
+
+    let wasm = || module(&format!(r#"(import "mb" "mb_attitude" (func (param i32) (result i32))) {EXPORTS}"#));
+    assert_error(&errors(MANIFEST, wasm()), "sensors = [\"attitude\"]");
+    let declared = format!("{MANIFEST}sensors = [\"attitude\"]\nneeds = [\"attitude\"]\n");
+    assert!(errors(&declared, wasm()).is_empty(), "{:?}", errors(&declared, wasm()));
 
     let wasm = module(&format!(r#"(import "mb" "mb_store_set" (func (param i32 i32 i32 i32) (result i32))) {EXPORTS}"#));
     assert_error(&errors(MANIFEST, wasm), "capabilities = [\"store\"]");
@@ -188,6 +233,18 @@ fn checks_score_boards() {
     assert_error(&errors(&no_board, wasm()), "needs at least one [[scores]] board");
     let dup = with("capabilities = [\"score\"]\n[[scores]]\nboard = 1\nlabel = \"A\"\norder = \"lower\"\nformat = \"milliseconds\"\n[[scores]]\nboard = 1\nlabel = \"B\"\norder = \"higher\"\n");
     assert_error(&errors(&dup, wasm()), "board numbers must be unique");
+}
+
+#[test]
+fn replay_banner_is_bottom_or_top() {
+    use mb_format::manifest::ReplayBanner;
+    let parse = |extra: &str| mb_format::Manifest::parse(&format!("{MANIFEST}{extra}"));
+    assert_eq!(parse("").unwrap().replay_banner, ReplayBanner::Bottom);
+    assert_eq!(parse("replay_banner = \"top\"\n").unwrap().replay_banner, ReplayBanner::Top);
+    assert!(errors(&format!("{MANIFEST}replay_banner = \"top\"\n"), module(EXPORTS)).is_empty());
+    let err = parse("replay_banner = \"middle\"\n").unwrap_err();
+    assert!(err.contains("`bottom`") && err.contains("`top`"), "{err}");
+    assert_error(&errors(&format!("{MANIFEST}replay_banner = \"middle\"\n"), module(EXPORTS)), "replay_banner");
 }
 
 #[test]

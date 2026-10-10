@@ -15,12 +15,13 @@ windows. "fx - music" is the effects' loudness minus the music's, window by
 window, during play: the mix rule is that the frequent sounds stay several
 dB under the music, so its median should be clearly negative.
 
-Needs numpy and `oggdec` (brew install vorbis-tools).
+Needs numpy, and `mb ogg` (or oggdec) to decode.
 """
 
 import argparse
 import csv
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -30,11 +31,33 @@ import numpy as np
 
 SR = 32000
 
+_MB = None  # the mb that has `mb ogg` ("" if there isn't one), found on first use
+
+
+def _ogg(src: str, dst: str, quality: float = 5) -> None:
+    """WAV -> mono Ogg Vorbis (dst ends in .ogg) or Ogg -> 16-bit WAV, with
+    `mb ogg` (built into mb, on every OS) or else vorbis-tools' oggenc/oggdec."""
+    global _MB
+    if _MB is None:
+        mb = shutil.which("mb")
+        _MB = mb if mb and subprocess.run([mb, "ogg", "--help"], capture_output=True).returncode == 0 else ""
+    enc = dst.lower().endswith(".ogg")
+    if _MB:
+        cmd = [_MB, "ogg", "-Q", "-q", str(quality), src, dst]
+    elif shutil.which("oggenc" if enc else "oggdec"):
+        cmd = ["oggenc", "-Q", "-q", str(quality), "-o", dst, src] if enc else ["oggdec", "-Q", "-o", dst, src]
+    else:
+        raise SystemExit("no Ogg Vorbis tool: update mb, which has `mb ogg` built in "
+                         "(curl -fsSL https://maimbrain.com/install.sh | sh; on Windows irm https://maimbrain.com/install.ps1 | iex)")
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"{' '.join(cmd)}: {r.stderr.strip()}")
+
 
 def load(path):
     with tempfile.TemporaryDirectory() as d:
         w = os.path.join(d, "a.wav")
-        subprocess.run(["oggdec", "-Q", "-o", w, path], check=True)
+        _ogg(path, w)
         with wave.open(w) as r:
             n, ch, sr = r.getnframes(), r.getnchannels(), r.getframerate()
             a = np.frombuffer(r.readframes(n), dtype="<i2").astype(np.float64) / 32768

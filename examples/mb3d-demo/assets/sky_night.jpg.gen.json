@@ -1,0 +1,76 @@
+{
+  "generator": "mb 0.6.0 art sky",
+  "date": "2026-10-09T13:50:24Z",
+  "provider": "gemini",
+  "model": "gemini-nano-banana-2.1",
+  "prompt": "a clear moonless night sky full of stars and a faint Milky Way, over a distant silhouette of a Japanese canal town's rooftops and pagodas with a few warm lantern lights, deep blue overhead fading to a soft blue-violet glow at the horizon",
+  "full_prompt": "A seamless 360-degree equirectangular panorama for a 3D game's sky, like a photo sphere unwrapped: a clear moonless night sky full of stars and a faint Milky Way, over a distant silhouette of a Japanese canal town's rooftops and pagodas with a few warm lantern lights, deep blue overhead fading to a soft blue-violet glow at the horizon. The horizon is one straight, level line across the exact vertical middle of the image; the top edge is straight overhead and the bottom edge straight down, so the top and bottom rows are each one even color; the left and right edges are the same direction and continue into each other. Everything is far away: sky above the middle, only distant scenery along the horizon, nothing in the foreground. Avoid: text, letters, watermark, signature, logo, frame or border. An original design: not any existing character, franchise, brand or logo.",
+  "seed": 864693418,
+  "seed_honored": true,
+  "references": [],
+  "style": null,
+  "est_cost_usd": 0.0504,
+  "cost_usd": null,
+  "raw": "art/raw/sky_night-864693418.jpg",
+  "raw_sha256": "24e45b3abcfca0e01847817d6ffa8dd4ca585e14e4e54b8867f4cbd266e23e33",
+  "output_sha256": "94caf548b7951bf078de917428b5438d5c409f904702eb0e2599a25b1d4f0b96",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "anchor": "center",
+    "aspect": "21:9",
+    "colors": null,
+    "cols": 0,
+    "frames": 0,
+    "grid": null,
+    "grid_explicit": false,
+    "horizon": null,
+    "keyed": false,
+    "kind": "sky",
+    "layer": null,
+    "margin": 64,
+    "max_kb": null,
+    "model": "gemini-nano-banana-2.1",
+    "name": "sky_night",
+    "no_style": false,
+    "out": "assets/sky_night.jpg",
+    "poles": 12.0,
+    "provider": "gemini",
+    "quality": "medium",
+    "refs": [],
+    "resolution": "2K",
+    "seed": 864693418,
+    "size": [
+      2048,
+      1024
+    ],
+    "span": 180.0,
+    "subject": "a clear moonless night sky full of stars and a faint Milky Way, over a distant silhouette of a Japanese canal town's rooftops and pagodas with a few warm lantern lights, deep blue overhead fading to a soft blue-violet glow at the horizon",
+    "tolerance": 0.09
+  },
+  "result": {
+    "calm_poles_deg": 12.0,
+    "cropped": 0.10100000351667404,
+    "extended_rows": [
+      0,
+      0
+    ],
+    "horizon_row": 512,
+    "jpeg_quality": 88,
+    "projection": "equirectangular",
+    "rust": "gfx3d::sky_texture(Texture::new(Asset::load(\"assets/sky_night.jpg\")), &SkyTexture::default()), once the asset is ready",
+    "size": [
+      2048,
+      1024
+    ],
+    "source_horizon": [
+      0.5519999861717224,
+      "found"
+    ],
+    "span_deg": 180.0,
+    "warnings": [],
+    "wraps": "x"
+  },
+  "note": "Generated with a Google model; Google embeds an imperceptible SynthID watermark."
+}

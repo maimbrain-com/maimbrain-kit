@@ -22,6 +22,12 @@ pub const PROVIDERS: &[(&str, &[&str], &str)] = &[
         &["ELEVENLABS_API_KEY", "XI_API_KEY"],
         "create a key at https://elevenlabs.io/app/settings/api-keys; the free plan includes a few sound effects a month",
     ),
+    (
+        "tripo",
+        &["TRIPO_API_KEY"],
+        "create a key at https://platform.tripo3d.ai (API Keys) and buy credits ($0.01 each, pay as you go); models made with free credits aren't yours to ship",
+    ),
+    ("meshy", &["MESHY_API_KEY"], "create a key at https://www.meshy.ai/developers/keys; the API needs a paid plan (Pro, $20 a month for 1000 credits)"),
 ];
 
 fn keys_path() -> Result<PathBuf, String> {
@@ -83,7 +89,7 @@ pub fn help_for(provider: &str) -> String {
 pub enum KeysCmd {
     /// Save a provider's API key (read from stdin; not echoed in a terminal).
     Set {
-        /// gemini, vertex (a Google Cloud project id), openai or elevenlabs.
+        /// gemini, vertex (a Google Cloud project id), openai, elevenlabs, tripo or meshy.
         provider: String,
     },
     /// Show which providers have keys and where each comes from (keys masked).
@@ -96,7 +102,7 @@ pub fn run(cmd: KeysCmd) -> Result<(), String> {
     match cmd {
         KeysCmd::Set { provider } => {
             let Some((_, vars, url)) = PROVIDERS.iter().find(|p| p.0 == provider) else {
-                return Err(format!("unknown provider {provider:?} (gemini, vertex, openai, elevenlabs)"));
+                return Err(format!("unknown provider {provider:?} (gemini, vertex, openai, elevenlabs, tripo, meshy)"));
             };
             let stdin = std::io::stdin();
             let tty = stdin.is_terminal();

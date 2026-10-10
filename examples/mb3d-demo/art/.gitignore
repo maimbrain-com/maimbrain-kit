@@ -1,0 +1,4 @@
+# Provider outputs, variants and previews: large, and reproducible with `mb regen`.
+raw/
+variants/
+preview/

@@ -1,0 +1,282 @@
+{
+  "generator": "mb 0.7.0-dev model",
+  "date": "2026-10-10T01:21:12Z",
+  "provider": "import",
+  "model": "file",
+  "prompt": "koi2",
+  "full_prompt": "koi2. A single game-ready 3D model with clean, readable shapes that read well small on a phone; the whole object, no base, ground or background. An original design.",
+  "seed": 626316166,
+  "seed_honored": true,
+  "references": [
+    {
+      "path": "/private/tmp/claude-501/-Users-jmeller-code-terracatta-maimbrain/9d3bdf5a-997d-4948-aa14-76c01d5b9110/scratchpad/assets/koi2.glb",
+      "sha256": "97d597ccbad4c37a5c35915bb448c2eb0b8cb77b4f969db42f2e978c92130996"
+    }
+  ],
+  "style": null,
+  "est_cost_usd": null,
+  "cost_usd": 0.0,
+  "raw": "art/raw/koi2-626316166.glb",
+  "raw_sha256": "97d597ccbad4c37a5c35915bb448c2eb0b8cb77b4f969db42f2e978c92130996",
+  "output_sha256": "64a1780d1be439c0a01a7335f4938c013e15c9b595ebedb06d110c0171bb942b",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "animate": [],
+    "facing": "-z",
+    "glow": null,
+    "glow_above": 0.6000000238418579,
+    "kind": "model",
+    "lengthwise": false,
+    "model": "file",
+    "name": "koi2",
+    "negative": null,
+    "no_style": false,
+    "origin": "center",
+    "out": "assets/koi2.glb",
+    "polys": 8000,
+    "provider": "import",
+    "reference": null,
+    "rig": false,
+    "rig_type": null,
+    "seed": 626316166,
+    "size": 0.800000011920929,
+    "spine": "auto",
+    "spine_joints": null,
+    "subject": "koi2",
+    "texture_format": "auto",
+    "texture_size": 512,
+    "turn": 0.0
+  },
+  "result": {
+    "bytes": 726896,
+    "clips": [],
+    "dropped": [],
+    "facing": "-z",
+    "facing_check": {
+      "thicker_end_ratio": 4.550000190734863,
+      "verdict": "ok"
+    },
+    "glowing_materials": 0,
+    "joints": 8,
+    "normals_added": false,
+    "notes": [
+      "imported from /private/tmp/claude-501/-Users-jmeller-code-terracatta-maimbrain/9d3bdf5a-997d-4948-aa14-76c01d5b9110/scratchpad/assets/koi2.glb"
+    ],
+    "placement": {
+      "origin": "center",
+      "scale": 1.142857313156128,
+      "size_m": [
+        0.30841493606567383,
+        0.33972635865211487,
+        0.800000011920929
+      ],
+      "source_size": [
+        0.2698630094528198,
+        0.2972605228424072,
+        0.6999999284744263
+      ],
+      "turn_degrees": 360.0,
+      "turned_lengthwise": false
+    },
+    "raw_clips": [],
+    "rig": {
+      "joints_from_provider": 26,
+      "merged_leaves": 0,
+      "symmetric": false,
+      "tree": [
+        "tripo::Root (3027 verts)",
+        "  tripo::Head_0 (603 verts)",
+        "    tripo::Spine_0 (135 verts)",
+        "      tripo::Spine_1 (318 verts)",
+        "        tripo::Spine_2 (583 verts)",
+        "          tripo::Spine_3 (550 verts)",
+        "            tripo::Spine_4 (310 verts)",
+        "              tripo::Tail_0 (205 verts)",
+        "              bone_8 (256 verts)",
+        "          bone_9 (51 verts)",
+        "          bone_10 (149 verts)",
+        "        bone_11 (180 verts)",
+        "          bone_12 (178 verts)",
+        "        bone_13 (110 verts)",
+        "          bone_14 (32 verts)",
+        "      bone_15 (216 verts)",
+        "        bone_16 (171 verts)",
+        "    tripo::Head_1 (65 verts)",
+        "      bone_18 (227 verts)",
+        "    bone_19 (45 verts)",
+        "      bone_20 (237 verts)",
+        "    bone_21 (5 verts)",
+        "      bone_22 (9 verts)",
+        "    bone_23 (16 verts)",
+        "      bone_24 (1 verts)",
+        "  bone_25 (0 verts)"
+      ]
+    },
+    "rigged": true,
+    "simplify_error": 0.0,
+    "source_generator": "mb 0.6.0 model",
+    "spine": {
+      "axis_head_to_tail": [
+        0.0,
+        -0.06599999964237213,
+        0.9980000257492065
+      ],
+      "bones": [
+        {
+          "at": [
+            -0.0010000000474974513,
+            0.03099999949336052,
+            -0.4000000059604645
+          ],
+          "name": "spine_0"
+        },
+        {
+          "at": [
+            -0.0,
+            0.03099999949336052,
+            -0.28600001335144043
+          ],
+          "name": "spine_1"
+        },
+        {
+          "at": [
+            0.0010000000474974513,
+            -0.03400000184774399,
+            -0.1770000010728836
+          ],
+          "name": "spine_2"
+        },
+        {
+          "at": [
+            0.0020000000949949026,
+            0.004999999888241291,
+            -0.05999999865889549
+          ],
+          "name": "spine_3"
+        },
+        {
+          "at": [
+            0.0020000000949949026,
+            0.004000000189989805,
+            0.05400000140070915
+          ],
+          "name": "spine_4"
+        },
+        {
+          "at": [
+            -0.0,
+            -0.004999999888241291,
+            0.16699999570846558
+          ],
+          "name": "spine_5"
+        },
+        {
+          "at": [
+            -0.0010000000474974513,
+            -0.03200000151991844,
+            0.27900001406669617
+          ],
+          "name": "spine_6"
+        },
+        {
+          "at": [
+            0.0,
+            -0.039000000804662704,
+            0.3919999897480011
+          ],
+          "name": "spine_7"
+        }
+      ],
+      "head": "-z",
+      "joints": 8,
+      "length_m": 0.7950000166893005,
+      "replaced_clips": [
+        "Swim"
+      ],
+      "spine_joints": 8,
+      "wings": false
+    },
+    "tasks": [],
+    "texture_sizes": [
+      [
+        512,
+        512
+      ],
+      [
+        512,
+        512
+      ],
+      [
+        512,
+        512
+      ],
+      [
+        512,
+        512
+      ]
+    ],
+    "textures": [
+      {
+        "format": "jpeg",
+        "kb": 45,
+        "role": "data",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 44,
+        "role": "color",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 100,
+        "role": "data",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 53,
+        "role": "color",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      }
+    ],
+    "triangles": 7875,
+    "triangles_from_provider": 7875,
+    "vertices": 7679,
+    "warnings": [
+      "--spine replaced the provider's rig and its 1 clip(s): pose it in code (Skeleton::spine)"
+    ]
+  },
+  "note": ""
+}

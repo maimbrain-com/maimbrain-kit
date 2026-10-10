@@ -1,0 +1,307 @@
+{
+  "generator": "mb 0.7.0-dev model",
+  "date": "2026-10-10T01:21:08Z",
+  "provider": "import",
+  "model": "file",
+  "prompt": "dragon",
+  "full_prompt": "dragon. A single game-ready 3D model with clean, readable shapes that read well small on a phone; the whole object, no base, ground or background. An original design.",
+  "seed": 30707079,
+  "seed_honored": true,
+  "references": [
+    {
+      "path": "/private/tmp/claude-501/-Users-jmeller-code-terracatta-maimbrain/9d3bdf5a-997d-4948-aa14-76c01d5b9110/scratchpad/assets/dragon.glb",
+      "sha256": "4cf34edab046b3d0ab11ad11530734d064cbee9d27630b79a1b6a54203fdf6f6"
+    }
+  ],
+  "style": null,
+  "est_cost_usd": null,
+  "cost_usd": 0.0,
+  "raw": "art/raw/dragon-30707079.glb",
+  "raw_sha256": "4cf34edab046b3d0ab11ad11530734d064cbee9d27630b79a1b6a54203fdf6f6",
+  "output_sha256": "c2f4d5a394da29b1afdfbdd48f49c7512b06cab7b73fd8a59fc0551925143d29",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "animate": [],
+    "facing": "-z",
+    "glow": null,
+    "glow_above": 0.6000000238418579,
+    "kind": "model",
+    "lengthwise": false,
+    "model": "file",
+    "name": "dragon",
+    "negative": null,
+    "no_style": false,
+    "origin": "center",
+    "out": "assets/dragon.glb",
+    "polys": 8000,
+    "provider": "import",
+    "reference": null,
+    "rig": false,
+    "rig_type": null,
+    "seed": 30707079,
+    "size": 4.5,
+    "spine": "auto",
+    "spine_joints": null,
+    "subject": "dragon",
+    "texture_format": "auto",
+    "texture_size": 512,
+    "turn": 0.0
+  },
+  "result": {
+    "bytes": 1216604,
+    "clips": [],
+    "dropped": [],
+    "facing": "-z",
+    "facing_check": {
+      "thicker_end_ratio": 1.6699999570846558,
+      "verdict": "turned"
+    },
+    "glowing_materials": 0,
+    "joints": 8,
+    "normals_added": false,
+    "notes": [
+      "imported from /private/tmp/claude-501/-Users-jmeller-code-terracatta-maimbrain/9d3bdf5a-997d-4948-aa14-76c01d5b9110/scratchpad/assets/dragon.glb"
+    ],
+    "placement": {
+      "origin": "center",
+      "scale": 1.0,
+      "size_m": [
+        1.576319694519043,
+        1.5587081909179688,
+        4.5
+      ],
+      "source_size": [
+        1.576319694519043,
+        1.5587081909179688,
+        4.5
+      ],
+      "turn_degrees": 540.0,
+      "turned_lengthwise": false
+    },
+    "raw_clips": [],
+    "rig": {
+      "joints_from_provider": 50,
+      "merged_leaves": 0,
+      "symmetric": false,
+      "tree": [
+        "tripo::Root (333 verts)",
+        "  tripo::Spine_0 (808 verts)",
+        "    tripo::Spine_1 (260 verts)",
+        "      tripo::Spine_2 (494 verts)",
+        "        tripo::Head_0 (345 verts)",
+        "          tripo::Head_1 (234 verts)",
+        "            bone_6 (131 verts)",
+        "            tripo::Head_2 (3480 verts)",
+        "              bone_8 (0 verts)",
+        "                bone_9 (48 verts)",
+        "                  bone_10 (22 verts)",
+        "              tripo::Head_3 (830 verts)",
+        "                tripo::Head_4 (154 verts)",
+        "              bone_13 (0 verts)",
+        "              bone_14 (386 verts)",
+        "              bone_15 (441 verts)",
+        "          bone_16 (88 verts)",
+        "            bone_17 (91 verts)",
+        "              bone_18 (55 verts)",
+        "                bone_19 (164 verts)",
+        "                  bone_20 (32 verts)",
+        "                    bone_21 (108 verts)",
+        "                  bone_22 (111 verts)",
+        "                    bone_23 (118 verts)",
+        "          bone_24 (90 verts)",
+        "            bone_25 (69 verts)",
+        "              bone_26 (45 verts)",
+        "                bone_27 (185 verts)",
+        "                  bone_28 (89 verts)",
+        "                    bone_29 (103 verts)",
+        "                  bone_30 (56 verts)",
+        "                    bone_31 (89 verts)",
+        "    bone_32 (84 verts)",
+        "      bone_33 (33 verts)",
+        "        bone_34 (120 verts)",
+        "          bone_35 (238 verts)",
+        "            bone_36 (173 verts)",
+        "            bone_37 (120 verts)",
+        "    bone_38 (74 verts)",
+        "      bone_39 (74 verts)",
+        "        bone_40 (123 verts)",
+        "          bone_41 (93 verts)",
+        "            bone_42 (169 verts)",
+        "            bone_43 (122 verts)",
+        "            bone_44 (101 verts)",
+        "  bone_45 (4 verts)",
+        "    bone_46 (167 verts)",
+        "      tripo::Tail_0 (244 verts)",
+        "        tripo::Tail_1 (334 verts)",
+        "          tripo::Tail_2 (1165 verts)"
+      ]
+    },
+    "rigged": true,
+    "simplify_error": 0.0030074906535446644,
+    "source_generator": "mb 0.7.0-dev model",
+    "spine": {
+      "axis_head_to_tail": [
+        0.0,
+        0.10000000149011612,
+        0.9950000047683716
+      ],
+      "bones": [
+        {
+          "at": [
+            0.5299999713897705,
+            -0.30799999833106995,
+            -2.243000030517578
+          ],
+          "name": "spine_0"
+        },
+        {
+          "at": [
+            0.4059999883174896,
+            -0.2150000035762787,
+            -1.5959999561309814
+          ],
+          "name": "spine_1"
+        },
+        {
+          "at": [
+            0.35600000619888306,
+            -0.210999995470047,
+            -0.9399999976158142
+          ],
+          "name": "spine_2"
+        },
+        {
+          "at": [
+            0.007000000216066837,
+            0.2809999883174896,
+            -0.3319999873638153
+          ],
+          "name": "spine_3"
+        },
+        {
+          "at": [
+            -0.2160000056028366,
+            -0.37599998712539673,
+            0.38999998569488525
+          ],
+          "name": "spine_4"
+        },
+        {
+          "at": [
+            -0.25699999928474426,
+            -0.21699999272823334,
+            1.031000018119812
+          ],
+          "name": "spine_5"
+        },
+        {
+          "at": [
+            -0.578000009059906,
+            0.2199999988079071,
+            1.6440000534057617
+          ],
+          "name": "spine_6"
+        },
+        {
+          "at": [
+            -0.6600000262260437,
+            0.414000004529953,
+            2.2809998989105225
+          ],
+          "name": "spine_7"
+        }
+      ],
+      "head": "-z",
+      "joints": 8,
+      "length_m": 4.573999881744385,
+      "replaced_clips": [
+        "March"
+      ],
+      "spine_joints": 8,
+      "wings": false
+    },
+    "tasks": [],
+    "texture_sizes": [
+      [
+        512,
+        512
+      ],
+      [
+        512,
+        512
+      ],
+      [
+        512,
+        512
+      ],
+      [
+        512,
+        512
+      ]
+    ],
+    "textures": [
+      {
+        "format": "jpeg",
+        "kb": 109,
+        "role": "data",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 96,
+        "role": "color",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 125,
+        "role": "data",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 104,
+        "role": "color",
+        "size": [
+          512,
+          512
+        ],
+        "source_size": [
+          1024,
+          1024
+        ]
+      }
+    ],
+    "triangles": 8000,
+    "triangles_from_provider": 9768,
+    "vertices": 12897,
+    "warnings": [
+      "it came back facing backwards (its thicker end, 1.7× the other, was behind): turned it 180°; --turn 180 turns it back",
+      "--spine replaced the provider's rig and its 1 clip(s): pose it in code (Skeleton::spine)"
+    ]
+  },
+  "note": ""
+}

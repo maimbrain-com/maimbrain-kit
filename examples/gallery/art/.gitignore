@@ -1,0 +1,6 @@
+# Provider outputs, variants and previews: large, and reproducible with `mb regen`.
+raw/
+variants/
+preview/
+# Voice previews (mb voice design): only for choosing; the chosen voice is in voices.toml.
+voices/

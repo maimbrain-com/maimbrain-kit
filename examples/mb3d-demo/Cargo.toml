@@ -1,0 +1,11 @@
+[package]
+name = "mb3d-demo"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+maimbrain = { path = "../../sdk/maimbrain" }

@@ -41,12 +41,14 @@ const MB2D: Requires = Requires::Stdlib("mb2d", 1);
 /// Added in mb2d 2: game fonts (SPEC §5.3).
 const MB2D2: Requires = Requires::Stdlib("mb2d", 2);
 const MB3D: Requires = Requires::Stdlib("mb3d", 1);
-/// Added in mb3d 2: skinned and animated glTF, instancing, freeing resources, fog, toon and outlines, 3D text, depth of field.
+/// Added in mb3d 2: skinned and animated glTF, instancing, freeing resources, fog, toon and outlines, 3D text, depth of field, speed effects, reflections, sky v2, ripples and wakes, the beauty pass.
 const MB3D2: Requires = Requires::Stdlib("mb3d", 2);
 
 pub const IMPORTS: &[Import] = &[
     // 5.1 sys
     f("mb_log", &[I32, I32, I32], &[], A),
+    f("mb_mark", &[I32, I32], &[], A),
+    f("mb_param", &[I32, I32, I32, I32], &[I32], A),
     f("mb_time", &[], &[F64], A),
     f("mb_time_lost", &[], &[F32], A),
     f("mb_rand_seed", &[], &[I64], A),
@@ -127,21 +129,59 @@ pub const IMPORTS: &[Import] = &[
     f("mb3d_node_morph", &[I32, F32, F32, F32, F32], &[], MB3D2),
     f("mb3d_node_world", &[I32, I32], &[I32], MB3D2),
     f("mb3d_node_material", &[I32], &[I32], MB3D2),
+    // 5.4 mb3d 2: distance fade
+    f("mb3d_node_fade", &[I32, F32, F32], &[], MB3D2),
+    f("mb3d_draw_distance", &[F32, F32], &[], MB3D2),
+    // 5.4 mb3d 2: skins built in code
+    f("mb3d_skin", &[I32, I32, I32], &[I32], MB3D2),
     // 5.4 mb3d 2: looks
     f("mb3d_fog", &[I32], &[], MB3D2),
     f("mb3d_material_style", &[I32, I32], &[I32], MB3D2),
     f("mb3d_text", &[I32, I32, I32, I32], &[I32], MB3D2),
     f("mb3d_dof", &[I32], &[], MB3D2),
     f("mb3d_speed", &[I32], &[], MB3D2),
+    f("mb3d_reflector", &[I32], &[], MB3D2),
+    f("mb3d_atmosphere", &[I32], &[], MB3D2),
+    f("mb3d_clouds", &[I32], &[], MB3D2),
+    f("mb3d_sky_disc", &[I32], &[], MB3D2),
+    f("mb3d_sky_texture", &[I32, I32], &[I32], MB3D2),
+    f("mb3d_ripple", &[F32, F32, F32, F32, F32], &[], MB3D2),
+    f("mb3d_wake", &[I32, F32, F32, F32, F32, F32, F32], &[I32], MB3D2),
+    f("mb3d_water", &[I32], &[], MB3D2),
+    // 5.4 mb3d 2: the beauty pass
+    f("mb3d_grade", &[I32], &[], MB3D2),
+    f("mb3d_shafts", &[I32], &[], MB3D2),
+    f("mb3d_halos", &[I32], &[], MB3D2),
+    f("mb3d_film", &[I32], &[], MB3D2),
+    // 5.4 mb3d 2: reading a material back, a model's materials and node names
+    f("mb3d_material_get", &[I32, I32], &[I32], MB3D2),
+    f("mb3d_model_materials", &[I32, I32, I32], &[I32], MB3D2),
+    f("mb3d_model_node_names", &[I32, I32, I32], &[I32], MB3D2),
+    // 5.4 mb3d 2: the retro look
+    f("mb3d_retro", &[I32], &[], MB3D2),
+    f("mb3d_texture_filter", &[I32, I32, I32], &[I32], MB3D2),
+    f("mb3d_backdrop", &[I32, I32], &[I32], MB3D2),
+    // 5.4 mb3d 2: masked clips, procedural layers over clips, bone parents
+    f("mb3d_anim_mask", &[I32, I32, F32, F32, I32, I32], &[I32], MB3D2),
+    f("mb3d_anim_take", &[I32, I32], &[I32], MB3D2),
+    f("mb3d_node_get_parent", &[I32], &[I32], MB3D2),
+
+
+
     // 5.6 audio (output only, so it never affects determinism)
     f("mb_sound", &[I32], &[I32], A),
     f("mb_play", &[I32, F32, F32, F32, I32], &[I32], A),
     f("mb_play_at", &[I32, F32, F32, F32, I32, F64], &[I32], A),
+    f("mb_play_from", &[I32, F32, F32, F32, I32, F64, F64, F32], &[I32], A),
     f("mb_voice_set", &[I32, F32, F32, F32], &[], A),
     f("mb_voice_stop", &[I32], &[], A),
+    f("mb_voice_stop_at", &[I32, F64, F32], &[], A),
+    f("mb_voice_bus", &[I32, I32], &[], A),
+    f("mb_bus_fx", &[I32, I32, I32], &[I32], A),
     // 5.7 sensors
     f("mb_tilt", &[I32], &[I32], Requires::Sensor(Sensor::Tilt)),
     f("mb_motion", &[I32], &[I32], Requires::Sensor(Sensor::Motion)),
+    f("mb_attitude", &[I32], &[I32], Requires::Sensor(Sensor::Attitude)),
     f("mb_loudness", &[], &[F32], Requires::Sensor(Sensor::Loudness)),
     f("mb_light", &[], &[F32], Requires::Sensor(Sensor::Light)),
     f("mb_haptic", &[I32], &[], Requires::Sensor(Sensor::Haptics)),

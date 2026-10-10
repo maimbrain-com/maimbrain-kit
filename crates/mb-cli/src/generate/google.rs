@@ -129,14 +129,27 @@ fn failure(label: &str, v: &Value, what: &str, text: &[String]) -> String {
     )
 }
 
+/// The image size Google is asked for (and bills): Nano Banana 2.1 has no
+/// 0.5K tier, and the Lite model makes 1K only.
+fn billed_size(req: &ImageRequest) -> &str {
+    let size = if req.resolution == "0.5K" && req.model != "gemini-3.1-flash-image" { "1K" } else { req.resolution.as_str() };
+    if req.model == "gemini-3.1-flash-lite-image" { "1K" } else { size }
+}
+
+/// What a call costs by Google's price list: Google's responses don't say,
+/// but these models are billed per image or per call at a fixed price, so
+/// the list price for what was made is the charge (input tokens for the
+/// prompt and references, a fraction of a cent, aren't counted).
+fn list_price(label: &str, model: &str, size: &str) -> Option<f64> {
+    super::provider::find_model(label, model).and_then(|m| super::provider::estimate(m, size, 1, 0.0))
+}
+
 pub fn image_body(req: &ImageRequest) -> Value {
     let mut input = vec![json!({ "type": "text", "text": req.prompt })];
     for r in &req.refs {
         input.push(json!({ "type": "image", "mime_type": r.mime, "data": b64(&r.bytes) }));
     }
-    // Nano Banana 2.1 has no 0.5K tier.
-    let size = if req.resolution == "0.5K" && req.model != "gemini-3.1-flash-image" { "1K" } else { req.resolution.as_str() };
-    let size = if req.model == "gemini-3.1-flash-lite-image" { "1K" } else { size };
+    let size = billed_size(req);
     let mut body = json!({
         "model": req.model,
         "input": input,
@@ -172,7 +185,8 @@ impl Provider for Google {
         let Some((_, data, mime)) = media.into_iter().rev().find(|m| m.0 == "image") else {
             return Err(failure(self.label(), &v, "image", &text));
         };
-        Ok(Output { bytes: unb64(&data)?, mime, text: (!text.is_empty()).then(|| text.join("\n")), cost_usd: None })
+        let cost_usd = list_price(self.label(), &req.model, billed_size(req));
+        Ok(Output { bytes: unb64(&data)?, mime, text: (!text.is_empty()).then(|| text.join("\n")), cost_usd })
     }
 
     fn audio(&self, req: &AudioRequest) -> Result<Output, String> {
@@ -188,7 +202,8 @@ impl Provider for Google {
             return Err(failure(self.label(), &v, "audio", &text));
         };
         let mime = if mime.is_empty() { "audio/mpeg".into() } else { mime };
-        Ok(Output { bytes: unb64(&data)?, mime, text: (!text.is_empty()).then(|| text.join("\n")), cost_usd: None })
+        let cost_usd = list_price(self.label(), &req.model, "");
+        Ok(Output { bytes: unb64(&data)?, mime, text: (!text.is_empty()).then(|| text.join("\n")), cost_usd })
     }
 }
 
@@ -215,7 +230,7 @@ impl Google {
         let v: Value = serde_json::from_slice(&r.body).map_err(|e| format!("vertex: unreadable response: {e}"))?;
         let p = &v["predictions"][0];
         let data = p["audioContent"].as_str().or_else(|| p["bytesBase64Encoded"].as_str()).ok_or_else(|| failure("vertex", &v, "audio", &[]))?;
-        Ok(Output { bytes: unb64(data)?, mime: p["mimeType"].as_str().unwrap_or("audio/wav").to_string(), text: None, cost_usd: None })
+        Ok(Output { bytes: unb64(data)?, mime: p["mimeType"].as_str().unwrap_or("audio/wav").to_string(), text: None, cost_usd: list_price("vertex", "lyria-002", "") })
     }
 }
 
@@ -258,6 +273,7 @@ mod tests {
         let out = g.image(&req()).unwrap();
         assert_eq!(out.bytes, b"final");
         assert_eq!(out.text.as_deref(), Some("Here is your moth."));
+        assert_eq!(out.cost_usd, Some(0.0336), "the list price of the 1K image it billed");
         let sent = fake.sent.borrow();
         let (url, headers, body) = &sent[0];
         assert_eq!(url, "https://generativelanguage.googleapis.com/v1beta/interactions");
@@ -303,6 +319,7 @@ mod tests {
         };
         let out = g.audio(&r).unwrap();
         assert_eq!(out.mime, "audio/mpeg");
+        assert_eq!(out.cost_usd, Some(0.04));
         let body = &fake.sent.borrow()[0].2;
         assert_eq!(body["input"], "chiptune");
         assert!(body.get("response_format").is_none());

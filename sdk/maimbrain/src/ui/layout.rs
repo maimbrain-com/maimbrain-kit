@@ -125,6 +125,12 @@ impl Rect {
         let l = |a: f32, b: f32| a + (b - a) * t;
         Rect::new(l(self.x, o.x), l(self.y, o.y), l(self.w, o.w), l(self.h, o.h))
     }
+    /// The part inside `o` too (`None` if they don't overlap).
+    pub fn intersect(&self, o: &Rect) -> Option<Rect> {
+        let (x0, y0) = (self.x.max(o.x), self.y.max(o.y));
+        let (x1, y1) = (self.right().min(o.right()), self.bottom().min(o.bottom()));
+        (x1 > x0 && y1 > y0).then(|| Rect::new(x0, y0, x1 - x0, y1 - y0))
+    }
 }
 
 /// The platform's feed overlays on a card (SPEC §5.2): the title strip over

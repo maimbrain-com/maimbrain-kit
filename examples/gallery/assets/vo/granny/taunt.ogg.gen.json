@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.7.0-dev voice",
+  "date": "2026-10-10T02:04:08Z",
+  "provider": "elevenlabs",
+  "model": "eleven_v4",
+  "prompt": "[cackles] Too slow, sweetie!",
+  "full_prompt": "[cackles] Too slow, sweetie!",
+  "seed": 1757508726,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "7d7fac5d65970e00533ba62436e6630d4060c2aa34ab676c261cc0c567d42150"
+  },
+  "est_cost_usd": 0.0022400000000000002,
+  "cost_usd": 0.0022400000000000002,
+  "raw": "art/raw/vo/granny/taunt.pcm",
+  "raw_sha256": "15c93ea1b64b66f6a6bcf7c9cf91367e2ca7c2c241da6c3aedcdf8b8e1e2a110",
+  "output_sha256": "4ac76c57ac991142036dc20a40c65eae610174286ca88763d7dbe6d8e938cf21",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "granny",
+    "delivery": "natural",
+    "emotion": null,
+    "kind": "voice",
+    "line": "taunt",
+    "model": "eleven_v4",
+    "out": "assets/vo/granny/taunt.ogg",
+    "provider": "elevenlabs",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1757508726,
+    "speed": null,
+    "style": null,
+    "text": "[cackles] Too slow, sweetie!",
+    "voice_id": "0xfeQWDUrxAdTk1cqSyR"
+  },
+  "result": {
+    "key": "fdda0f4fb0749316",
+    "lips": "assets/vo/granny/taunt.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -16.82980728149414,
+    "peak_db": -2.8299078941345215,
+    "phone_loss_db": -0.0,
+    "seconds": 2.759977340698242,
+    "subtitle": "Too slow, sweetie!",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Generated with ElevenLabs from a voice designed for this game (not a clone); check your plan's license terms."
+}

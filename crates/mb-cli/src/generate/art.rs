@@ -7,6 +7,7 @@
 //!     mb art background games/moth sky "a night sky over a cathedral"
 //!     mb art layers games/moth hills "rolling hills at dusk" --count 3
 //!     mb art tile games/moth glass "leaded glass panes"
+//!     mb art sky games/canal night "a moonless night over distant lantern-lit rooftops"
 //!     mb art ui games/moth button "a round glass button"
 //!     mb art icon games/moth "the moth's face, glowing"
 //!     mb art sprite games/moth cat "our cat as the hero" --ref ~/cat.jpg
@@ -51,6 +52,16 @@ pub enum ArtCmd {
         #[arg(long)]
         cols: Option<u32>,
     },
+    /// A talking portrait for dialogue (`ui::Portrait`): one character's head and shoulders in a sheet
+    /// of square cells, 4 columns of mouth shapes (closed, slightly open, open, wide open) × one row
+    /// per expression (neutral first), plus a last row with the eyes closed (blink).
+    Portrait {
+        #[command(flatten)]
+        gen_: Gen,
+        /// Expressions after neutral, one row each: --expressions smug,angry,scared (default: neutral only).
+        #[arg(long, value_delimiter = ',')]
+        expressions: Vec<String>,
+    },
     /// A full-screen, opaque background (default: the game's logical size × 2).
     Background(Gen),
     /// Parallax layers, far to near (<name>_0.png …): the far one opaque, the rest transparent, all wrapping horizontally.
@@ -65,6 +76,23 @@ pub enum ArtCmd {
     },
     /// A seamless, tileable square texture.
     Tile(Gen),
+    /// An mb3d sky: a 2:1 equirectangular panorama (assets/<name>.jpg, 2048×1024) whose left and
+    /// right edges meet and whose poles are calm, for `gfx3d::sky_texture`.
+    Sky {
+        #[command(flatten)]
+        gen_: Gen,
+        /// Where the generated image's horizon is, 0–1 from its top; `auto` (the default) finds it
+        /// (the sharpest bright-to-dark step in the middle third), else 0.5.
+        #[arg(long, default_value = "auto")]
+        horizon: String,
+        /// Degrees of elevation the generated image covers: 180 if it's a true equirect (the default);
+        /// less if the model drew an ordinary wide view (the rest is filled with its top and bottom colors).
+        #[arg(long, default_value_t = 180.0)]
+        span: f32,
+        /// Within this many degrees of straight up and straight down, the sky blends into one even color.
+        #[arg(long, default_value_t = 12.0)]
+        poles: f32,
+    },
     /// A UI element (button, panel, badge) with a transparent background.
     Ui(Gen),
     /// The game's icon.png (256×256, opaque): a close-up of your hero or hook, no text.
@@ -98,6 +126,22 @@ pub enum ArtCmd {
     },
     /// Check a game's assets against the budgets and list what was generated, and how.
     Check { game: PathBuf },
+    /// Record an edit made to a generated asset after mb wrote it (a script, a sound editor, by
+    /// hand) in its sidecar, so `mb art check` says how the file was made. Run it after the edit:
+    /// `mb art edited assets/plunge.ogg --tool tools/bright.py -- --shelf 6`.
+    Edited {
+        /// The edited asset (it has a .gen.json).
+        asset: PathBuf,
+        /// What edited it: a script in the game (tools/bright.py), a program, or "hand".
+        #[arg(long)]
+        tool: String,
+        /// What the edit did, in a few words.
+        #[arg(long)]
+        note: Option<String>,
+        /// The tool's arguments, after `--`.
+        #[arg(last = true)]
+        args: Vec<String>,
+    },
 }
 
 #[derive(Args, Clone)]
@@ -179,6 +223,16 @@ pub struct Opts {
     pub dry_run: bool,
 }
 
+fn parse_horizon(s: &str) -> Result<Option<f32>, String> {
+    if s == "auto" {
+        return Ok(None);
+    }
+    match s.parse::<f32>() {
+        Ok(v) if (0.0..=1.0).contains(&v) => Ok(Some(v)),
+        _ => Err("expected auto, or 0–1 (the horizon's height from the image's top)".into()),
+    }
+}
+
 fn parse_wh(s: &str) -> Result<[u32; 2], String> {
     let (w, h) = s.split_once(['x', 'X', '×']).ok_or("expected WxH, e.g. 128x128")?;
     let w: u32 = w.trim().parse().map_err(|_| "bad width")?;
@@ -223,17 +277,40 @@ pub struct Job {
     pub frames: u32,
     #[serde(default)]
     pub cols: u32,
+    /// Talking portraits: the expression of each row, neutral first (the blink row follows).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub expressions: Vec<String>,
     /// (index, count) for parallax layers.
     #[serde(default)]
     pub layer: Option<(u32, u32)>,
     #[serde(default)]
     pub keyed: bool,
+    /// The flat background color the model was asked for (`key` in
+    /// art/style.toml when it was made), which keying looks for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
     #[serde(default = "tol")]
     pub tolerance: f64,
     #[serde(default)]
     pub no_style: bool,
     #[serde(default)]
     pub allow_names: Vec<String>,
+    /// Skies: the generated image's horizon (0–1 from the top; None = find it), the degrees of
+    /// elevation it covers, the calm polar caps (degrees).
+    #[serde(default)]
+    pub horizon: Option<f32>,
+    #[serde(default = "full_span")]
+    pub span: f32,
+    #[serde(default = "pole_caps")]
+    pub poles: f32,
+}
+
+fn full_span() -> f32 {
+    180.0
+}
+
+fn pole_caps() -> f32 {
+    12.0
 }
 
 fn tol() -> f64 {
@@ -266,9 +343,20 @@ pub fn run(cmd: ArtCmd) -> Result<(), String> {
         ArtCmd::Frames { gen_: g, frames, cols } => {
             generate_kind("frames", &g.game, &g.name, &g.prompt, &g.opts, Extra { frames, cols: cols.unwrap_or(0), ..Extra::default() })
         }
+        ArtCmd::Portrait { gen_: g, expressions } => {
+            let expressions = portrait_expressions(&expressions)?;
+            generate_kind("portrait", &g.game, &g.name, &g.prompt, &g.opts, Extra { expressions, ..Extra::default() })
+        }
         ArtCmd::Background(g) => generate_kind("background", &g.game, &g.name, &g.prompt, &g.opts, Extra::default()),
         ArtCmd::Layers { gen_: g, count, screens } => layers(&g, count, screens),
         ArtCmd::Tile(g) => generate_kind("tile", &g.game, &g.name, &g.prompt, &g.opts, Extra::default()),
+        ArtCmd::Sky { gen_: g, horizon, span, poles } => {
+            let horizon = parse_horizon(&horizon)?;
+            if !(10.0..=180.0).contains(&span) || !(0.0..=45.0).contains(&poles) {
+                return Err("--span is 10–180 degrees, --poles 0–45 degrees".into());
+            }
+            generate_kind("sky", &g.game, &g.name, &g.prompt, &g.opts, Extra { sky: Some((horizon, span, poles)), ..Extra::default() })
+        }
         ArtCmd::Ui(g) => generate_kind("ui", &g.game, &g.name, &g.prompt, &g.opts, Extra::default()),
         ArtCmd::Icon { game, prompt, opts } => generate_kind("icon", &game, "icon", &prompt, &opts, Extra::default()),
         ArtCmd::Pick { game, name, variant } => pick(&game, &name, variant),
@@ -276,6 +364,7 @@ pub fn run(cmd: ArtCmd) -> Result<(), String> {
             super::atlas::run(&game, &name, &inputs, padding, trim, rust.as_deref(), remove_inputs)
         }
         ArtCmd::Check { game } => check(&game),
+        ArtCmd::Edited { asset, tool, note, args } => super::record_edit(&asset, &tool, &args, note.as_deref()),
     }
 }
 
@@ -303,6 +392,32 @@ struct Extra {
     cols: u32,
     layer: Option<(u32, u32)>,
     screens: f32,
+    /// Skies: horizon (None = find it), span, poles.
+    sky: Option<(Option<f32>, f32, f32)>,
+    /// Talking portraits: the rows' expressions, neutral first.
+    expressions: Vec<String>,
+}
+
+/// A portrait's rows: neutral, then the creator's expressions (trimmed, lowercased, each once).
+fn portrait_expressions(list: &[String]) -> Result<Vec<String>, String> {
+    let mut out = vec!["neutral".to_string()];
+    for e in list {
+        let e = e.trim().to_lowercase();
+        if e.is_empty() || out.contains(&e) {
+            continue;
+        }
+        if e == "blink" {
+            return Err("the blink row is always added (the last row); leave it out of --expressions".into());
+        }
+        if e.len() > 40 || e.contains(['\n', ';']) {
+            return Err(format!("--expressions {e:?}: name each expression in a word or two (smug, angry, scared)"));
+        }
+        out.push(e);
+    }
+    if out.len() > 8 {
+        return Err(format!("{} expressions is too many for one sheet (at most 8 with neutral); make two portraits", out.len()));
+    }
+    Ok(out)
 }
 
 fn default_size(kind: &str, style: &Style, screen: [u32; 2], extra: &Extra) -> [u32; 2] {
@@ -310,19 +425,22 @@ fn default_size(kind: &str, style: &Style, screen: [u32; 2], extra: &Extra) -> [
         return s;
     }
     match kind {
-        "sprite" | "frames" => [128, 128],
+        // Portraits in pixel art: 48×48 art pixels a cell (a face needs that many to read).
+        "portrait" if style.pixel_art => [48 * style.pixel_scale.max(1), 48 * style.pixel_scale.max(1)],
+        "sprite" | "frames" | "portrait" => [128, 128],
         "background" => [screen[0] * 2, screen[1] * 2],
         "layer" => [((screen[0] * 2) as f32 * extra.screens.max(1.0)).round() as u32, screen[1] * 2],
         "tile" => [64, 64],
         "ui" => [256, 128],
         "icon" => [256, 256],
+        "sky" => [2048, 1024],
         _ => [128, 128],
     }
 }
 
 fn keyed_kind(kind: &str, layer: Option<(u32, u32)>) -> bool {
     match kind {
-        "sprite" | "frames" | "ui" => true,
+        "sprite" | "frames" | "portrait" | "ui" => true,
         "layer" => layer.is_some_and(|(i, _)| i > 0),
         _ => false,
     }
@@ -336,7 +454,7 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
     let scale = style.pixel_scale.max(1);
     let mut size = o.size.unwrap_or_else(|| default_size(kind, style, screen, extra));
     let mut grid = o.grid;
-    if grid.is_none() && style.pixel_art && kind != "background" && kind != "icon" {
+    if grid.is_none() && style.pixel_art && !["background", "icon", "sky"].contains(&kind) {
         grid = Some([(size[0] / scale).max(1), (size[1] / scale).max(1)]);
     }
     if let Some(g) = grid
@@ -347,13 +465,21 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
     if kind == "icon" && size != [256, 256] {
         return Err("icon.png must be 256×256".into());
     }
+    if kind == "sky" {
+        if o.grid.is_some() {
+            return Err("skies aren't pixel art: --grid doesn't apply".into());
+        }
+        if size[0] != 2 * size[1] || size[0] > 2048 || size[0] < 64 {
+            return Err(format!("a sky is 2:1 and at most 2048×1024 (mb3d's texture limit), not {}×{}", size[0], size[1]));
+        }
+    }
     if let Some(g) = grid
         && (size[0] % g[0] != 0 || size[1] % g[1] != 0)
     {
         return Err(format!("--size {}x{} isn't a whole multiple of --grid {}x{}", size[0], size[1], g[0], g[1]));
     }
     if let Some(g) = grid
-        && matches!(kind, "sprite" | "frames")
+        && matches!(kind, "sprite" | "frames" | "portrait")
         && g[0].min(g[1]) < 24
     {
         eprintln!(
@@ -361,15 +487,32 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
             g[0], g[1], 128 / scale, 128 / scale
         );
     }
-    let frames = extra.frames.max(1);
-    let cols = if kind == "frames" { if extra.cols > 0 { extra.cols.min(frames) } else { frames.min(8) } } else { 0 };
+    let portrait_rows = extra.expressions.len() as u32 + 1;
+    if kind == "portrait" {
+        if size[0] != size[1] {
+            return Err(format!("portrait cells are square, not {}×{}", size[0], size[1]));
+        }
+        if size[1] * portrait_rows > 4096 {
+            return Err(format!("{portrait_rows} rows of {}-pixel cells is over mb2d's 4096-pixel limit; use a smaller --size or fewer expressions", size[1]));
+        }
+    }
+    let frames = if kind == "portrait" { 4 * portrait_rows } else { extra.frames.max(1) };
+    let cols = match kind {
+        "frames" if extra.cols > 0 => extra.cols.min(frames),
+        "frames" => frames.min(8),
+        "portrait" => 4,
+        _ => 0,
+    };
     let rows = if kind == "frames" { frames.div_ceil(cols) } else { 1 };
-    // The provider sees frames in a near-square grid (very wide images aren't supported).
-    let (aw, ah) = if kind == "frames" {
-        let (gc, gr) = style::frame_grid(frames);
-        (gc * size[0], gr * size[1])
-    } else {
-        (size[0], size[1])
+    // The provider sees frames in a near-square grid (very wide images aren't supported);
+    // portraits in their own layout, a row per expression.
+    let (aw, ah) = match kind {
+        "frames" => {
+            let (gc, gr) = style::frame_grid(frames);
+            (gc * size[0], gr * size[1])
+        }
+        "portrait" => (4 * size[0], portrait_rows * size[1]),
+        _ => (size[0], size[1]),
     };
     let flag = super::maimbrain::take_flags(o.provider.as_deref(), o.own_keys)?;
     let provider = match provider::choose(flag.as_deref(), style.provider.as_deref(), &["gemini", "vertex", "openai"], "images") {
@@ -386,8 +529,13 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
             _ => provider::default_model(&provider, Media::Image).map(|m| m.id.to_string()).ok_or(format!("{provider} has no image model"))?,
         },
     };
-    let big = size[0].max(size[1]).max(if kind == "frames" { aw.max(ah) / 2 } else { 0 });
-    let resolution = o.res.clone().or(style.resolution.clone()).unwrap_or_else(|| if big > 1100 || kind == "layer" { "2K".into() } else { "1K".into() });
+    // Portraits: about 200 generated pixels a cell at least (1K holds 5 rows of them).
+    let big = size[0].max(size[1]).max(match kind {
+        "frames" => aw.max(ah) / 2,
+        "portrait" if portrait_rows > 5 => 2048,
+        _ => 0,
+    });
+    let resolution = o.res.clone().or(style.resolution.clone()).unwrap_or_else(|| if big > 1100 || kind == "layer" || kind == "sky" { "2K".into() } else { "1K".into() });
     if !["0.5K", "1K", "2K", "4K"].contains(&resolution.as_str()) {
         return Err(format!("--res {resolution}: use 0.5K, 1K, 2K or 4K (uppercase K)"));
     }
@@ -396,7 +544,11 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
         kind: kind.into(),
         name: name.into(),
         subject: subject.into(),
-        out: o.out.clone().unwrap_or_else(|| if kind == "icon" { "icon.png".into() } else { format!("assets/{name}.png") }),
+        out: o.out.clone().unwrap_or_else(|| match kind {
+            "icon" => "icon.png".into(),
+            "sky" => format!("assets/{name}.jpg"),
+            _ => format!("assets/{name}.png"),
+        }),
         size,
         grid,
         grid_explicit: o.grid.is_some(),
@@ -406,8 +558,9 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
         model,
         resolution,
         quality: o.quality.clone().unwrap_or_else(|| "medium".into()),
-        aspect: nearest_aspect(aw as f32, ah as f32).into(),
-        anchor: o.anchor.unwrap_or(if kind == "frames" { Anchor::Bottom } else { Anchor::Center }),
+        // No provider makes 2:1; skies are asked for wider and cropped.
+        aspect: if kind == "sky" { "21:9".into() } else { nearest_aspect(aw as f32, ah as f32).into() },
+        anchor: o.anchor.unwrap_or(if matches!(kind, "frames" | "portrait") { Anchor::Bottom } else { Anchor::Center }),
         margin: o.margin.unwrap_or(if grid.is_some() {
             1
         } else if kind == "ui" {
@@ -417,13 +570,18 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
         }),
         colors: o.colors,
         max_kb: o.max_kb,
-        frames: if kind == "frames" { frames } else { 0 },
+        frames: if matches!(kind, "frames" | "portrait") { frames } else { 0 },
         cols,
+        expressions: if kind == "portrait" { extra.expressions.clone() } else { Vec::new() },
         layer: extra.layer,
         keyed: keyed_kind(kind, extra.layer) && !o.keep_background,
+        key: None,
         tolerance: o.tolerance.unwrap_or(0.09),
         no_style: o.no_style,
         allow_names: o.allow_name.clone(),
+        horizon: extra.sky.and_then(|s| s.0),
+        span: extra.sky.map_or(180.0, |s| s.1),
+        poles: extra.sky.map_or(12.0, |s| s.2),
     })
     .map(|mut j: Job| {
         if kind == "frames" && rows > 1 {
@@ -524,6 +682,73 @@ fn layers(g: &Gen, count: u32, screens: f32) -> Result<(), String> {
     Ok(())
 }
 
+/// A parallax layer fitted to `w`×`h` without losing its ground: scaled to
+/// the width, then cropped with its bottom kept (for a keyed layer, the
+/// lowest row that is nearly all scenery, so a strip of empty background
+/// below it goes), padded with transparent rows on top if it's short. An
+/// opaque layer shorter than `h` at that width is covered instead.
+fn layer_fit(src: &Image, w: u32, h: u32, keyed: bool) -> (Image, Option<String>) {
+    let sh = ((src.h as f64) * (w as f64) / (src.w as f64)).round().max(1.0) as u32;
+    if !keyed && sh < h {
+        return (src.cover(w, h), None);
+    }
+    let scaled = src.resize(w, sh);
+    let mut bottom = sh;
+    if keyed {
+        let solid_row = |y: u32| (0..w).filter(|&x| scaled.get(x, y)[3] >= 128).count() as f32 >= w as f32 * 0.9;
+        if let Some(y) = (0..sh).rev().find(|&y| solid_row(y)) {
+            bottom = y + 1;
+        }
+    }
+    let top = bottom as i64 - h as i64;
+    let mut out = Image::new(w, h, [0; 4]);
+    let from = top.max(0) as u32;
+    let crop = scaled.crop(0, from, w, bottom - from);
+    out.blit(&crop, 0, (from as i64 - top) as u32);
+    let mut note = None;
+    if keyed && top > 0 && (0..w).any(|x| scaled.get(x, from)[3] >= 128) {
+        note = Some("the layer's shapes are cut off at the top; ask for a taller --size".to_string());
+    }
+    if keyed && bottom == sh && !(0..w).all(|x| scaled.get(x, sh - 1)[3] >= 128) {
+        note = Some("no row along the bottom is solid scenery; the backdrop repeats its bottom row downward, so ask for shapes that fill the bottom edge".to_string());
+    }
+    (out, note)
+}
+
+/// Fills the holes in a keyed layer's last rows with their median color:
+/// the backdrop repeats its bottom row downward, and a hole there would
+/// run to the horizon.
+fn solid_bottom(im: &mut Image) {
+    let k = (im.h / 64).max(2).min(im.h);
+    let rows = im.h - k..im.h;
+    let mut opaque: Vec<[u8; 3]> = Vec::new();
+    for y in rows.clone() {
+        for x in 0..im.w {
+            let p = im.get(x, y);
+            if p[3] >= 128 {
+                opaque.push([p[0], p[1], p[2]]);
+            }
+        }
+    }
+    if opaque.is_empty() {
+        return;
+    }
+    let mut ground = [0u8; 3];
+    for (c, g) in ground.iter_mut().enumerate() {
+        let mut v: Vec<u8> = opaque.iter().map(|p| p[c]).collect();
+        v.sort_unstable();
+        *g = v[v.len() / 2];
+    }
+    for y in rows {
+        for x in 0..im.w {
+            let p = im.get(x, y);
+            let a = p[3] as f32 / 255.0;
+            let mix = |c: usize| (p[c] as f32 * a + ground[c] as f32 * (1.0 - a)).round() as u8;
+            im.set(x, y, [mix(0), mix(1), mix(2), 255]);
+        }
+    }
+}
+
 fn estimate_job(job: &Job) -> Option<f64> {
     let q = ["low", "medium", "high"].iter().position(|q| *q == job.quality).unwrap_or(1);
     provider::find_model(&job.provider, &job.model).and_then(|m| provider::estimate(m, &job.resolution, q, 0.0))
@@ -553,6 +778,14 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
         refs.push(ri);
         ref_files.push(fr);
     }
+    // A nearer parallax layer gets the far one (`<name>_0.png`, right after the
+    // style's references) for its palette and light only: it's a style
+    // reference, not a subject to redraw.
+    let far_refs = if job.layer.is_some_and(|(i, _)| i > 0) {
+        ref_files.iter().skip(style_refs.len().min(ref_files.len())).take_while(|r| r.path.ends_with("_0.png")).count()
+    } else {
+        0
+    };
     let (_, portrait) = super::game_screen(game);
     let full_prompt = style::compose(
         &style,
@@ -560,12 +793,13 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
             kind: &job.kind,
             subject: &job.subject,
             frames: job.frames,
+            expressions: &job.expressions,
             grid: job.grid.map(|g| (g[0], g[1])),
             // OpenAI makes real transparency (background: "transparent"); others get a flat color to key out.
             keyed: if job.provider == "openai" { None } else { key },
             portrait: job.size[1] >= job.size[0] || (job.kind == "background" && portrait),
-            style_refs: style_refs.len().min(refs.len()),
-            subject_refs: refs.len().saturating_sub(style_refs.len()),
+            style_refs: (style_refs.len() + far_refs).min(refs.len()),
+            subject_refs: refs.len().saturating_sub(style_refs.len() + far_refs),
         },
     );
     let model = provider::find_model(&job.provider, &job.model);
@@ -633,8 +867,11 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
         let raw_img = Image::decode(&out.bytes).map_err(|e| format!("{}: {e}", job.provider))?;
         let mut j = job.clone();
         j.seed = seed;
-        let (im, facts) = process(&j, &style, &palette, &raw_img)?;
-        let png = encode_budget(&im, &j)?;
+        if j.key.is_none() {
+            j.key = key.map(img::hex);
+        }
+        let (im, mut facts) = process(&j, &style, &palette, &raw_img)?;
+        let png = encode_budget(&im, &j, &mut facts)?;
         let dest = if variants == 1 { game.join(&j.out) } else { art.join("variants").join(format!("{}-{}.png", j.name, v + 1)) };
         if let Some(d) = dest.parent() {
             std::fs::create_dir_all(d).map_err(|e| e.to_string())?;
@@ -662,6 +899,7 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
             recipe: serde_json::to_value(&j).unwrap(),
             result: facts.clone(),
             note: super::note_for(&j.provider),
+            derived: Vec::new(),
         };
         super::write_sidecar(&dest, &sc)?;
         let preview = im.preview();
@@ -711,8 +949,14 @@ fn report(dest: &Path, im: &Image, bytes: usize, facts: &serde_json::Value, cost
     }
 }
 
-/// Encodes, quantizing until the PNG fits job.max_kb (if set); warns on big files.
-fn encode_budget(im: &Image, job: &Job) -> Result<Vec<u8>, String> {
+/// Encodes, quantizing until the PNG fits job.max_kb (if set); warns on big
+/// files. Skies are JPEG, at the best quality that fits (800 KB by default).
+fn encode_budget(im: &Image, job: &Job, facts: &mut serde_json::Value) -> Result<Vec<u8>, String> {
+    if job.kind == "sky" {
+        let (jpg, q) = super::sky::encode_budget(im, job.max_kb.unwrap_or(800))?;
+        facts["jpeg_quality"] = json!(q);
+        return Ok(jpg);
+    }
     let mut png = im.encode_png();
     if let Some(kb) = job.max_kb {
         let limit = kb as usize * 1024;
@@ -750,6 +994,7 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
     let mut warnings: Vec<String> = Vec::new();
     let mut facts = json!({});
     let keyed_bg = std::cell::Cell::new(None);
+    let keyed_extra = std::cell::Cell::new(None);
     let [w, h] = job.size;
     let flat_bg = palette.first().copied().unwrap_or([0, 0, 0]);
     // Transparency: keep a provider's real alpha, else key out the flat background.
@@ -757,10 +1002,23 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
         if raw.has_transparent_border() {
             return raw.clone();
         }
-        let (k, rep) = img::key_out(raw, job.tolerance as f32);
+        let expected = job.key.as_deref().and_then(|k| img::parse_hex(k).ok()).or_else(|| style.key_color().ok());
+        let hint = img::KeyHint { expected, top: job.kind == "layer" };
+        let (k, rep) = img::key_out_with(raw, job.tolerance as f32, hint);
         keyed_bg.set(Some(rep.background));
-        if rep.noise > job.tolerance as f32 * 0.7 {
-            warnings.push(format!("the background wasn't one flat color (variation {:.2}); edges may be rough. Regenerate, or raise --tolerance", rep.noise));
+        if rep.backgrounds.len() > 1 {
+            keyed_extra.set(rep.backgrounds.get(1).copied());
+        }
+        // An uneven background is only a problem if some of it was left: background-colored
+        // pixels still opaque along the edges of the image.
+        let left = background_left(&k, &rep.backgrounds, job.tolerance as f32);
+        if left > 0.02 {
+            warnings.push(format!(
+                "the background wasn't one flat color (variation {:.2}): {:.0}% of the image's edge is background left behind; raise --tolerance (mb regen <asset> --reprocess --tolerance {:.2}) or regenerate",
+                rep.noise,
+                left * 100.0,
+                (rep.noise * 1.3).max(job.tolerance as f32 + 0.02)
+            ));
         }
         if job.kind != "layer" && rep.border_bg < 0.6 {
             warnings.push(format!(
@@ -822,6 +1080,51 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
             facts["rust"] = json!(format!("frame i's source rect: [(i % {cols}) × {w}, (i / {cols}) × {h}, {w}, {h}] (e.g. {} frames at 8–12 fps)", n));
             sheet
         }
+        "portrait" => {
+            let k = if job.keyed { keyed(raw, &mut warnings) } else { raw.clone() };
+            let rows = (job.frames / 4).max(1);
+            let parts = split_frames(&k, 4 * rows, 4, rows, &mut warnings);
+            // Aligned in a working cell (pixel art: 8 texels per art pixel), then reduced.
+            let (cw, ch, m) = match job.grid {
+                Some(g) => (g[0] * 8, g[1] * 8, job.margin * 8),
+                None => (w, h, job.margin),
+            };
+            let cells = align_portraits(&parts, cw, ch, m, &mut warnings);
+            let mut sheet = Image::new(4 * w, rows * h, [0; 4]);
+            for (i, c) in cells.iter().enumerate() {
+                let cell = match job.grid {
+                    Some(g) => {
+                        let mut c = img::pixelate(c, g[0], g[1]);
+                        if style.palette_lock {
+                            img::lock_palette(&mut c, palette);
+                        }
+                        c.scale_nearest(w / g[0])
+                    }
+                    None => c.clone(),
+                };
+                sheet.blit(&cell, (i as u32 % 4) * w, (i as u32 / 4) * h);
+            }
+            let mut names = job.expressions.clone();
+            names.resize(rows as usize - 1, String::new());
+            facts["portrait"] = json!({
+                "cols": 4,
+                "rows": rows,
+                "cell": [w, h],
+                "expressions": names,
+                "blink_row": rows - 1,
+                "mouths": style::MOUTHS,
+            });
+            facts["cell"] = json!([w, h]);
+            facts["cols"] = json!(4);
+            let rows_list: Vec<String> = names.iter().enumerate().map(|(i, e)| format!("{i} {e}")).chain([format!("{} blink", rows - 1)]).collect();
+            // Pixel art: say how many art pixels a cell is, so faces scale by whole device pixels per art pixel.
+            let art = job.grid.map_or(String::new(), |g| format!("; pixel art, {} art pixels across: Portrait::load(path, {w}, {h}).art_pixels({})", g[0], g[0]));
+            facts["rust"] = json!(format!(
+                "talking portrait for ui::Portrait (docs/UI.md): cell (col, row) at [col × {w}, row × {h}, {w}, {h}]; col = mouth 0 closed, 1 slightly open, 2 open, 3 wide open; row = {}{art}",
+                rows_list.join(", ")
+            ));
+            sheet
+        }
         "background" | "icon" => {
             let base = if raw.is_opaque() { raw.clone() } else { raw.flatten(flat_bg) };
             match job.grid {
@@ -839,9 +1142,28 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
             };
             let band = 0.08;
             let wide = ((w as f32) * (1.0 + band)).round() as u32;
-            let s = img::seamless(&src.cover(wide, h), true, false, band / (1.0 + band));
-            let s = if s.w != w { s.resize(w, h) } else { s };
+            let (fit, note) = layer_fit(&src, wide, h, job.keyed);
+            if let Some(n) = note {
+                warnings.push(n);
+            }
+            let mut s = img::seamless(&fit, true, false, band / (1.0 + band));
+            if s.w != w {
+                s = s.resize(w, h);
+            }
+            if job.keyed {
+                solid_bottom(&mut s);
+            }
             facts["wraps"] = json!("x");
+            if let Some((i, n)) = job.layer {
+                facts["layer"] = json!({
+                    "index": i,
+                    "of": n,
+                    // The farthest layer is opaque by design (it's the sky and the farthest shapes);
+                    // the nearer ones are keyed, with the far one attached only for its palette and light.
+                    "transparent": job.keyed,
+                    "crop": if job.keyed { "bottom at the lowest solid row" } else { "anchored at the bottom" },
+                });
+            }
             match job.grid {
                 Some(g) => img::pixelate(&s.resize(g[0] * 8, g[1] * 8), g[0], g[1]).scale_nearest(w / g[0]),
                 None => s,
@@ -860,9 +1182,55 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
                 None => s,
             }
         }
+        "sky" => {
+            let src = if raw.is_opaque() { raw.clone() } else { raw.flatten(flat_bg) };
+            let found = if job.horizon.is_none() { super::sky::find_horizon(&src) } else { None };
+            let horizon = job.horizon.or(found.map(|f| f.at)).unwrap_or(0.5);
+            match (job.horizon, found) {
+                (Some(_), _) => {}
+                (None, None) => warnings.push("no horizon found (an all-sky painting?); placed the image's middle on the horizon. Look at art/preview and pass --horizon 0–1 if it's off".into()),
+                (None, Some(f)) if f.confidence < super::sky::SURE => warnings.push(format!(
+                    "the horizon is a guess (found at {:.2} with confidence {:.2}); look at art/preview and pass --horizon 0–1 if it's off",
+                    f.at, f.confidence
+                )),
+                _ => {}
+            }
+            let (sky, rep) = super::sky::equirect(&src, w, h, horizon, job.span, job.poles);
+            let raw_aspect = raw.w as f32 / raw.h as f32;
+            if !(1.6..=2.6).contains(&raw_aspect) {
+                warnings.push(format!(
+                    "the provider returned {}×{} ({raw_aspect:.2}:1), not a wide panorama; {:.0}% of it was cropped to make 2:1",
+                    raw.w,
+                    raw.h,
+                    rep.cropped * 100.0
+                ));
+            }
+            if rep.extended != [0, 0] {
+                warnings.push(format!(
+                    "--span {} covers {} of {h} rows; the {} above and {} below are its edge colors stretched toward the poles, not painted",
+                    job.span,
+                    h - rep.extended[0] - rep.extended[1],
+                    rep.extended[0],
+                    rep.extended[1]
+                ));
+            }
+            facts["projection"] = json!("equirectangular");
+            facts["wraps"] = json!("x");
+            facts["horizon_row"] = json!(h / 2);
+            facts["source_horizon"] = json!(((horizon * 1000.0).round() / 1000.0, if job.horizon.is_some() { "given" } else { "found" }));
+            if let Some(f) = found {
+                facts["horizon_confidence"] = json!((f.confidence * 100.0).round() / 100.0);
+            }
+            facts["span_deg"] = json!(job.span);
+            facts["calm_poles_deg"] = json!(job.poles);
+            facts["cropped"] = json!((rep.cropped * 1000.0).round() / 1000.0);
+            facts["extended_rows"] = json!(rep.extended);
+            facts["rust"] = json!(format!("gfx3d::sky_texture(Texture::new(Asset::load(\"{}\")), &SkyTexture::default()), once the asset is ready", job.out));
+            sky
+        }
         k => return Err(format!("unknown kind {k}")),
     };
-    if job.kind != "frames" && (out.w, out.h) != (w, h) {
+    if !matches!(job.kind.as_str(), "frames" | "portrait") && (out.w, out.h) != (w, h) {
         out = out.resize(w, h);
     }
     if style.palette_lock && !palette.is_empty() {
@@ -880,6 +1248,9 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
     }
     if let Some(bg) = keyed_bg.get() {
         facts["keyed_background"] = json!(img::hex(bg));
+        if let Some(second) = keyed_extra.get() {
+            facts["keyed_background_2"] = json!(img::hex(second));
+        }
     }
     facts["size"] = json!([out.w, out.h]);
     facts["warnings"] = json!(warnings);
@@ -906,6 +1277,170 @@ fn place(p: &Image, k: f32, cw: u32, ch: u32, margin: u32, anchor: Anchor) -> Im
 fn fit_pixel(src: &Image, g: [u32; 2], margin: u32, anchor: Anchor) -> Image {
     let work = src.contain(g[0] * 8, g[1] * 8, margin * 8, anchor);
     img::pixelate(&work, g[0], g[1])
+}
+
+/// Places a talking portrait's busts in cw×ch cells so the head holds still from cell to cell:
+/// each is scaled to the first's width (a bust's shoulders are its steadiest measure; within
+/// ±15%), all by one factor that fits the widest and tallest, stood on the cell's bottom (the
+/// shoulders' cut) with its centre of mass over the first's, then nudged a few pixels to where
+/// its silhouette (the head counting double) best covers the first's.
+fn align_portraits(parts: &[Image], cw: u32, ch: u32, margin: u32, warnings: &mut Vec<String>) -> Vec<Image> {
+    let Some(first) = parts.first() else { return Vec::new() };
+    let mut odd = Vec::new();
+    let norm: Vec<f32> = parts
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let s = first.w as f32 / p.w.max(1) as f32;
+            if !(0.85..=1.15).contains(&s) {
+                odd.push(format!("row {} col {}", i / 4, i % 4));
+            }
+            s.clamp(0.85, 1.15)
+        })
+        .collect();
+    if !odd.is_empty() {
+        warnings.push(format!("{} drawn at a different size from the first cell; check the preview, regenerate if a face jumps", odd.join(", ")));
+    }
+    let maxw = parts.iter().zip(&norm).map(|(p, s)| p.w as f32 * s).fold(1.0, f32::max);
+    let maxh = parts.iter().zip(&norm).map(|(p, s)| p.h as f32 * s).fold(1.0, f32::max);
+    let k = (cw.saturating_sub(2 * margin).max(1) as f32 / maxw).min(ch.saturating_sub(margin).max(1) as f32 / maxh);
+    let scaled: Vec<Image> = parts
+        .iter()
+        .zip(&norm)
+        .map(|(p, s)| p.resize(((p.w as f32 * k * s).round() as u32).clamp(1, cw), ((p.h as f32 * k * s).round() as u32).clamp(1, ch)))
+        .collect();
+    let target = (cw - scaled[0].w) as f32 / 2.0 + centroid_x(&scaled[0]);
+    let mut cells: Vec<Image> = scaled
+        .iter()
+        .map(|s| {
+            let x = (target - centroid_x(s)).round().clamp(0.0, (cw - s.w) as f32) as u32;
+            let mut c = Image::new(cw, ch, [0; 4]);
+            c.blit(s, x, ch - s.h);
+            c
+        })
+        .collect();
+    let f = (cw.max(ch) / 64).max(1);
+    let reference = coverage(&cells[0], f);
+    for c in cells.iter_mut().skip(1) {
+        let (dx, dy) = best_shift(&reference, &coverage(c, f), 3);
+        if (dx, dy) != (0, 0) {
+            *c = shifted(c, dx * f as i32, dy * f as i32);
+        }
+    }
+    cells
+}
+
+/// The alpha-weighted mean x of an image's pixels.
+fn centroid_x(im: &Image) -> f32 {
+    let (mut sum, mut wsum) = (0.0f64, 0.0f64);
+    for y in 0..im.h {
+        for x in 0..im.w {
+            let a = im.get(x, y)[3] as f64;
+            sum += a * (x as f64 + 0.5);
+            wsum += a;
+        }
+    }
+    if wsum > 0.0 { (sum / wsum) as f32 } else { im.w as f32 / 2.0 }
+}
+
+/// Coverage on a coarse grid (f×f blocks): (width, height, mean alpha 0–1 per block).
+fn coverage(im: &Image, f: u32) -> (usize, usize, Vec<f32>) {
+    let (w, h) = ((im.w / f) as usize, (im.h / f) as usize);
+    let mut out = vec![0.0; w * h];
+    for (i, v) in out.iter_mut().enumerate() {
+        let (bx, by) = ((i % w) as u32 * f, (i / w) as u32 * f);
+        let mut s = 0u32;
+        for y in by..by + f {
+            for x in bx..bx + f {
+                s += im.get(x, y)[3] as u32;
+            }
+        }
+        *v = s as f32 / (255 * f * f) as f32;
+    }
+    (w, h, out)
+}
+
+/// The shift (within ±r blocks) that best lays `cur` over `reference`; the top 60% (the head)
+/// counts double. Ties go to the smaller shift.
+fn best_shift(reference: &(usize, usize, Vec<f32>), cur: &(usize, usize, Vec<f32>), r: i32) -> (i32, i32) {
+    let (w, h, a) = reference;
+    let b = &cur.2;
+    let (w, h) = (*w as i32, *h as i32);
+    let cost = |dx: i32, dy: i32| -> f32 {
+        let mut c = 0.0;
+        for y in 0..h {
+            let weight = if (y as f32) < h as f32 * 0.6 { 2.0 } else { 1.0 };
+            for x in 0..w {
+                let (sx, sy) = (x - dx, y - dy);
+                let bv = if sx >= 0 && sy >= 0 && sx < w && sy < h { b[(sy * w + sx) as usize] } else { 0.0 };
+                c += weight * (a[(y * w + x) as usize] - bv).abs();
+            }
+        }
+        c
+    };
+    let mut shifts: Vec<(i32, i32)> = (-r..=r).flat_map(|dy| (-r..=r).map(move |dx| (dx, dy))).collect();
+    shifts.sort_by_key(|(dx, dy)| dx.abs() + dy.abs());
+    let mut best = ((0, 0), f32::MAX);
+    for (dx, dy) in shifts {
+        let c = cost(dx, dy);
+        if c < best.1 - 1e-3 {
+            best = ((dx, dy), c);
+        }
+    }
+    best.0
+}
+
+/// The image moved by (dx, dy), clipped to its bounds.
+fn shifted(im: &Image, dx: i32, dy: i32) -> Image {
+    let mut out = Image::new(im.w, im.h, [0; 4]);
+    for y in 0..im.h as i32 {
+        for x in 0..im.w as i32 {
+            let (nx, ny) = (x + dx, y + dy);
+            if nx >= 0 && ny >= 0 && nx < im.w as i32 && ny < im.h as i32 {
+                out.set(nx as u32, ny as u32, im.get(x as u32, y as u32));
+            }
+        }
+    }
+    out
+}
+
+/// The share of the image's edge pixels still opaque and close to one of the
+/// keyed background colors (within twice the tolerance): background the key
+/// left behind.
+fn background_left(k: &Image, bgs: &[[u8; 3]], tolerance: f32) -> f32 {
+    let labs: Vec<[f32; 3]> = bgs.iter().map(|c| img::oklab(*c)).collect();
+    let (w, h) = (k.w, k.h);
+    let edge: Vec<(u32, u32)> = (0..w).flat_map(|x| [(x, 0), (x, h - 1)]).chain((1..h.saturating_sub(1)).flat_map(|y| [(0, y), (w - 1, y)])).collect();
+    let left = edge
+        .iter()
+        .filter(|&&(x, y)| {
+            let p = k.get(x, y);
+            p[3] > 128 && labs.iter().any(|b| img::oklab_dist(img::oklab([p[0], p[1], p[2]]), *b) < tolerance * 2.0)
+        })
+        .count();
+    left as f32 / edge.len().max(1) as f32
+}
+
+/// How much an even `gc`×`gr` grid cuts through drawings: the share of
+/// points on its inner column lines, in the top 55% of each row (where the
+/// heads are), with opaque pixels a few pixels to both sides. Shoulders and
+/// bodies meeting at the bottom of the cells, or a bust touching the row
+/// below, are how such sheets are drawn and don't count.
+fn grid_straddle(k: &Image, gc: u32, gr: u32) -> f32 {
+    let (cw, ch) = (k.w / gc.max(1), k.h / gr.max(1));
+    let d = (k.w.min(k.h) / 200).max(3);
+    let solid = |x: u32, y: u32| x < k.w && y < k.h && k.get(x, y)[3] >= 128;
+    let (mut on, mut all) = (0usize, 0usize);
+    for i in 1..gc {
+        let x = i * cw;
+        for j in 0..gr {
+            for y in j * ch..j * ch + ch * 55 / 100 {
+                all += 1;
+                on += (x >= d && solid(x - d, y) && solid(x + d, y)) as usize;
+            }
+        }
+    }
+    on as f32 / all.max(1) as f32
 }
 
 /// Splits a keyed sprite sheet into its frames: connected shapes (with small
@@ -991,7 +1526,16 @@ fn split_frames(k: &Image, n: u32, gc: u32, gr: u32, warnings: &mut Vec<String>)
             })
             .collect();
     }
-    warnings.push(format!("found {} separate shapes for {n} frames; split the sheet into an even {gc}×{gr} grid instead", big.len()));
+    // Shapes that touch (busts whose shoulders meet) or a missing one: the even grid is
+    // what the model was asked to draw, and fine unless its lines cut through drawings.
+    let straddle = grid_straddle(k, gc, gr);
+    if straddle > 0.03 {
+        warnings.push(format!(
+            "found {} separate shapes for {n} frames, and an even {gc}×{gr} grid cuts through drawings ({:.0}% of its lines between the heads); check the preview and regenerate if a frame is cut",
+            big.len(),
+            straddle * 100.0
+        ));
+    }
     let (cw, ch) = (k.w / gc, k.h / gr);
     (0..n).map(|i| k.crop((i % gc) * cw, (i / gc) * ch, cw, ch).trimmed()).collect()
 }
@@ -1014,6 +1558,15 @@ fn pick(game: &Path, name: &str, variant: u32) -> Result<(), String> {
     eprintln!("picked variant {variant} (seed {}) → {}", sc.seed, dest.display());
     println!("{}", dest.display());
     Ok(())
+}
+
+/// The flat background color a prompt asked for ("… solid pure blue color (#0000ff) …").
+fn key_in_prompt(prompt: &str) -> Option<String> {
+    let at = prompt.find("Background: one flat")?;
+    let rest = &prompt[at..];
+    let i = rest.find("(#")?;
+    let hex = rest.get(i + 1..i + 8)?;
+    img::parse_hex(hex).ok().map(|_| hex.to_string())
 }
 
 pub fn regen(a: &super::RegenArgs, sc: &Sidecar) -> Result<(), String> {
@@ -1040,6 +1593,16 @@ pub fn regen(a: &super::RegenArgs, sc: &Sidecar) -> Result<(), String> {
     if let Some(m) = &a.model {
         job.model = m.clone();
     }
+    if let Some(t) = a.tolerance {
+        job.tolerance = t;
+    }
+    if let Some(k) = &a.key {
+        img::parse_hex(k).map_err(|e| format!("--key {k}: {e}"))?;
+        job.key = Some(k.clone());
+    } else if job.key.is_none() && job.keyed {
+        // Sidecars from before the key was recorded: the color the prompt asked for.
+        job.key = key_in_prompt(&sc.full_prompt);
+    }
     if a.reprocess {
         let raw_path = game.join(&sc.raw);
         let raw =
@@ -1052,12 +1615,13 @@ pub fn regen(a: &super::RegenArgs, sc: &Sidecar) -> Result<(), String> {
             job.grid = (style.pixel_art && job.kind != "background" && job.kind != "icon" && job.size[0] % scale == 0 && job.size[1] % scale == 0)
                 .then(|| [(job.size[0] / scale).max(1), (job.size[1] / scale).max(1)]);
         }
-        let (im, facts) = process(&job, &style, &palette, &Image::decode(&raw)?)?;
-        let png = encode_budget(&im, &job)?;
+        let (im, mut facts) = process(&job, &style, &palette, &Image::decode(&raw)?)?;
+        let png = encode_budget(&im, &job, &mut facts)?;
         let dest = game.join(&job.out);
         std::fs::write(&dest, &png).map_err(|e| format!("{}: {e}", dest.display()))?;
         let mut sc2 = sc.clone();
         sc2.output_sha256 = super::sha256_hex(&png);
+        sc2.derived.clear(); // a fresh output: earlier edits aren't in it
         sc2.style = style_ref;
         sc2.recipe = serde_json::to_value(&job).unwrap();
         sc2.result = facts.clone();
@@ -1081,6 +1645,13 @@ fn check(game: &Path) -> Result<(), String> {
     let mut files = Vec::new();
     collect(&game.join("assets"), &mut files);
     files.sort();
+    // Bundle entries (SPEC §1: 512): mb build packs the sidecars into one file
+    // and each directory's lip timings into one.
+    let names: Vec<String> = files.iter().filter(|p| p.is_file()).map(|p| super::rel(p, game)).collect();
+    let sidecars = names.iter().filter(|n| n.ends_with(".gen.json")).count();
+    let lips_dirs: std::collections::BTreeSet<&str> = names.iter().filter(|n| n.ends_with(".lips.txt")).map(|n| n.rsplit_once('/').map_or("", |d| d.0)).collect();
+    let lips = names.iter().filter(|n| n.ends_with(".lips.txt")).count();
+    let packed = names.len() - sidecars - lips + (sidecars > 0) as usize + lips_dirs.len();
     let mut total = 0usize;
     let mut startup = 0usize;
     let mut spent = 0.0;
@@ -1120,12 +1691,37 @@ fn check(game: &Path) -> Result<(), String> {
                 notes.push("big: quantize (--colors) or shrink".into());
             }
         }
+        if (name.ends_with(".jpg") || name.ends_with(".jpeg"))
+            && let Some((w, h)) = img::jpeg_dims(&bytes)
+        {
+            images += 1;
+            dims = format!("{w}×{h}");
+            if w > 2048 || h > 2048 {
+                notes.push("over mb3d's 2048² texture limit".to_string());
+                problems += 1;
+            }
+            if bytes.len() > 1200 << 10 {
+                notes.push("big: mb regen it with --max-kb, or shrink".into());
+            }
+        }
         if name.ends_with(".ogg")
             && let Ok((ch, rate)) = super::audio::decode(&bytes, "audio/ogg")
         {
             dims = format!("{:.1} s", ch[0].len() as f32 / rate as f32);
             if ch.len() > 1 {
                 notes.push("stereo (SPEC: use mono)".into());
+            }
+        }
+        if name.to_ascii_lowercase().ends_with(".glb") {
+            match super::shape::check(&bytes) {
+                Ok((f, w)) => {
+                    dims = format!("{} tris", f["triangles"]);
+                    notes.extend(w);
+                }
+                Err(e) => {
+                    notes.push(e);
+                    problems += 1;
+                }
             }
         }
         let made = match super::read_sidecar(&path) {
@@ -1140,8 +1736,8 @@ fn check(game: &Path) -> Result<(), String> {
                 {
                     notes.push("made with an older style guide (mb regen to refresh)".into());
                 }
-                if sc.output_sha256 != super::sha256_hex(&bytes) {
-                    notes.push("edited since it was generated".into());
+                if let Some(n) = sc.provenance_of(&bytes) {
+                    notes.push(n);
                 }
                 format!("{} {} seed {}", sc.provider, sc.model, sc.seed)
             }
@@ -1163,6 +1759,10 @@ fn check(game: &Path) -> Result<(), String> {
         "assets {:.2} MB of the 10 MB bundle (plus wasm); startup assets {:.2} MB of 3 MB (plus wasm); {images} images (≤ 128)",
         total as f64 / 1048576.0,
         startup as f64 / 1048576.0
+    );
+    eprintln!(
+        "{} files in assets/, {packed} bundle entries once `mb build` packs {sidecars} sidecars and {lips} lip timings (of 512, with the manifest, icon, wasm and src/)",
+        names.len()
     );
     eprintln!("{generated} generated asset(s), about ${spent:.2} spent on them");
     if total > 9 << 20 || startup > 3 << 20 || images > 128 {
@@ -1188,6 +1788,91 @@ fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_near_layer_keys_its_sky_and_keeps_its_ground() {
+        // Sky (the key color) over scenery that fills the sides, then a strip of
+        // empty sky under the scenery, as a model draws it.
+        let (sky, rock) = ([0u8, 0, 255, 255], [70u8, 50, 40, 255]);
+        let mut raw = Image::new(400, 300, sky);
+        for y in 0..300 {
+            for x in 0..400 {
+                let hill = 120 + ((x as f32 / 30.0).sin() * 20.0) as u32;
+                if (y >= hill && y < 260) || x < 30 || x >= 370 {
+                    raw.set(x, y, rock);
+                }
+            }
+        }
+        let mut j = job("layer");
+        j.size = [200, 100];
+        j.layer = Some((1, 2));
+        j.key = Some("#0000ff".into());
+        let (im, facts) = process(&j, &Style::default(), &[], &raw).unwrap();
+        assert_eq!((im.w, im.h), (200, 100));
+        // Keyed from the sky, not the scenery around the border.
+        assert_eq!(facts["keyed_background"], "#0000ff");
+        assert_eq!(im.get(100, 0)[3], 0, "sky keyed out");
+        // The bottom is the scenery's lowest solid row (the empty strip is gone), solid all along.
+        assert!((0..200).all(|x| im.get(x, 99)[3] == 255 && im.get(x, 99)[2] < 100), "{:?}", im.get(100, 99));
+        assert_eq!(facts["layer"]["transparent"], true);
+        // The far layer stays opaque, cropped from the bottom.
+        let mut far = job("layer");
+        far.size = [200, 100];
+        far.layer = Some((0, 2));
+        far.keyed = false;
+        let (im, facts) = process(&far, &Style::default(), &[], &raw).unwrap();
+        assert!(im.is_opaque());
+        assert_eq!(facts["layer"]["transparent"], false);
+        assert_eq!(im.get(100, 99)[2], 255, "the bottom strip is kept: it's the bottom of the image");
+    }
+
+    #[test]
+    fn a_portrait_grid_warns_only_when_it_cuts_a_head() {
+        // Four busts whose shoulders meet: one shape, but the grid is clean.
+        let mut sheet = Image::new(400, 100, [0; 4]);
+        for c in 0..4u32 {
+            for y in 10..60 {
+                for x in c * 100 + 30..c * 100 + 70 {
+                    sheet.set(x, y, [200, 150, 120, 255]); // head
+                }
+            }
+        }
+        for y in 60..100 {
+            for x in 0..400 {
+                sheet.set(x, y, [40, 40, 90, 255]); // shoulders, wall to wall
+            }
+        }
+        let mut w = Vec::new();
+        let parts = split_frames(&sheet, 4, 4, 1, &mut w);
+        assert_eq!(parts.len(), 4);
+        assert!(w.is_empty(), "{w:?}");
+        // Heads drawn across the cell lines: warned.
+        let mut off = Image::new(400, 100, [0; 4]);
+        for y in 0..100 {
+            for x in 0..400 {
+                if (x + 50) % 100 < 60 || y >= 60 {
+                    off.set(x, y, [200, 150, 120, 255]);
+                }
+            }
+        }
+        let mut w = Vec::new();
+        split_frames(&off, 4, 4, 1, &mut w);
+        assert!(w[0].contains("cuts through drawings"), "{w:?}");
+        // Background left at the image's edge is measured against the keyed colors.
+        let mut k = Image::new(100, 100, [0; 4]);
+        for x in 0..100 {
+            k.set(x, 0, [250, 5, 250, 255]);
+        }
+        assert!((background_left(&k, &[[255, 0, 255]], 0.09) - 0.25).abs() < 0.01);
+        assert_eq!(background_left(&k, &[[0, 255, 0]], 0.09), 0.0);
+    }
+
+    #[test]
+    fn an_older_sidecars_key_comes_from_its_prompt() {
+        let p = "A moth. Background: one flat, solid pure magenta color (#ff00ff) filling everything behind the subject: no gradient.";
+        assert_eq!(key_in_prompt(p).as_deref(), Some("#ff00ff"));
+        assert_eq!(key_in_prompt("A moth (#ff00ff)."), None);
+    }
 
     #[test]
     fn aspects() {
@@ -1221,11 +1906,16 @@ mod tests {
             max_kb: None,
             frames: 0,
             cols: 0,
+            expressions: vec![],
             layer: None,
             keyed: true,
+            key: None,
             tolerance: 0.09,
             no_style: false,
             allow_names: vec![],
+            horizon: None,
+            span: 180.0,
+            poles: 12.0,
         }
     }
 
@@ -1296,6 +1986,99 @@ mod tests {
         }
     }
 
+    fn portrait_job(expressions: &[&str], size: u32, grid: Option<[u32; 2]>) -> (Job, Image) {
+        let mut j = job("portrait");
+        j.expressions = expressions.iter().map(|e| e.to_string()).collect();
+        let rows = j.expressions.len() as u32 + 1;
+        j.frames = 4 * rows;
+        j.cols = 4;
+        j.size = [size, size];
+        j.grid = grid;
+        j.margin = if grid.is_some() { 1 } else { 2 };
+        j.anchor = Anchor::Bottom;
+        j.aspect = nearest_aspect(4.0, rows as f32).into();
+        let req = ImageRequest {
+            model: "mock-image".into(),
+            prompt: "a pilot".into(),
+            refs: vec![],
+            aspect: j.aspect.clone(),
+            resolution: "0.5K".into(),
+            transparent: true,
+            seed: Some(5),
+            quality: 1,
+            hint: MockHint { kind: "portrait".into(), frames: j.frames, key: Some([255, 0, 255]), palette: PAL.to_vec(), pixel_art: grid.is_some() },
+        };
+        let raw = super::super::mock::image(&req);
+        (j, raw)
+    }
+
+    const PAL: [[u8; 3]; 3] = [[20, 20, 30], [60, 110, 200], [250, 215, 170]];
+
+    /// Dark pixels around the mouth: the middle of the face, from 45% to 72% of the cell's height
+    /// (below the eyes, above the chin) and 30% to 70% of its width (inside the outline).
+    fn dark_pixels(cell: &Image) -> usize {
+        let band = cell.crop(cell.w * 30 / 100, cell.h * 45 / 100, cell.w * 40 / 100, cell.h * 27 / 100);
+        band.px.iter().filter(|p| p[3] > 128 && (p[0] as i32 - 20).abs() + (p[1] as i32 - 20).abs() + (p[2] as i32 - 30).abs() < 60).count()
+    }
+
+    #[test]
+    fn portrait_sheet_layout_mouths_and_alignment() {
+        let (j, raw) = portrait_job(&["neutral", "smug", "angry"], 64, None);
+        let (im, facts) = process(&j, &Style::default(), &PAL, &raw).unwrap();
+        assert_eq!((im.w, im.h), (256, 256), "4 columns × (3 expressions + blink) rows of 64×64");
+        let p = &facts["portrait"];
+        assert_eq!(p["cols"], 4);
+        assert_eq!(p["rows"], 4);
+        assert_eq!(p["cell"], json!([64, 64]));
+        assert_eq!(p["expressions"], json!(["neutral", "smug", "angry"]));
+        assert_eq!(p["blink_row"], 3);
+        assert!(facts["warnings"].as_array().unwrap().is_empty(), "{facts}");
+        let cell = |c: u32, r: u32| im.crop(c * 64, r * 64, 64, 64);
+        for r in 0..4 {
+            // The mouth opens left to right: more dark mouth pixels in every column.
+            let dark: Vec<usize> = (0..4).map(|c| dark_pixels(&cell(c, r))).collect();
+            assert!(dark.windows(2).all(|w| w[1] > w[0]), "row {r}: mouth should open left to right: {dark:?}");
+        }
+        // The blink row has no eye whites; the others do.
+        let whites = |c: &Image| c.px.iter().filter(|p| p[3] > 128 && p[0] > 240 && p[1] > 240 && p[2] > 240).count();
+        assert!(whites(&cell(0, 0)) > 4 && whites(&cell(0, 3)) == 0, "{} {}", whites(&cell(0, 0)), whites(&cell(0, 3)));
+        // The heads hold still: every cell's silhouette starts within a pixel or two of the first's.
+        let (x0, y0, w0, _) = cell(0, 0).content_bbox(128).unwrap();
+        for i in 1..16 {
+            let (x, y, w, h) = cell(i % 4, i / 4).content_bbox(128).unwrap();
+            assert!(x.abs_diff(x0) <= 2 && y.abs_diff(y0) <= 2 && w.abs_diff(w0) <= 3, "cell {i}: {x} {y} {w} vs {x0} {y0} {w0}");
+            assert!(y + h >= 62, "cell {i} stands on the bottom");
+        }
+    }
+
+    #[test]
+    fn pixel_portrait_is_whole_art_pixels() {
+        let (j, raw) = portrait_job(&["neutral"], 128, Some([32, 32]));
+        let style = Style { palette: PAL.iter().map(|c| img::hex(*c)).collect(), palette_lock: true, pixel_art: true, ..Style::default() };
+        let (im, facts) = process(&j, &style, &PAL, &raw).unwrap();
+        assert_eq!((im.w, im.h), (512, 256));
+        assert_eq!(facts["portrait"]["blink_row"], 1);
+        assert!(facts["rust"].as_str().unwrap().ends_with("Portrait::load(path, 128, 128).art_pixels(32)"), "{}", facts["rust"]);
+        for y in 0..im.h {
+            for x in 0..im.w {
+                assert_eq!(im.get(x, y), im.get(x / 4 * 4, y / 4 * 4), "4×4 blocks");
+            }
+        }
+        for p in im.px.iter().filter(|p| p[3] > 0) {
+            assert!(PAL.contains(&[p[0], p[1], p[2]]) && p[3] == 255);
+        }
+        let dark: Vec<usize> = (0..4).map(|c| dark_pixels(&im.crop(c * 128, 0, 128, 128))).collect();
+        assert!(dark.windows(2).all(|w| w[1] > w[0]), "mouth opens left to right: {dark:?}");
+    }
+
+    #[test]
+    fn portrait_expressions_and_job() {
+        assert_eq!(portrait_expressions(&[]).unwrap(), vec!["neutral"]);
+        assert_eq!(portrait_expressions(&["Smug".into(), " angry".into(), "neutral".into(), "smug".into()]).unwrap(), vec!["neutral", "smug", "angry"]);
+        assert!(portrait_expressions(&["blink".into()]).is_err());
+        assert!(portrait_expressions(&(0..8).map(|i| format!("e{i}")).collect::<Vec<_>>()).is_err());
+    }
+
     #[test]
     fn tile_wraps_and_background_is_opaque() {
         let mut j = job("tile");
@@ -1318,8 +2101,8 @@ mod tests {
         j.keyed = false;
         j.size = [256, 256];
         j.max_kb = Some(12);
-        let (bg, _) = process(&j, &Style::default(), &[], &mock_raw(&j)).unwrap();
-        let png = encode_budget(&bg, &j).unwrap();
+        let (bg, mut facts) = process(&j, &Style::default(), &[], &mock_raw(&j)).unwrap();
+        let png = encode_budget(&bg, &j, &mut facts).unwrap();
         assert!(png.len() <= 12 * 1024, "{}", png.len());
     }
 }

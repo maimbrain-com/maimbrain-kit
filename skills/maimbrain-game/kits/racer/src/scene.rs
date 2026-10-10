@@ -37,7 +37,7 @@ const GANTRY_ZONE: f32 = 640.0;
 const PI: f32 = std::f32::consts::PI;
 
 /// The grade at rest (Scene::update ramps fringing, vignette and bloom with speed).
-const POST: Post = Post { exposure: 1.0, bloom_strength: 0.5, bloom_threshold: 1.0, vignette: 0.32, chromatic_aberration: 0.05, saturation: 1.2, contrast: 1.08, _reserved: 0.0 };
+const POST: Post = Post { exposure: 1.0, bloom_strength: 0.5, bloom_threshold: 1.0, vignette: 0.32, chromatic_aberration: 0.05, saturation: 1.2, contrast: 1.08, sharpen: 0.0 };
 
 struct Chunk {
     root: Node,

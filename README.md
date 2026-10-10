@@ -8,7 +8,7 @@ macOS or Linux:
 
 ```sh
 curl -fsSL https://maimbrain.com/install.sh | sh   # the mb tool
-mb doctor                                          # checks Rust, the wasm32 target, Python and the sound tools
+mb doctor                                          # checks Rust, the wasm32 target and Python
 mb login                                           # sign in to maimbrain.com
 ```
 
@@ -20,7 +20,7 @@ mb doctor
 mb login
 ```
 
-On Windows, install Rust with [rustup](https://rustup.rs) (it sets up the Visual Studio C++ build tools), then `rustup target add wasm32-unknown-unknown`. The skill's art and sound scripts need Python 3 (`winget install Python.Python.3.12`) and `oggenc` and `oggdec` (Windows builds are at [RareWares](https://www.rarewares.org/ogg-oggenc.php); put them on your PATH); use `python` or `py` where the skill says `python3`. WSL works too: follow the Linux steps inside it.
+On Windows, install Rust with [rustup](https://rustup.rs) (it sets up the Visual Studio C++ build tools), then `rustup target add wasm32-unknown-unknown`. The skill's art and sound scripts need Python 3 (`winget install Python.Python.3.12`); use `python` or `py` where the skill says `python3`. Sound needs nothing else: `mb ogg` encodes Ogg Vorbis on every platform. WSL works too: follow the Linux steps inside it.
 
 In Claude Code:
 
@@ -35,11 +35,15 @@ Then ask: *"Use the maimbrain-game skill to make a game: …"*. Your agent will 
 mb new mygame        # a game crate from the template, with your id (--3d for a 3D one; works signed out too)
 mb new --kit runner mygame   # …or start from a complete genre game to reskin and twist (mb kits lists them)
 mb serve --watch mygame  # preview at http://127.0.0.1:8765; rebuilds and updates the page on every save
-mb publish mygame    # upload a private draft: play it in the Maimbrain app (Account → My games)
+mb shot mygame --autoplay --sheet  # screenshots at 0.5, 2, 5 and 10 s from headless Chrome, and one sheet of them
+mb measure mygame --autoplay  # 10 s live in headless Chrome: frame times, GPU ms, input latency, a verify
+mb publish mygame --model "Claude Opus 5.5"  # upload a private draft, saying which model built it
+                     # (it's the agent's own); play it in the Maimbrain app (Account → My games)
+mb describe mygame   # tell players what it is (mygame/DESCRIPTION.txt, or the text as an argument)
 mb submit mygame     # when it's right, send it for review; track it at maimbrain.com/create
 ```
 
-`mb publish` uploads a draft only you can see; publish again to replace it while you test. Once a moderator approves what you submit, it's in everyone's feed. `mb publish --submit` skips the draft and goes straight to review.
+`mb publish` uploads a draft only you can see; publish again to replace it while you test. Once a moderator approves what you submit, it's in everyone's feed. `mb publish --submit` skips the draft and goes straight to review. `--model` names the AI model that built the game (an agent gives its own; `none` if you wrote it yourself), and players see it under About this game with the SDK version the game was built with. The description isn't part of the bundle: players see its first line on the game's card and all of it under About this game, and `mb describe` (or My Game Studio in the app) changes it any time, with no review. For a new version of a published game, the number you bump says what it is: the last for a fix, the middle for an update, the first for a new season (the only kind that may change how scores rank). `mb publish` sends the version's entry from the game's `NOTES.md` (a `## 1.3.0` heading, then what's new for players).
 
 ### Fonts and identity
 
@@ -76,12 +80,14 @@ No key of your own? If the Maimbrain team has given your account access to **Mai
 
 | Path | What |
 |---|---|
-| `skills/maimbrain-game/` | The skill: workflow, engagement guide, art and sound guide, 2D `template/` and 3D `template-3d/`, genre starter `kits/` (runner, stacker, shooter, match3, racer, tower-defense, trivia; `mb new --kit`), `pixel.py`, `sfx.py`, `check_audio.py`, `make_glb.py`, `make_rigged_glb.py` (a rigged, animated character) |
+| `skills/maimbrain-game/` | The skill: workflow, engagement guide, art and sound guide, 2D `template/` and 3D `template-3d/`, genre starter `kits/` (runner, stacker, shooter, match3, racer, tower-defense, trivia; `mb new --kit`), `pixel.py`, `sfx.py`, `check_audio.py`, `mix_check.py`, `make_glb.py`, `make_rigged_glb.py` (a rigged, animated character), `lut.py` (bake a color grade into a LUT) |
 | `docs/SPEC.md` | The game spec (manifest, host API, limits, determinism) |
-| `docs/MB3D.md` | The 3D engine: PBR, sky lighting, shadows, post effects, particles, trails, glTF; mb3d 2: animated characters, instancing, fog, toon and outlines, 3D text, depth of field |
+| `docs/MB3D.md` | The 3D engine: PBR, sky lighting, shadows, post effects, particles, trails, glTF; mb3d 2: animated characters, instancing, fog, toon and outlines, 3D text, depth of field, reflective water (water v2), sky v2, the beauty pass |
 | `docs/GENERATE.md` | Generated art and sound: `mb art`, `mb music`, `mb sfx`, providers and keys, the style guide |
 | `docs/UI.md` | The UI and juice kit: themes, buttons, icons, text, motion, confetti, title and results cards |
 | `examples/gallery/` | Every kit widget and effect on nine pages: `mb serve examples/gallery` |
+| `examples/mistwood/` | The mb3d 2 showcase: an animated toon fox in a foggy, instanced, moonlit forest (`mb serve examples/mistwood`) |
+| `examples/mb3d-demo/` | mb3d scenes, including the moonlit canal: fog, reflective water that reacts to a leaping koi and flows, foams and glints (water v2), lanterns, sky v2, and the beauty pass (a moonlit grade, moonbeams, halos, grain; tap to compare) (`mb serve examples/mb3d-demo`, tap "CANAL"); and a koi pond of organic meshes swimming on bones under clear water (tap "KOI") |
 | `docs/PHYSICS.md` | Deterministic 2D/3D rigid-body physics in the SDK (`features = ["physics2d"]` / `["physics3d"]`) |
 | `sdk/maimbrain/` | The Rust SDK (games depend on it via git) |
 | `crates/mb-cli/` | The `mb` tool |

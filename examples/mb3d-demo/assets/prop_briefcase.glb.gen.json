@@ -1,0 +1,171 @@
+{
+  "generator": "mb 0.7.0-dev model",
+  "date": "2026-10-10T16:47:00Z",
+  "provider": "tripo",
+  "model": "P1-20260311",
+  "prompt": "a chunky closed briefcase, rich brown leather with big shiny brass corner caps and clasps, a thick carry handle on top, upright standing on its edge, stylized anime prop, clean hand-painted texture, crisp chunky readable shapes, one single object on its own, centered, nothing attached, plain background",
+  "full_prompt": "a chunky closed briefcase, rich brown leather with big shiny brass corner caps and clasps, a thick carry handle on top, upright standing on its edge, stylized anime prop, clean hand-painted texture, crisp chunky readable shapes, one single object on its own, centered, nothing attached, plain background. One single solid hard-surface object shown on its own, a prop: clean manufactured shapes with flat, beveled and rounded surfaces, all in one piece; no base, ground or background. An original design.",
+  "seed": 26706020,
+  "seed_honored": true,
+  "references": [],
+  "style": null,
+  "est_cost_usd": 0.4,
+  "cost_usd": 0.4,
+  "raw": "art/raw/prop_briefcase-26706020.glb",
+  "raw_sha256": "1b8a48134a4f37c484695ea622fdc8c1edaa1b8417ecc2f3d996203cd6058558",
+  "output_sha256": "e111296cd7edfef74a4341919a9c39da7306df692f365988ec7708c9791392e7",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "animate": [],
+    "compress": true,
+    "facing": "-z",
+    "glow": null,
+    "glow_above": 0.6000000238418579,
+    "kind": "model",
+    "lengthwise": false,
+    "maps_size": 128,
+    "metal": 0.20000000298023224,
+    "min_roughness": 0.5,
+    "model": "P1-20260311",
+    "name": "prop_briefcase",
+    "negative": null,
+    "no_style": true,
+    "object": "prop",
+    "origin": "center",
+    "out": "assets/prop_briefcase.glb",
+    "polys": 800,
+    "provider": "tripo",
+    "reference": null,
+    "rig": false,
+    "rig_type": null,
+    "seed": 26706020,
+    "size": 1.0,
+    "spine": "off",
+    "spine_joints": null,
+    "subject": "a chunky closed briefcase, rich brown leather with big shiny brass corner caps and clasps, a thick carry handle on top, upright standing on its edge, stylized anime prop, clean hand-painted texture, crisp chunky readable shapes, one single object on its own, centered, nothing attached, plain background",
+    "texture_format": "auto",
+    "texture_size": 256,
+    "turn": 0.0
+  },
+  "result": {
+    "bytes": 46616,
+    "bytes_uncompressed": 58308,
+    "clips": [],
+    "compressed": true,
+    "dropped": [],
+    "facing": "-z",
+    "facing_check": {
+      "reason": "not a long shape",
+      "verdict": "uncertain"
+    },
+    "glow_share": null,
+    "glowing_materials": 0,
+    "joints": 0,
+    "mesh_nodes": [
+      "prop_briefcase/body"
+    ],
+    "metal_rough": {
+      "metalness": 0.05999999865889549,
+      "roughness": 0.6000000238418579
+    },
+    "metal_rough_from_provider": {
+      "metalness": 0.2800000011920929,
+      "roughness": 0.5400000214576721
+    },
+    "normals_added": false,
+    "notes": [],
+    "orient": null,
+    "placement": {
+      "origin": "center",
+      "scale": 1.0019569396972656,
+      "size_m": [
+        0.4637965261936188,
+        0.9412915706634521,
+        1.0
+      ],
+      "source_size": [
+        0.462890625,
+        0.939453125,
+        0.998046875
+      ],
+      "turn_degrees": 180.0,
+      "turned_lengthwise": false
+    },
+    "raw_clips": [],
+    "rig": null,
+    "rigged": false,
+    "simplify_error": 0.0,
+    "source_generator": "https://tripo3d.ai",
+    "spine": null,
+    "tasks": [
+      {
+        "id": "90c05735-3774-42ab-859f-d375f9499519",
+        "step": "text-to-model"
+      }
+    ],
+    "texture_sizes": [
+      [
+        256,
+        256
+      ],
+      [
+        128,
+        128
+      ],
+      [
+        128,
+        128
+      ]
+    ],
+    "textures": [
+      {
+        "format": "jpeg",
+        "kb": 15,
+        "role": "color",
+        "size": [
+          256,
+          256
+        ],
+        "source_size": [
+          2048,
+          2048
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 10,
+        "role": "data",
+        "size": [
+          128,
+          128
+        ],
+        "source_size": [
+          2048,
+          2048
+        ]
+      },
+      {
+        "format": "jpeg",
+        "kb": 4,
+        "role": "data",
+        "size": [
+          128,
+          128
+        ],
+        "source_size": [
+          2048,
+          2048
+        ]
+      }
+    ],
+    "triangles": 768,
+    "triangles_from_provider": 768,
+    "vertices": 742,
+    "warnings": [
+      "facing uncertain: not a long shape, so mb can't tell its front; check the preview's arrow (the way it faces) and pass --turn 90, 180 or -90 if its front is elsewhere"
+    ]
+  },
+  "note": "Generated with Tripo; assets made on paid credits are yours, those made with free credits stay Tripo's (its terms)."
+}

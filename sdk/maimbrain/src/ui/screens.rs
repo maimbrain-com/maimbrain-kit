@@ -133,6 +133,11 @@ impl TitleCard {
     pub fn update(&mut self, dt: f32) {
         self.t += dt;
     }
+    /// Seconds since the entrance began: time your own title's animation by
+    /// it (`theme.style.motion.progress(card.age(), i)` for letter i).
+    pub fn age(&self) -> f32 {
+        self.t
+    }
     pub fn draw(&self, layout: &Layout) {
         let th = &self.theme;
         let y = self.y.unwrap_or(layout.safe.y + 40.0 + self.size * 0.6);
@@ -172,8 +177,12 @@ pub enum ResultsEvent {
 /// "NEW BEST!" ribbon with confetti), how close the player came, a retry
 /// button and an optional extra one.
 ///
-/// It's a feed card too: a brag and a dare. The whole screen should retry
-/// (after your guard), so handle taps the card doesn't claim as retries.
+/// It's a feed card too: a brag and a dare. The whole screen retries (after
+/// `RETRY_GUARD`): feed every event to `input`, which keeps that rule.
+///
+/// To draw your own card from your world, build it `.state_only()`: it keeps
+/// the roll-up, the new-best moment and the retry rule, and you draw from
+/// `shown_score`, `best`, `new_best_shown`, `stamp`, `gap_to_best`…
 #[derive(Clone, Debug)]
 pub struct ResultsCard {
     pub heading: String,
@@ -194,10 +203,16 @@ pub struct ResultsCard {
     fx: Particles,
     stamp: Spring,
     flash: Pulse,
-    landed: bool,
+    /// The card's age when the roll-up landed.
+    landed_at: Option<f32>,
+    state_only: bool,
 }
 
 impl ResultsCard {
+    /// Seconds after the card appears before a tap retries: a frantic tap
+    /// during the failure shouldn't start the next round.
+    pub const RETRY_GUARD: f32 = 0.35;
+
     /// `prev_best` is the best before this round (0 = none yet). Seed the
     /// confetti from your game's `Rng`.
     pub fn new(score: i64, prev_best: i64, theme: Theme, layout: &Layout, seed: u64) -> ResultsCard {
@@ -217,7 +232,8 @@ impl ResultsCard {
             fx: Particles::new(seed),
             stamp: Spring::new(0.0, 3.2, 0.32),
             flash: Pulse::new(0.6),
-            landed: false,
+            landed_at: None,
+            state_only: false,
         };
         let dur = (0.5 + 0.25 * (score.max(1) as f32).log10()).min(1.4);
         c.counter.roll_to(score, dur);
@@ -253,6 +269,15 @@ impl ResultsCard {
         self.retry = None;
         self
     }
+    /// State and input only: `draw` draws nothing but the new-best confetti,
+    /// and there's no retry button (any tap retries after the guard). Draw
+    /// the card yourself from its state; give it buttons of your own with
+    /// `.extra(..)` or by setting `retry`, at the rects you draw them.
+    pub fn state_only(mut self) -> Self {
+        self.state_only = true;
+        self.retry = None;
+        self
+    }
 
     /// The panel's rect (or the floating block's).
     pub fn panel_rect(&self) -> Rect {
@@ -269,6 +294,9 @@ impl ResultsCard {
     }
 
     fn place(&mut self) {
+        if self.state_only {
+            return;
+        }
         let p = self.panel_rect();
         let (cx, cy) = super::layouts::retry_center(&self.layout_theme(), p);
         let mut retry = Button::icon(cx, cy, 68.0, Icon::RESTART);
@@ -296,10 +324,88 @@ impl ResultsCard {
 
     /// The roll-up and its celebration are over.
     pub fn finished(&self) -> bool {
-        self.landed
+        self.landed_at.is_some()
     }
 
-    /// Feeds an input event to the buttons.
+    /// Seconds since the card appeared.
+    pub fn age(&self) -> f32 {
+        self.t
+    }
+
+    /// The score as shown now: it rolls up from 0 once the card has landed.
+    pub fn shown_score(&self) -> i64 {
+        self.counter.value()
+    }
+
+    /// The shown score's scale: a punch when the roll-up lands (1 at rest).
+    pub fn score_scale(&self) -> f32 {
+        self.counter.scale()
+    }
+
+    /// The best after this round (what a BEST line shows).
+    pub fn best(&self) -> i64 {
+        if !self.lower_is_better {
+            self.prev_best.max(self.score)
+        } else if self.prev_best > 0 {
+            self.prev_best.min(self.score.max(1))
+        } else {
+            self.score
+        }
+    }
+
+    /// The card's age when the roll-up landed (`ResultsEvent::Landed` or `NewBest`).
+    pub fn landed_at(&self) -> Option<f32> {
+        self.landed_at
+    }
+
+    /// The card's age when the new-best celebration began, if there is one.
+    pub fn new_best_at(&self) -> Option<f32> {
+        self.landed_at.filter(|_| self.is_new_best())
+    }
+
+    /// True from the moment the roll-up lands on a new best: show the
+    /// NEW BEST ribbon (scaled by `stamp`) instead of the best.
+    pub fn new_best_shown(&self) -> bool {
+        self.new_best_at().is_some()
+    }
+
+    /// The NEW BEST ribbon's scale: springs 0 → 1 (overshooting) once it's shown.
+    pub fn stamp(&self) -> f32 {
+        self.stamp.value
+    }
+
+    /// The gold rim's flash as the new best lands (1 → 0).
+    pub fn flash(&self) -> f32 {
+        if self.flash.active() { self.flash.value() } else { 0.0 }
+    }
+
+    /// How many more would have beaten the best, once landed, when it was
+    /// close enough to dare ("3 MORE TO BEAT IT").
+    pub fn gap_to_best(&self) -> Option<i64> {
+        let gap = self.prev_best - self.score;
+        let close = !self.lower_is_better && gap > 0 && (gap as f32) <= (self.prev_best as f32 * 0.25).max(3.0);
+        (self.finished() && close).then_some(gap)
+    }
+
+    /// True once a tap would retry (after `RETRY_GUARD`).
+    pub fn retry_ready(&self) -> bool {
+        self.t > Self::RETRY_GUARD
+    }
+
+    /// The card's whole input rule: its buttons, and once `retry_ready`, a
+    /// press anywhere else retries. Feed it every event while it's up.
+    pub fn input(&mut self, e: &Event) -> Option<ResultsAction> {
+        if !self.retry_ready() {
+            return None;
+        }
+        if let Some(a) = self.handle(e) {
+            return Some(a);
+        }
+        (e.is_press() && !self.claims(e.x, e.y)).then_some(ResultsAction::Retry)
+    }
+
+    /// Feeds an input event to the buttons (only: `input` adds the
+    /// whole-screen retry and the guard).
     pub fn handle(&mut self, e: &Event) -> Option<ResultsAction> {
         if self.t < 0.3 {
             return None;
@@ -336,8 +442,8 @@ impl ResultsCard {
         if self.t > 0.35 && self.counter.update(dt) {
             ev = Some(ResultsEvent::Tick);
         }
-        if !self.landed && self.t > 0.35 && self.counter.done() {
-            self.landed = true;
+        if self.landed_at.is_none() && self.t > 0.35 && self.counter.done() {
+            self.landed_at = Some(self.t);
             self.counter.punch.kick(0.35);
             if self.is_new_best() {
                 self.stamp.target = 1.0;
@@ -353,15 +459,17 @@ impl ResultsCard {
         ev
     }
 
+    /// Draws the card in the theme's results layout (only the confetti when
+    /// `state_only`).
     pub fn draw(&self) {
+        if self.state_only {
+            self.fx.draw();
+            return;
+        }
         let th = &self.theme;
         let lt = self.layout_theme();
         if !matches!(lt.style.results, super::style::ResultsLayout::Panel | super::style::ResultsLayout::Floating) {
-            let best = if self.lower_is_better {
-                if self.prev_best > 0 { self.prev_best.min(self.score.max(1)) } else { self.score }
-            } else {
-                self.prev_best.max(if self.landed { self.score } else { 0 })
-            };
+            let best = if self.lower_is_better || self.finished() { self.best() } else { self.prev_best };
             let a = super::layouts::ResultsArgs {
                 heading: &self.heading,
                 label: &self.label,
@@ -369,7 +477,7 @@ impl ResultsCard {
                 punch: self.counter.scale(),
                 best,
                 new_best: self.is_new_best(),
-                landed: self.landed,
+                landed: self.finished(),
                 stamp: self.stamp.value,
                 t: self.t,
                 area: self.area,
@@ -424,12 +532,12 @@ impl ResultsCard {
         gfx2d::translate(cx, ny);
         let k = self.counter.scale();
         gfx2d::scale(k, k);
-        let col = if self.landed && self.is_new_best() { th.gold } else { th.text };
+        let col = if self.new_best_shown() { th.gold } else { th.text };
         super::layouts::styled(th, &fmt_int(self.counter.value()), th.number_font, nsize, col).tracking(0.0).alpha(a).middle().draw(0.0, 0.0);
         gfx2d::pop();
         let row = ny + nsize * 0.62;
         // Best, or the new-best ribbon.
-        if self.landed && self.is_new_best() {
+        if self.new_best_shown() {
             let st = self.stamp.value;
             if st > 0.01 {
                 gfx2d::push();
@@ -439,18 +547,13 @@ impl ResultsCard {
                 gfx2d::pop();
             }
         } else {
-            let best = if self.lower_is_better {
-                if self.prev_best > 0 { self.prev_best.min(self.score.max(1)) } else { self.score }
-            } else {
-                self.prev_best.max(self.score)
-            };
+            let best = self.best();
             let k = ((self.t - 0.5) / 0.3).clamp(0.0, 1.0);
             if best > 0 && k > 0.0 {
                 let bg = with_alpha(th.outline, 0.45 * k);
                 super::widgets::pill_in(th, &format!("{} {}", th.case("BEST"), fmt_int(best)), cx, row + 6.0, 32.0, bg, fade(th.gold, k), Some(Icon::TROPHY));
                 // A dare when it was close.
-                let gap = if self.lower_is_better { self.score - self.prev_best } else { self.prev_best - self.score };
-                if self.landed && !self.lower_is_better && gap > 0 && (gap as f32) <= (self.prev_best as f32 * 0.25).max(3.0) {
+                if let Some(gap) = self.gap_to_best() {
                     let ds = th.fit(th.body_font, 15.0);
                     text(&format!("{} MORE TO BEAT IT", fmt_int(gap)))
                         .font(th.body_font)
@@ -659,6 +762,48 @@ mod tests {
         assert!(b.bottom() <= layout.card.bottom() && b.x >= layout.card.x);
         let r2 = ResultsCard::new(50, 100, Theme::night(), &layout, 1);
         assert!(!r2.is_new_best());
+    }
+
+    #[test]
+    fn a_state_only_card_keeps_the_rules_for_a_card_you_draw() {
+        use crate::input::synth;
+        let layout = Layout::default();
+        let mut r = ResultsCard::new(120, 100, Theme::candy(), &layout, 1).state_only();
+        assert!(r.retry.is_none() && r.shown_score() == 0 && !r.new_best_shown());
+        // A frantic tap during the failure doesn't retry; one after the guard does, anywhere.
+        r.update(0.2);
+        assert_eq!(synth::tap(180.0, 300.0, 0.2).iter().find_map(|e| r.input(e)), None);
+        let mut landed = None;
+        for _ in 0..240 {
+            if r.update(1.0 / 60.0) == Some(ResultsEvent::NewBest) {
+                landed = Some(r.age());
+            }
+        }
+        assert!(r.retry_ready() && r.shown_score() == 120 && r.best() == 120);
+        assert_eq!(r.new_best_at(), landed);
+        assert!(r.new_best_shown() && r.stamp() > 0.9);
+        assert_eq!(synth::tap(180.0, 300.0, 4.0).iter().find_map(|e| r.input(e)), Some(ResultsAction::Retry));
+        // Close to the best: the dare's gap. Far off, none.
+        let mut close = ResultsCard::new(97, 100, Theme::candy(), &layout, 1).state_only();
+        let mut far = ResultsCard::new(20, 100, Theme::candy(), &layout, 1).state_only();
+        for _ in 0..240 {
+            close.update(1.0 / 60.0);
+            far.update(1.0 / 60.0);
+        }
+        assert_eq!((close.gap_to_best(), far.gap_to_best(), close.new_best_at()), (Some(3), None, None));
+        assert!(close.landed_at().is_some() && close.best() == 100);
+    }
+
+    #[test]
+    fn the_drawn_card_keeps_its_buttons_out_of_the_whole_screen_retry() {
+        let layout = Layout::default();
+        let mut r = ResultsCard::new(5, 10, Theme::candy(), &layout, 1);
+        r.update(0.5);
+        let b = r.retry.as_ref().unwrap().rect;
+        let press = |x, y| crate::input::synth::touch(crate::input::Kind::TouchDown, x, y, 0.5);
+        // A press on the retry button is the button's (it retries on release), not a screen tap.
+        assert_eq!(r.input(&press(b.cx(), b.cy())), None);
+        assert_eq!(r.input(&press(b.cx(), b.y - 120.0)), Some(ResultsAction::Retry));
     }
 
     #[test]

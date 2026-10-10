@@ -19,16 +19,39 @@
 //! ```
 
 mod anim;
+mod beauty;
+mod creature;
+mod gait;
+mod ik;
+mod lighting;
 mod math;
 mod mesh;
+mod organic;
+mod retro;
+mod rig;
+mod skin;
+mod sky;
+mod water;
 
 use std::num::NonZeroU32;
 
 pub use math::{Mat4, Quat, Transform, Vec3, look_at, srgb, srgba, vec3};
-pub use anim::{Animator, Clip, Play};
+pub use anim::{Animator, Clip, Mask, Play, additive};
+pub use creature::{Flight, Strike, WingBones, alive};
+pub use gait::{MechGait, Stomp};
+pub use ik::{LookAt, TwoBoneIk, arc, two_bone};
+pub use lighting::{Lighting, lighting};
+pub use beauty::{Film, Grade, Halos, LightShafts, film, grade, halos, shafts};
 pub use mesh::MeshData;
+pub use organic::{FishDesc, FishMesh, Loft, Spline};
+pub use retro::{Layer, Retro, backdrop, mode7_anchor, retro};
+pub use rig::{HUMANOID, Humanoid, Part, classify, humanoid_map};
+pub use skin::{Joint, Skeleton, Swim, Wave, attach_offset, heading};
+pub use sky::{Atmosphere, Clouds, SkyDisc, SkyTexture, atmosphere, clouds, sky_disc, sky_texture};
+pub use water::{Ring, Splash, Water, ripple_height, water};
 
 use crate::ffi;
+use crate::motion::Follow;
 use crate::sys::Asset;
 
 fn handle(h: i32) -> Option<NonZeroU32> {
@@ -68,9 +91,18 @@ impl MeshData {
 pub struct Texture(NonZeroU32);
 
 impl Texture {
-    /// None until the asset is ready, or if it isn't a valid PNG/JPEG.
+    /// None until the asset is ready, if it isn't a valid PNG/JPEG (≤ 2048²),
+    /// or if it doesn't fit mb3d's 64 textures / 96 MB (the page then logs
+    /// `runtime: <asset> refused (−4): …` once, with the memory in use;
+    /// `mb.stats()` shows it too). [`Texture::try_new`] says which.
     pub fn new(asset: Asset) -> Option<Texture> {
-        handle(unsafe { ffi::mb3d_texture(asset.0) }).map(Texture)
+        Texture::try_new(asset).ok()
+    }
+    /// [`Texture::new`] with the host's error code (SPEC §7): −6 not ready
+    /// yet, −4 over the texture limits, −2 not a usable PNG/JPEG, −1 not an asset.
+    pub fn try_new(asset: Asset) -> Result<Texture, i32> {
+        let r = unsafe { ffi::mb3d_texture(asset.0) };
+        handle(r).map(Texture).ok_or(r)
     }
 }
 
@@ -93,7 +125,8 @@ pub struct MaterialDesc {
     pub metal_rough_tex: Option<Texture>,
     /// sRGB emissive texture, multiplied with `emissive`.
     pub emissive_tex: Option<Texture>,
-    /// [`Material::UNLIT`], [`Material::DOUBLE_SIDED`], [`Material::ALPHA`], [`Material::ADDITIVE`].
+    /// [`Material::UNLIT`], [`Material::DOUBLE_SIDED`], [`Material::ALPHA`], [`Material::ADDITIVE`],
+    /// [`Material::REFLECTIVE`] (mb3d 2).
     pub flags: u32,
     pub _reserved: u32,
 }
@@ -129,6 +162,14 @@ impl Material {
     pub const ALPHA: u32 = 4;
     /// Adds its light onto what's behind (glows, beams).
     pub const ADDITIVE: u32 = 8;
+    /// Mirrors the scene in the [`reflector`]'s plane (mb3d 2): water, wet
+    /// stone, polished floors. Put it on surfaces lying in that plane. The
+    /// reflection replaces the sky's in the material's shine, so it follows
+    /// the usual PBR rules: smooth (low `roughness`) dielectrics reflect
+    /// strongly at grazing angles and faintly straight down (Fresnel), metals
+    /// everywhere; rougher materials blur it. Without a reflector on, the
+    /// material shines with the sky as any other.
+    pub const REFLECTIVE: u32 = 16;
 
     pub fn new(desc: &MaterialDesc) -> Option<Material> {
         handle(unsafe { ffi::mb3d_material(ptr(desc)) }).map(Material)
@@ -157,6 +198,20 @@ impl Node {
     }
     pub fn raw(self) -> u32 {
         self.0.get()
+    }
+    /// Names this node (and what hangs under it) as what the player must be
+    /// able to see at a glance: the hero, the mech, the car. `mb shot
+    /// --readability` then measures whether it stands out from the scene
+    /// around it (outline contrast in greyscale, size, the HUD over it). Call
+    /// it when the subject spawns or changes; it does nothing in the game
+    /// (a `sys::mark("subject:<handle>")` the tools read).
+    /// ```no_run
+    /// # use maimbrain::gfx3d::Node;
+    /// let mech = Node::new().unwrap();
+    /// mech.mark_subject();
+    /// ```
+    pub fn mark_subject(self) {
+        crate::sys::mark(&format!("subject:{}", self.raw()));
     }
     /// Re-parents the node (None = the root). Its transform becomes relative to the parent.
     pub fn set_parent(self, parent: Option<Node>) {
@@ -192,9 +247,32 @@ impl Node {
 pub struct Model(NonZeroU32);
 
 impl Model {
-    /// None until the asset is ready, or if it's not a supported .glb.
+    /// The names of the model's nodes (mb3d 2), in glTF order, the ones
+    /// [`Node::find`] takes on a spawn of it: a generated model's meshes are
+    /// `<asset>/body`, `<asset>/body2`…; its bones are listed too. Log them
+    /// once (`sys::log`) to see what a model has. Empty off wasm.
+    pub fn node_names(self) -> Vec<String> {
+        let mut buf = vec![0u8; 4096];
+        let mut n = unsafe { ffi::mb3d_model_node_names(self.0.get(), buf.as_mut_ptr(), buf.len() as u32) };
+        if n as usize > buf.len() {
+            buf.resize(n as usize, 0);
+            n = unsafe { ffi::mb3d_model_node_names(self.0.get(), buf.as_mut_ptr(), buf.len() as u32) };
+        }
+        let s = String::from_utf8_lossy(&buf[..n.clamp(0, buf.len() as i32) as usize]).into_owned();
+        s.lines().filter(|l| !l.is_empty()).map(str::to_string).collect()
+    }
+    /// None until the asset is ready, if it's not a supported .glb, or if its
+    /// textures (or meshes, materials) don't fit mb3d's limits (a model
+    /// refused for texture memory is logged like [`Texture::new`]).
+    /// [`Model::try_load`] says which.
     pub fn load(asset: Asset) -> Option<Model> {
-        handle(unsafe { ffi::mb3d_gltf(asset.0) }).map(Model)
+        Model::try_load(asset).ok()
+    }
+    /// [`Model::load`] with the host's error code (SPEC §7): −6 not ready
+    /// yet, −4 over a limit, −7 an unsupported glTF feature, −2 not a .glb.
+    pub fn try_load(asset: Asset) -> Result<Model, i32> {
+        let r = unsafe { ffi::mb3d_gltf(asset.0) };
+        handle(r).map(Model).ok_or(r)
     }
     /// Instantiates the model under `parent`; returns its root node (move that).
     pub fn spawn(self, parent: Option<Node>) -> Option<Node> {
@@ -354,12 +432,17 @@ pub struct Post {
     pub chromatic_aberration: f32,
     pub saturation: f32,
     pub contrast: f32,
-    pub _reserved: f32,
+    /// Sharpens the final image, 0–1 (0, the default, is off; 0.3–0.5 is
+    /// mild): textures and edges come out crisper, without halos around
+    /// them. An unsharp mask on lightness, held within each pixel's
+    /// neighbours; 4 extra texture reads per pixel while it's on. Not with
+    /// the retro look, whose pixels are already hard.
+    pub sharpen: f32,
 }
 
 impl Default for Post {
     fn default() -> Post {
-        Post { exposure: 1.0, bloom_strength: 0.5, bloom_threshold: 1.0, vignette: 0.25, chromatic_aberration: 0.0, saturation: 1.0, contrast: 1.0, _reserved: 0.0 }
+        Post { exposure: 1.0, bloom_strength: 0.5, bloom_threshold: 1.0, vignette: 0.25, chromatic_aberration: 0.0, saturation: 1.0, contrast: 1.0, sharpen: 0.0 }
     }
 }
 
@@ -528,12 +611,87 @@ impl Material {
     pub fn set_style(self, style: &MaterialStyle) -> bool {
         unsafe { ffi::mb3d_material_style(self.0.get(), ptr(style)) == 0 }
     }
+    /// What the material is now (mb3d 2): colors, factors, maps and flags, as
+    /// [`Material::new`] took them (a loaded model's come from its glTF). None
+    /// for a freed handle, and off wasm.
+    pub fn get(self) -> Option<MaterialDesc> {
+        let mut d = MaterialDesc::default();
+        (unsafe { ffi::mb3d_material_get(self.0.get(), (&mut d as *mut MaterialDesc).cast()) } == 0).then_some(d)
+    }
+    /// Multiplies its base color by `rgb` (linear), keeping its maps: a
+    /// generated model that came out too dark or the wrong hue, without
+    /// regenerating it (`[1.6, 1.4, 1.2]` lightens and warms). Each call
+    /// multiplies the current color; to animate a tint, keep [`Material::get`]'s
+    /// first answer and [`Material::set`] from it.
+    pub fn tint(self, rgb: [f32; 3]) -> bool {
+        let Some(mut d) = self.get() else { return false };
+        for (c, k) in d.base_color.iter_mut().zip(rgb) {
+            *c *= k.max(0.0);
+        }
+        self.set(&d);
+        true
+    }
+    /// Makes it glow with `k` of its own colors, maps kept: its emissive
+    /// becomes its base color and color map × `k`, so it reads on a dark
+    /// screen (0.2–0.5; past ~1 it blooms). A material with an emissive map of
+    /// its own keeps it and has its strength × (1 + k). Replaces the emissive
+    /// rather than adding: calling it again with another `k` sets that.
+    pub fn brighten(self, k: f32) -> bool {
+        let Some(mut d) = self.get() else { return false };
+        let k = k.max(0.0);
+        if d.emissive_tex.is_some() && d.emissive_tex != d.base_tex {
+            d.emissive_strength *= 1.0 + k;
+        } else {
+            d.emissive_tex = d.base_tex;
+            d.emissive = [d.base_color[0], d.base_color[1], d.base_color[2]];
+            d.emissive_strength = k;
+        }
+        self.set(&d);
+        true
+    }
+}
+
+impl Model {
+    /// The materials this model draws with (mb3d 2), shared by every node
+    /// spawned from it: its glTF materials in order, then the default one.
+    pub fn materials(self) -> Vec<Material> {
+        let mut out = [0u32; 1024];
+        let n = unsafe { ffi::mb3d_model_materials(self.0.get(), out.as_mut_ptr().cast(), out.len() as u32) };
+        out.iter().take(n.max(0) as usize).filter_map(|&h| NonZeroU32::new(h)).map(Material).collect()
+    }
+    /// [`Material::tint`] on every material of the model (every spawn of it changes).
+    pub fn tint(self, rgb: [f32; 3]) {
+        for m in self.materials() {
+            m.tint(rgb);
+        }
+    }
+    /// [`Material::brighten`] on every material of the model (every spawn of it changes).
+    pub fn brighten(self, k: f32) {
+        for m in self.materials() {
+            m.brighten(k);
+        }
+    }
 }
 
 impl Texture {
     /// Frees the texture (mb3d 2). Materials sampling it sample white instead.
     pub fn free(self) -> bool {
         free(3, self.0)
+    }
+
+    /// Samples this texture nearest-neighbour, from its full-size image with
+    /// no mipmaps (mb3d 2): every texel a crisp square, for pixel art. Every
+    /// material using it switches. Returns the texture, so
+    /// `Texture::new(asset).map(Texture::nearest)` reads naturally.
+    pub fn nearest(self) -> Texture {
+        unsafe { ffi::mb3d_texture_filter(3, self.0.get(), 1) };
+        self
+    }
+
+    /// Back to smooth (mipmapped, filtered) sampling, the default.
+    pub fn smooth(self) -> Texture {
+        unsafe { ffi::mb3d_texture_filter(3, self.0.get(), 0) };
+        self
     }
 }
 
@@ -552,7 +710,16 @@ impl Trail {
 }
 
 impl Model {
+    /// Samples every texture of this glTF model nearest-neighbour with no
+    /// mipmaps (mb3d 2; [`Texture::nearest`]): pixel-art textures on a
+    /// generated or hand-made model stay crisp. Call it once after `load`.
+    pub fn pixelated(self) -> Model {
+        unsafe { ffi::mb3d_texture_filter(6, self.0.get(), 1) };
+        self
+    }
+
     /// Frees the model with its meshes, materials and textures (mb3d 2).
+
     /// Destroy its spawned instances first: they stop drawing and animating.
     pub fn free(self) -> bool {
         free(6, self.0)
@@ -651,6 +818,43 @@ impl Node {
     pub fn clear_text(self) {
         self.set_text(&TextDesc::default(), "");
     }
+    /// Fades the node out with distance instead of popping (mb3d 2): drawn
+    /// whole nearer than `start` meters from the camera, dissolved with a
+    /// stable dither between `start` and `end` (blended materials fade their
+    /// alpha), and not drawn, cast or reflected at all beyond `end`. Applies
+    /// to the node's descendants too unless they set their own: set it on a
+    /// spawned model's root to fade the whole model. A mesh fades as one by
+    /// its center; an instanced node's instances each fade by their own
+    /// distance (a long row of houses fades house by house). Put `end`
+    /// inside the fog and fade over a band (`start` well short of `end`).
+    pub fn set_fade(self, start: f32, end: f32) {
+        unsafe { ffi::mb3d_node_fade(self.0.get(), start, end) }
+    }
+    /// Back to its parent's fade, else the scene's [`draw_distance`].
+    pub fn clear_fade(self) {
+        unsafe { ffi::mb3d_node_fade(self.0.get(), 0.0, 0.0) }
+    }
+    /// Never fades or is culled by distance, whatever the scene's
+    /// [`draw_distance`] or its parent's fade (the player, a landmark).
+    pub fn never_fade(self) {
+        unsafe { ffi::mb3d_node_fade(self.0.get(), 0.0, f32::INFINITY) }
+    }
+}
+
+/// The scene's default distance fade (mb3d 2), off until called: every node
+/// without its own [`Node::set_fade`] (nor a parent's) dissolves between
+/// `start` and `end` meters from the camera and isn't drawn beyond, except
+/// big ones (more than a quarter of `end` in radius, or one instance's: the
+/// ground, terrain, water) which always draw. Tie it to the fog with
+/// [`Fog::draw_distance`] so things come out of the mist instead of popping
+/// in. `end` ≤ 0 turns it off.
+pub fn draw_distance(start: f32, end: f32) {
+    unsafe { ffi::mb3d_draw_distance(start, end) }
+}
+
+/// Turns the scene's [`draw_distance`] off.
+pub fn clear_draw_distance() {
+    draw_distance(0.0, 0.0)
 }
 
 /// How fog thickens with distance.
@@ -693,6 +897,26 @@ impl Default for Fog {
     }
 }
 
+impl Fog {
+    /// A [`draw_distance`] inside this fog (None when it's off): things
+    /// fade out from where the fog is 85% thick to where it's about solid
+    /// (98%, or linear fog's `end`), so they come out of the mist instead
+    /// of popping in. Measured at `height`: with `height_falloff`, things
+    /// high above it are seen further, so give those their own fade.
+    /// `if let Some((s, e)) = fog.draw_distance() { gfx3d::draw_distance(s, e) }`.
+    pub fn draw_distance(&self) -> Option<(f32, f32)> {
+        // −ln(1 − f) for f = 0.85 and 0.98.
+        const THICK: f32 = 1.89712;
+        const SOLID: f32 = 3.912023;
+        match self.mode {
+            FogMode::Off => None,
+            FogMode::Linear => (self.end > 0.0).then(|| (self.start + 0.85 * (self.end - self.start).max(0.0), self.end)),
+            FogMode::Exponential => (self.density > 0.0).then(|| (THICK / self.density, SOLID / self.density)),
+            FogMode::ExponentialSquared => (self.density > 0.0).then(|| (THICK.sqrt() / self.density, SOLID.sqrt() / self.density)),
+        }
+    }
+}
+
 pub fn fog(f: &Fog) {
     unsafe { ffi::mb3d_fog(ptr(f)) }
 }
@@ -709,7 +933,7 @@ pub struct MaterialStyle {
     pub toon_bands: u32,
     /// 0–1: a bright edge on silhouettes, lit by the sun.
     pub rim: f32,
-    /// [`MaterialStyle::NO_FOG`].
+    /// [`MaterialStyle::NO_FOG`], [`MaterialStyle::NO_REFLECTION`].
     pub flags: u32,
     pub _reserved: u32,
 }
@@ -717,6 +941,9 @@ pub struct MaterialStyle {
 impl MaterialStyle {
     /// Fog doesn't touch this material (signs, the player).
     pub const NO_FOG: u32 = 1;
+    /// Not drawn in the [`reflector`]'s reflection (saves a draw there for
+    /// things the water never shows, or that shouldn't be mirrored).
+    pub const NO_REFLECTION: u32 = 2;
 }
 
 impl Default for MaterialStyle {
@@ -833,6 +1060,123 @@ pub fn speed_blur(s: &SpeedBlur) {
     unsafe { ffi::mb3d_speed(ptr(s)) }
 }
 
+/// The reflector (48 bytes, mb3d 2): one horizontal mirror plane at
+/// `height`. Each frame the host draws the scene seen in it, at reduced
+/// resolution, and materials with [`Material::REFLECTIVE`] show that
+/// reflection where they are on screen, rippled, blurred by their roughness
+/// and fogged like everything else. `Reflector::default()` (strength 0) is
+/// off. One reflector at a time: the last call wins.
+///
+/// ```ignore
+/// let water = Material::new(&MaterialDesc { base_color: [0.01, 0.015, 0.02, 1.0], roughness: 0.08,
+///     flags: Material::REFLECTIVE, ..Default::default() }).unwrap();
+/// Node::with_mesh(MeshData::plane(6.0, 200.0).upload().unwrap(), water);
+/// gfx3d::reflector(&Reflector::water(0.0));
+/// ```
+///
+/// Cost: a second, smaller pass over what's above the plane and within
+/// `max_distance` (one more draw per reflected mesh, at `resolution` × the
+/// scene's resolution, scissored to where reflective surfaces are on
+/// screen), skipped entirely in frames with no reflective surface on screen.
+/// Shadows, outlines, 3D text, particles and trails aren't reflected; give
+/// things the water can't show [`MaterialStyle::NO_REFLECTION`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct Reflector {
+    /// The plane's y (meters): the water's surface.
+    pub height: f32,
+    /// 0–1: how much reflective materials take the reflection over the sky's (0 = off).
+    pub strength: f32,
+    /// The reflection's resolution as a fraction of the scene's, 0.25–1 (0 = 0.5).
+    pub resolution: f32,
+    /// 0–1: extra blur on top of each material's roughness (soft, hazy reflections).
+    pub blur: f32,
+    /// Things farther than this from the camera aren't reflected (meters; 0 = no limit).
+    /// Set it to about where the fog hides things.
+    pub max_distance: f32,
+    /// A tiling normal map for the ripples (0 / None = procedural ripples).
+    pub ripple_tex: Option<Texture>,
+    /// Meters per ripple tile (0 = 4); larger is broader swell.
+    pub ripple_scale: f32,
+    /// How fast the ripples drift, m/s.
+    pub ripple_speed: f32,
+    /// 0–1: how much the ripples tilt the surface (highlights and reflection wobble). 0 = a flat mirror.
+    pub ripple: f32,
+    /// 0–1: how far the ripples shift the reflection.
+    pub distortion: f32,
+    pub _reserved: [u32; 2],
+}
+
+impl Reflector {
+    /// Gently rippling water at `height`: full strength, half resolution, a little blur.
+    pub fn water(height: f32) -> Reflector {
+        Reflector { height, strength: 1.0, blur: 0.15, ripple: 0.35, distortion: 0.4, ripple_scale: 3.0, ripple_speed: 0.5, ..Default::default() }
+    }
+    /// A still mirror at `height` (a polished floor, a calm pond).
+    pub fn mirror(height: f32) -> Reflector {
+        Reflector { height, strength: 1.0, ..Default::default() }
+    }
+}
+
+impl Default for Reflector {
+    fn default() -> Reflector {
+        Reflector {
+            height: 0.0,
+            strength: 0.0,
+            resolution: 0.5,
+            blur: 0.0,
+            max_distance: 0.0,
+            ripple_tex: None,
+            ripple_scale: 4.0,
+            ripple_speed: 0.0,
+            ripple: 0.0,
+            distortion: 0.0,
+            _reserved: [0; 2],
+        }
+    }
+}
+
+/// Sets the reflector until changed (mb3d 2); `&Reflector::default()` turns it off.
+pub fn reflector(r: &Reflector) {
+    unsafe { ffi::mb3d_reflector(ptr(r)) }
+}
+
+/// A ring of ripples spreading over the reflector's water from `at` (its x
+/// and z; the rings lie on the reflector's plane), mb3d 2: something landing
+/// in the water, surfacing, a raindrop, a dropped lantern. A packet of about
+/// three crests leaves at `speed` m/s (their spacing is `speed` × 0.35 s) and
+/// fades over `seconds` as it spreads. `strength` 0–1 is how steep the
+/// crests start (≥ 0.5 breaks them white near the middle). Shown by
+/// [`Material::REFLECTIVE`] materials while the reflector is on: the ripples
+/// tilt highlights, shift the reflection by the reflector's `distortion` and
+/// foam on steep crests. 16 at once; the oldest gives way.
+///
+/// ```ignore
+/// gfx3d::ripple(splash_at, 0.9, 1.6, 2.5);   // a koi landing: a fast, strong ring
+/// gfx3d::ripple(splash_at, 0.5, 0.8, 3.0);   // and a slower one inside it
+/// ```
+pub fn ripple(at: Vec3, strength: f32, speed: f32, seconds: f32) {
+    unsafe { ffi::mb3d_ripple(at.x, at.z, strength, speed, seconds) }
+}
+
+/// Moves wake `index` (0–3, mb3d 2): a V of waves trailing behind something
+/// moving on the reflector's water, a bow wave wrapping its front and
+/// churned foam along its track. Call it every frame with the thing's
+/// position (x, z) and velocity (x, z), its `size` across in meters, and
+/// `strength` 0–1; the waves grow with speed. The host keeps the last ~2.2 s
+/// of its path, so the wake curves where the thing turned. Set `strength` to
+/// 0 (a leap, a dive, stopping) and what it made fades where it is; a move of
+/// more than 2 m in one call starts a fresh wake. Returns false for an index
+/// past 3.
+///
+/// ```ignore
+/// let surfaced = koi.y > -0.1 && koi.y < 0.15;
+/// gfx3d::wake(0, koi.pos, koi.vel, 0.3, if surfaced { 0.8 } else { 0.0 });
+/// ```
+pub fn wake(index: u32, pos: Vec3, velocity: Vec3, size: f32, strength: f32) -> bool {
+    unsafe { ffi::mb3d_wake(index, pos.x, pos.z, velocity.x, velocity.z, size, strength) == 0 }
+}
+
 /// A camera orbiting a target: yaw around +y, pitch up from the horizon.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct OrbitCamera {
@@ -852,6 +1196,10 @@ impl OrbitCamera {
 }
 
 /// A camera that eases toward a moving point while looking at another.
+/// First order; prefer [`SpringCamera`]. Its easing is a `lerp` by
+/// `1 − e^(−stiffness·dt)`, so its speed jumps whenever what it follows jumps
+/// or turns, and a lane change or a turn shows as a kink. It stays as it is for
+/// the games built on it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FollowCamera {
     pub pos: Vec3,
@@ -870,9 +1218,89 @@ impl FollowCamera {
     }
 }
 
+/// A chase camera on critically damped springs ([`Follow`]): it moves toward
+/// one point while looking at another, and its velocity stays continuous
+/// whatever they do, so a target that jumps (a lane that snaps) gives a smooth
+/// start, a turn gives a curve, and 60 and 120 Hz trace the same path. Use it
+/// for any camera that follows something.
+///
+/// `halflife` is the seconds both springs take to close half the gap to a
+/// target that jumped: 0.1 tight, 0.15 a chase camera, 0.3 lazy. Set
+/// `cam.look.halflife` on its own to aim faster than the camera moves. A
+/// target moving at speed v is trailed by `cam.pos.lag(v)`: add that to where
+/// you want it if it must sit exactly there.
+/// ```
+/// use maimbrain::gfx3d::{SpringCamera, vec3};
+/// let mut cam = SpringCamera::new(vec3(0.0, 4.0, 6.0), vec3(0.0, 1.0, -15.0), 0.15, 1.1);
+/// // In update: the player changed lane, from x = 0 to x = 2, in one frame.
+/// let player_x = 2.0;
+/// let c = cam.update(vec3(player_x, 4.0, 6.0), vec3(player_x, 1.0, -15.0), 1.0 / 60.0);
+/// assert!(c.pos.x > 0.0 && c.pos.x < 0.05, "it starts moving gently");
+/// // In render: gfx3d::camera(&cam.camera());
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct SpringCamera {
+    pub pos: Follow<Vec3>,
+    pub look: Follow<Vec3>,
+    pub fov_y: f32,
+}
+
+impl SpringCamera {
+    /// At rest at `pos`, looking at `look`.
+    pub fn new(pos: Vec3, look: Vec3, halflife: f32, fov_y: f32) -> SpringCamera {
+        SpringCamera { pos: Follow::new(pos, halflife), look: Follow::new(look, halflife), fov_y }
+    }
+
+    /// Moves `dt` seconds toward `want_pos` while turning toward `want_look`
+    /// (where they are now); returns the camera to pass to [`camera`].
+    pub fn update(&mut self, want_pos: Vec3, want_look: Vec3, dt: f32) -> Camera {
+        self.pos.update(want_pos, dt);
+        self.look.update(want_look, dt);
+        self.camera()
+    }
+
+    /// The camera where it is now.
+    pub fn camera(&self) -> Camera {
+        Camera { pos: self.pos.value, rot: look_at(self.pos.value, self.look.value, Vec3::Y), fov_y: self.fov_y, ..Default::default() }
+    }
+
+    /// Cuts to `pos` looking at `look`, at rest (title → play, a respawn).
+    pub fn snap(&mut self, pos: Vec3, look: Vec3) {
+        self.pos.snap(pos);
+        self.look.snap(look);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_draw_distance_sits_inside_the_fog() {
+        assert_eq!(Fog::default().draw_distance(), None, "no fog, no default draw distance");
+        let lin = Fog { mode: FogMode::Linear, start: 10.0, end: 60.0, ..Default::default() };
+        assert_eq!(lin.draw_distance(), Some((52.5, 60.0)));
+        let exp = Fog { mode: FogMode::Exponential, density: 0.035, ..Default::default() };
+        let (s, e) = exp.draw_distance().unwrap();
+        let thick = |d: f32| 1.0 - (-0.035 * d).exp();
+        assert!((thick(s) - 0.85).abs() < 1e-3 && (thick(e) - 0.98).abs() < 1e-3, "{s} {e}");
+        let sq = Fog { mode: FogMode::ExponentialSquared, density: 0.02, ..Default::default() };
+        let (s, e) = sq.draw_distance().unwrap();
+        let thick = |d: f32| 1.0 - (-(0.02 * d) * (0.02 * d)).exp();
+        assert!((thick(s) - 0.85).abs() < 1e-3 && (thick(e) - 0.98).abs() < 1e-3, "{s} {e}");
+        assert!(s < e);
+    }
+
+    #[test]
+    fn fades_are_calls_a_game_can_make_off_wasm() {
+        // Off wasm the imports are no-op stubs: game code using fades runs in `cargo test`.
+        let n = Node::new().expect("stub handle 1");
+        n.set_fade(20.0, 50.0);
+        n.never_fade();
+        n.clear_fade();
+        draw_distance(40.0, 60.0);
+        clear_draw_distance();
+    }
 
     #[test]
     fn packed_struct_sizes_match_the_spec() {
@@ -892,6 +1320,7 @@ mod tests {
         assert_eq!(size_of::<MaterialStyle>(), 32);
         assert_eq!(size_of::<TextDesc>(), 64);
         assert_eq!(size_of::<DepthOfField>(), 16);
+        assert_eq!(size_of::<Reflector>(), 48);
     }
 
     #[test]
@@ -923,6 +1352,15 @@ mod tests {
         gold.set_style(&MaterialStyle { outline_width: 2.0, toon_bands: 3, rim: 0.4, ..Default::default() });
         fog(&Fog { mode: FogMode::Exponential, color: srgb(0x8fa7b8), density: 0.035, height_falloff: 0.3, ..Default::default() });
         depth_of_field(&DepthOfField { focus: 6.0, range: 2.0, blur: 6.0, near: 0.5 });
+        let water = Material::new(&MaterialDesc { base_color: [0.01, 0.015, 0.02, 1.0], roughness: 0.08, flags: Material::REFLECTIVE, ..Default::default() }).unwrap();
+        Node::with_mesh(MeshData::plane(6.0, 200.0).upload().unwrap(), water);
+        reflector(&Reflector { max_distance: 60.0, ..Reflector::water(0.0) });
+        let (koi_pos, koi_vel, swimming) = (vec3(0.5, 0.06, -6.0), vec3(0.0, 0.0, -4.5), true);
+        assert!(wake(0, koi_pos, koi_vel, 0.3, if swimming { 0.7 } else { 0.0 }));
+        ripple(koi_pos, 0.9, 1.6, 2.5);
+        let ring = Ring { center: koi_pos, strength: 0.9, speed: 1.6, seconds: 2.5 };
+        ring.start();
+        assert!(ring.height(koi_pos + vec3(1.0, 0.0, 0.0), 0.5).abs() < 0.1);
         let label = Node::new().unwrap();
         label.set_text(&TextDesc::new(crate::gfx2d::Font::SansBold, 0.4).billboard().with_outline([0.0, 0.0, 0.0, 1.0], 0.06), "+10");
         coin.free();
@@ -969,5 +1407,38 @@ mod tests {
         let c = OrbitCamera { target: vec3(1.0, 0.0, 0.0), distance: 5.0, yaw: 0.3, pitch: 0.4, fov_y: 1.0 }.camera();
         assert!((c.pos.distance(vec3(1.0, 0.0, 0.0)) - 5.0).abs() < 1e-4);
         assert!((c.rot.forward() - (vec3(1.0, 0.0, 0.0) - c.pos).normalize()).length() < 1e-4);
+    }
+
+    /// A lane change that snaps: the spring camera's velocity stays
+    /// continuous (no step on the first frame) and it gets there; the
+    /// first-order FollowCamera starts at full speed. Following a curve, 60
+    /// and 120 Hz trace the same path.
+    #[test]
+    fn spring_camera_starts_gently_and_is_rate_independent() {
+        let (pos, look) = (vec3(0.0, 4.0, 6.0), vec3(0.0, 1.0, -15.0));
+        let lane = vec3(2.0, 0.0, 0.0);
+        let mut cam = SpringCamera::new(pos, look, 0.15, 1.1);
+        let mut xs = vec![cam.camera().pos.x];
+        for _ in 0..60 {
+            xs.push(cam.update(pos + lane, look + lane, 1.0 / 60.0).pos.x);
+        }
+        let mut old = FollowCamera { pos, look, stiffness: 4.6, fov_y: 1.1 };
+        let old_speed = old.update(pos + lane, look + lane, 1.0 / 60.0).pos.x * 60.0;
+        let first_speed = (xs[1] - xs[0]) * 60.0;
+        assert!(first_speed < 0.1 * old_speed, "{first_speed} vs {old_speed}");
+        assert!((xs[60] - 2.0).abs() < 0.01, "{}", xs[60]);
+
+        let run = |hz: usize| {
+            let mut cam = SpringCamera::new(pos, look, 0.15, 1.1);
+            (1..=hz).map(|i| {
+                let side = vec3((6.0 * i as f32 / hz as f32).sin() * 2.0, 0.0, -10.0 * i as f32 / hz as f32);
+                cam.update(pos + side, look + side, 1.0 / hz as f32)
+            }).collect::<Vec<_>>()
+        };
+        let (a, b) = (run(60), run(120));
+        for i in 0..60 {
+            assert!(a[i].pos.distance(b[2 * i + 1].pos) < 5e-3, "frame {i}: {:?} vs {:?}", a[i].pos, b[2 * i + 1].pos);
+        }
+        assert_eq!(SpringCamera::new(pos, look, 0.15, 1.1).camera(), Camera { fov_y: 1.1, ..Camera::looking_at(pos, look) });
     }
 }

@@ -1,0 +1,45 @@
+# The cast's voices (mb voice design / pick). Designed from descriptions, not cloned.
+
+[granny]
+description = "A grumpy cartoon grandma mech pilot, about eighty: creaky, high and nasal, a thick Brooklyn accent, sharp-tongued and impatient, cackles when she wins. Fast and feisty."
+provider = "elevenlabs"
+voice_id = "0xfeQWDUrxAdTk1cqSyR"
+picked = 1
+design_model = "eleven_ttv_v3"
+seed = 12
+sample_text = "Alright, alright, settle down already! What's with all the fuss? [exhales sharply] You kids these days, always so impatient. Back in my day, we knew how to wait our turn. Now, let's get this bucket of bolts moving. And don't you dare scratch the paint, or you'll be hearing from me! [cackles] That's right, Grandma's still got it!"
+date = "2026-10-10T01:32:14Z"
+
+[[granny.previews]]
+id = "0xfeQWDUrxAdTk1cqSyR"
+file = "art/voices/granny/preview_1.ogg"
+
+[[granny.previews]]
+id = "yKKJxA8VB8gmD8Ra6mZi"
+file = "art/voices/granny/preview_2.ogg"
+
+[[granny.previews]]
+id = "0fI74tqctXnTP4HE9ijt"
+file = "art/voices/granny/preview_3.ogg"
+
+[rocko]
+description = "A smug rock-star mech pilot in his thirties: raspy, swaggering, a lazy American drawl that turns into a showman's yell, full of himself, always grinning. Cartoonish and over the top."
+provider = "elevenlabs"
+voice_id = "QXuuxXQVjYqzo0FzWn7B"
+picked = 2
+design_model = "eleven_ttv_v3"
+seed = 11
+sample_text = "Alright, alright, settle down folks! [chuckles] Your main man is here! Heard you were lookin' for a little… *excitement*? Well, you found it. This old mech? She’s a beauty, just like me. We’re about to put on a show that’ll blow your circuits. So, strap in, buttercups, ‘cause this ain’t your grandma’s bingo night! [yells] Let's rock and roll!"
+date = "2026-10-10T01:31:24Z"
+
+[[rocko.previews]]
+id = "6BG9FsuHXhshWplq8lxf"
+file = "art/voices/rocko/preview_1.ogg"
+
+[[rocko.previews]]
+id = "QXuuxXQVjYqzo0FzWn7B"
+file = "art/voices/rocko/preview_2.ogg"
+
+[[rocko.previews]]
+id = "r51sNjLkFBTpuKfd2CT6"
+file = "art/voices/rocko/preview_3.ogg"

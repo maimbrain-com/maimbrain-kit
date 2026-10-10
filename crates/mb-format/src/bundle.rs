@@ -43,6 +43,9 @@ pub struct Report {
     pub compressed_size: u64,
     pub wasm_size: u64,
     pub startup_size: u64,
+    /// The Maimbrain SDK version the game was built with, if it used the SDK
+    /// (game.wasm's `maimbrain-sdk` section, SPEC §3).
+    pub sdk_version: Option<String>,
 }
 
 impl Report {
@@ -107,7 +110,10 @@ fn inspect(bytes: &[u8]) -> (Report, Option<BTreeMap<String, Vec<u8>>>) {
         }
     };
     if zip.len() > MAX_FILES {
-        r.errors.push(format!("bundle has {} entries; the limit is {MAX_FILES}", zip.len()));
+        r.errors.push(format!(
+            "bundle has {} entries; the limit is {MAX_FILES} (every file is one: `mb build` leaves provenance sidecars out, packs lip timings into one file per character and says what the rest are)",
+            zip.len()
+        ));
         return (r, None);
     }
 
@@ -212,6 +218,7 @@ fn inspect(bytes: &[u8]) -> (Report, Option<BTreeMap<String, Vec<u8>>>) {
                 r.warnings.push(format!("game.wasm is {} KiB; it SHOULD be under 1 MiB", r.wasm_size / 1024));
             }
             crate::wasm::check(wasm, &m, &mut r.errors);
+            r.sdk_version = crate::wasm::sdk_version(wasm);
         }
     }
     let ok = r.errors.is_empty();
@@ -266,7 +273,7 @@ fn check_fonts(files: &BTreeMap<String, Vec<u8>>, r: &mut Report) {
 
 /// Structural checks on a binary glTF (SPEC §1): header, declared length,
 /// and chunk bounds. The host parses the rest at load time.
-fn check_glb(b: &[u8]) -> Result<(), String> {
+pub fn check_glb(b: &[u8]) -> Result<(), String> {
     if b.len() > MAX_GLB {
         return Err(format!("{} bytes; a .glb may be at most {MAX_GLB}", b.len()));
     }

@@ -1,0 +1,20 @@
+abi = 0
+id = "dev.maimbrain.mistwood"
+name = "Mistwood"
+version = "0.1.0"
+creator = "@maimbrain"
+
+orientation = "portrait"
+logical_size = [360, 640]
+inputs = ["touch"]
+perf_tier = "full"
+
+stdlib = { mb3d = 2, mb2d = 1 }
+capabilities = ["store", "score"]
+startup_assets = ["assets/fox.glb"]
+
+[[scores]]
+board = 0
+label = "Distance"
+order = "higher"
+format = "integer"

@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.7.0-dev voice",
+  "date": "2026-10-10T02:04:01Z",
+  "provider": "elevenlabs",
+  "model": "eleven_v4",
+  "prompt": "Ladies and gentlemen, put your hands together for the one, the only... me!",
+  "full_prompt": "[smug] Ladies and gentlemen, put your hands together for the one, the only... me!",
+  "seed": 976074657,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "7d7fac5d65970e00533ba62436e6630d4060c2aa34ab676c261cc0c567d42150"
+  },
+  "est_cost_usd": 0.0064800000000000005,
+  "cost_usd": 0.0064800000000000005,
+  "raw": "art/raw/vo/rocko/intro.pcm",
+  "raw_sha256": "cf0a4a698dee970bf8fef85d0b7e0089893b982ffec05431511d570a122757b0",
+  "output_sha256": "1c4153be69c982a7a631d9970bd642a7b1728927bb0fe7fe2f24fb7fde7bb7ae",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "rocko",
+    "delivery": "natural",
+    "emotion": "smug",
+    "kind": "voice",
+    "line": "intro",
+    "model": "eleven_v4",
+    "out": "assets/vo/rocko/intro.ogg",
+    "provider": "elevenlabs",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 976074657,
+    "speed": null,
+    "style": null,
+    "text": "Ladies and gentlemen, put your hands together for the one, the only... me!",
+    "voice_id": "QXuuxXQVjYqzo0FzWn7B"
+  },
+  "result": {
+    "key": "365553735570f461",
+    "lips": "assets/vo/rocko/intro.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -16.56744956970215,
+    "peak_db": -2.6684346199035645,
+    "phone_loss_db": -0.0,
+    "seconds": 5.644784450531006,
+    "subtitle": "Ladies and gentlemen, put your hands together for the one, the only... me!",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Generated with ElevenLabs from a voice designed for this game (not a clone); check your plan's license terms."
+}

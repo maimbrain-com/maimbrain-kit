@@ -1,5 +1,5 @@
 """Chiptune-flavoured sound design -> mono Ogg Vorbis. Python stdlib plus
-`oggenc` (brew install vorbis-tools).
+`mb ogg` (or oggenc/oggdec from vorbis-tools, with an older mb).
 
 Effects:
 
@@ -45,7 +45,11 @@ saved passes check_audio's clip check. Very peaky sounds (a sharp hit with a
 long reverb tail) therefore come out below the loudness target; `drive()`
 before saving makes them denser and louder if they need it.
 
-Self-test (needs oggenc and oggdec): python3 sfx.py --self-test
+Foley packs: `python3 sfx.py --pack mech games/g/assets [prefix]` writes a
+mech's stomp, servo (loop), thruster (loop), hiss, impact and tear as
+`mech_<sound>.ogg` (or `<prefix><sound>.ogg`), for `maimbrain::foley`.
+
+Self-test: python3 sfx.py --self-test
 """
 
 from __future__ import annotations
@@ -483,7 +487,7 @@ def save_stems(stems: dict[str, list[float]], paths: dict[str, str], loop: bool 
 
 
 def save_ogg(path: str, samples: list[float], loop: bool = False, kind: str = "sfx", quality: int = 5) -> None:
-    """Normalizes (see `normalize`), writes a WAV and encodes it with oggenc.
+    """Normalizes (see `normalize`), writes a WAV and encodes it to Ogg.
 
     loop=True: for `play_looped`. Render loops with Song.render(loop=True)
     (and reverb/echo with loop=True) so the tail is already folded onto the
@@ -492,8 +496,6 @@ def save_ogg(path: str, samples: list[float], loop: bool = False, kind: str = "s
 
 
 def _encode(path: str, s: list[float], loop: bool, quality: int) -> None:
-    if not shutil.which("oggenc"):
-        raise SystemExit("oggenc not found: brew install vorbis-tools")
     if max((abs(v) for v in s), default=0.0) < 1e-4:
         raise ValueError(f"{path}: the sound is silent; check the instrument and notes")
     s = list(s)
@@ -507,26 +509,151 @@ def _encode(path: str, s: list[float], loop: bool, quality: int) -> None:
         w = os.path.join(d, "s.wav")
         for _ in range(4):
             save_wav(w, s)
-            subprocess.run(["oggenc", "-Q", "-q", str(quality), "-o", path, w], check=True)
+            _ogg(w, path, quality)
             # Vorbis can overshoot the source's peaks: check what a player will decode.
             peak = _decoded_peak(path, d)
-            if peak is None or peak <= limit:
+            if peak <= limit:
                 return
             s = [v * limit / peak * 0.97 for v in s]
         raise RuntimeError(f"{path}: decoded peak still above {DECODED_MAX_DB} dBFS")
 
 
-def _decoded_peak(path: str, tmp: str) -> float | None:
-    """Peak of the decoded file (None, with a warning, without oggdec)."""
-    if not shutil.which("oggdec"):
-        print("warning: oggdec not found (brew install vorbis-tools); can't verify the encoded peak")
-        return None
+def _decoded_peak(path: str, tmp: str) -> float:
+    """Peak of the decoded file."""
     out = os.path.join(tmp, "check.wav")
-    subprocess.run(["oggdec", "-Q", "-o", out, path], check=True)
+    _ogg(path, out)
     with wave.open(out) as r:
         n, ch = r.getnframes(), r.getnchannels()
         data = struct.unpack(f"<{n * ch}h", r.readframes(n))
     return max((abs(v) for v in data), default=0) / 32768
+
+
+_MB = None  # the mb that has `mb ogg` ("" if there isn't one), found on first use
+
+
+def _ogg(src: str, dst: str, quality: float = 5) -> None:
+    """WAV -> mono Ogg Vorbis (dst ends in .ogg) or Ogg -> 16-bit WAV, with
+    `mb ogg` (built into mb, on every OS) or else vorbis-tools' oggenc/oggdec."""
+    global _MB
+    if _MB is None:
+        mb = shutil.which("mb")
+        _MB = mb if mb and subprocess.run([mb, "ogg", "--help"], capture_output=True).returncode == 0 else ""
+    enc = dst.lower().endswith(".ogg")
+    if _MB:
+        cmd = [_MB, "ogg", "-Q", "-q", str(quality), src, dst]
+    elif shutil.which("oggenc" if enc else "oggdec"):
+        cmd = ["oggenc", "-Q", "-q", str(quality), "-o", dst, src] if enc else ["oggdec", "-Q", "-o", dst, src]
+    else:
+        raise SystemExit("no Ogg Vorbis tool: update mb, which has `mb ogg` built in "
+                         "(curl -fsSL https://maimbrain.com/install.sh | sh; on Windows irm https://maimbrain.com/install.ps1 | iex)")
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"{' '.join(cmd)}: {r.stderr.strip()}")
+
+
+# --- foley packs ----------------------------------------------------------------
+
+def loopify(x: list[float], xfade=0.15) -> list[float]:
+    """A seamless loop from a rendered stretch: its last `xfade` seconds fade
+    (equal power) into its start, and are cut off, so the file wraps cleanly."""
+    n = int(xfade * RATE)
+    if len(x) < 3 * n:
+        return list(x)
+    body, tail = list(x[:-n]), x[-n:]
+    for i in range(n):
+        a = i / n
+        body[i] = body[i] * math.sin(a * math.pi / 2) + tail[i] * math.cos(a * math.pi / 2)
+    return body
+
+
+def _env(n: int, attack: float, decay: float) -> list[float]:
+    a = max(1, int(attack * RATE))
+    return [min(1.0, i / a) * math.exp(-max(0, i - a) / (decay * RATE)) for i in range(n)]
+
+
+def _partials(freqs, dur: float, decay: float, seed: int = 1) -> list[float]:
+    """Inharmonic struck metal: sine partials, higher ones dying faster."""
+    rng = random.Random(seed)
+    n = int(dur * RATE)
+    out = [0.0] * n
+    for k, f in enumerate(freqs):
+        ph, amp, dk = rng.random() * TAU, 1.0 / (1 + 0.6 * k), decay / (1 + 0.5 * k)
+        for i in range(n):
+            out[i] += amp * math.sin(ph + TAU * f * i / RATE) * math.exp(-i / (dk * RATE))
+    return out
+
+
+def _noise(dur: float, seed: int, cutoff: float) -> list[float]:
+    rng = random.Random(seed)
+    return lowpass([rng.uniform(-1, 1) for _ in range(int(dur * RATE))], cutoff)
+
+
+def mech_pack(seed: int = 3) -> dict[str, tuple[list[float], bool]]:
+    """Foley for a mech (or any big machine), procedurally: name -> (samples,
+    loops). Bright enough for a phone (each has a click or partials at
+    1–4 kHz over its weight). Pairs with the SDK's `maimbrain::foley`: stomp
+    for `Foley::step`/`impact`, servo and thruster for `Drive`, hiss, impact
+    and tear for `Foley::hit`."""
+    r = random.Random(seed)
+    stomp = mix(
+        Sfx("kick", 52, dur=0.32).render(),
+        _partials([180, 410, 1250, 2300], 0.4, 0.06, seed),
+        [v * e for v, e in zip(_noise(0.25, seed, 2400), _env(int(0.25 * RATE), 0.002, 0.04))],
+        gains=[1.0, 0.45, 0.5],
+    )
+    t = [i / RATE for i in range(int(1.35 * RATE))]
+    servo = [
+        0.5 * math.sin(TAU * 330 * s + 0.6 * math.sin(TAU * 37 * s))
+        + 0.3 * (((s * 495) % 1.0) * 2 - 1) * (0.6 + 0.4 * math.sin(TAU * 37 * s))
+        + 0.15 * math.sin(TAU * 1320 * s)
+        for s in t
+    ]
+    servo = mix(lowpass(servo, 3500), _noise(1.35, seed + 1, 5000), gains=[1.0, 0.08])
+    rumble = [math.sin(TAU * 48 * s) * (0.7 + 0.3 * math.sin(TAU * 7 * s)) for s in t]
+    rush = _noise(1.35, seed + 2, 1600)
+    hiss_hi = _noise(1.35, seed + 3, 7000)
+    thruster = mix(rumble, rush, [a - b for a, b in zip(hiss_hi, lowpass(hiss_hi, 2500))], gains=[0.5, 1.4, 0.9])
+    n = int(0.6 * RATE)
+    hiss_n = lowpass(_noise(0.6, seed + 4, 3200), 3200)
+    hiss = [(a - b) * e for a, b, e in zip(hiss_n, lowpass(hiss_n, 1200), _env(n, 0.01, 0.16))]
+    hiss = mix(Sfx("tom", 140, dur=0.06).render(), hiss, gains=[0.3, 1.0])
+    impact = mix(
+        Sfx("kick", 68, dur=0.25).render(),
+        _partials([523, 1347, 2209, 3171, 4420], 0.7, 0.22, seed + 5),
+        [v * e for v, e in zip(_noise(0.05, seed + 6, 8000), _env(int(0.05 * RATE), 0.001, 0.01))],
+        gains=[0.8, 0.7, 0.9],
+    )
+    tear = mix(
+        [v * e for v, e in zip(Sfx("saw", 900, freq_end=260, dur=0.55, cutoff=3000, res=0.5).render(), _env(int(0.6 * RATE), 0.01, 0.3))],
+        [v * (1.0 if r.random() < 0.08 else 0.25) for v in _noise(0.7, seed + 7, 6000)],
+        _partials([2900, 3700], 0.3, 0.05, seed + 8),
+        offsets=[0.0, 0.0, 0.45],
+        gains=[0.6, 0.8, 0.4],
+    )
+    return {
+        "stomp": (drive(stomp, 1.8), False),
+        "servo": (loopify(servo), True),
+        "thruster": (loopify(drive(thruster, 1.5)), True),
+        "hiss": (hiss, False),
+        "impact": (drive(reverb(impact, room=0.1, wet=0.12), 1.5), False),
+        "tear": (drive(tear, 2.0), False),
+    }
+
+
+PACKS = {"mech": mech_pack}
+
+
+def save_pack(name: str, out_dir: str, prefix: str | None = None, seed: int = 3) -> list[str]:
+    """Writes a foley pack's sounds as `<out_dir>/<prefix><sound>.ogg`
+    (prefix defaults to `<name>_`)."""
+    prefix = f"{name}_" if prefix is None else prefix
+    os.makedirs(out_dir, exist_ok=True)
+    paths = []
+    for sound, (x, loop) in PACKS[name](seed).items():
+        p = os.path.join(out_dir, f"{prefix}{sound}.ogg")
+        save_ogg(p, x, loop=loop)
+        paths.append(p)
+    return paths
 
 
 def _self_test() -> int:
@@ -558,4 +685,8 @@ def _self_test() -> int:
 if __name__ == "__main__":
     if sys.argv[1:] == ["--self-test"]:
         sys.exit(_self_test())
+    if len(sys.argv) in (4, 5) and sys.argv[1] == "--pack" and sys.argv[2] in PACKS:
+        for p in save_pack(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) == 5 else None):
+            print(p)
+        sys.exit(0)
     print(__doc__)

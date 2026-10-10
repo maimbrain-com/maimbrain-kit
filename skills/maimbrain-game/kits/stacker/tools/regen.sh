@@ -4,7 +4,7 @@
 # To restyle the game: edit art/style.toml (style, palette, [music], [sfx]),
 # edit the prompts below (they name the snacks, the bird and the meadow), and
 # run it. Needs `mb` with a Gemini key (images, music) and an ElevenLabs key
-# (effects); vorbis-tools (oggenc/oggdec) and python3 for the last steps.
+# (effects); python3 for the last steps.
 #
 #   tools/regen.sh all       # everything: ~$1.05 (27 images, 2 tracks, 15 effects)
 #   tools/regen.sh snacks    # or one group: snacks, bird, faces, scene, icon, music, sfx

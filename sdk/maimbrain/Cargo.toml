@@ -1,7 +1,8 @@
 [package]
 name = "maimbrain"
 edition.workspace = true
-version.workspace = true
+# The creator kit's version (crates/mb-cli); mb-cli's tests keep them equal.
+version = "0.7.0"
 publish.workspace = true
 description = "Guest SDK for Maimbrain games"
 

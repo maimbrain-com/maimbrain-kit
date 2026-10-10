@@ -24,7 +24,7 @@ sfx.py); the mix (which sound sits how far under the music) is in
 src/sound.rs. Check them with the skill's check_audio.py and the round mix
 with tools/mixsim.py.
 
-Needs python3 with numpy, and oggenc/oggdec (brew install vorbis-tools).
+Needs python3 with numpy; encodes with `mb ogg` (or oggenc/oggdec).
 """
 
 import os

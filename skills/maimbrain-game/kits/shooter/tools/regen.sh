@@ -24,7 +24,7 @@
 #
 # Needs: mb (or MB="cargo run -q -p mb-cli --"), python3 with Pillow for the
 # atlas quantize step, ImageMagick (`magick`) to restore sprites from the atlas,
-# numpy and oggenc/oggdec (vorbis-tools) for the effects.
+# numpy for the effects.
 set -euo pipefail
 
 G="$(cd "$(dirname "$0")/.." && pwd)"

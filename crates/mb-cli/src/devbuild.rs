@@ -20,6 +20,44 @@ use mb_format::Manifest;
 /// The cargo profile for watch builds (see the top of this file).
 pub const PROFILE: &str = "mb-watch";
 
+/// A game's build lock, held from re-baking its fonts until its wasm is read
+/// (dropping it frees it; so does the OS if `mb` dies). `mb shot`, `mb
+/// measure`, `mb serve` and `mb build` on one game at once take turns: cargo
+/// locks its target directory only while it runs, so without this one run's
+/// cargo (another profile, `--ab`'s patched SDK, `mb build`'s wasm-opt) could
+/// rewrite the wasm another is reading, or two runs bake the same font file.
+/// The one that waited finds the build up to date and reuses it.
+pub struct BuildLock(#[allow(dead_code)] Option<std::fs::File>);
+
+/// Takes `dir`'s build lock, waiting (with a note) while another `mb` run
+/// holds it. A lock that can't be made is no lock: the build goes ahead.
+pub fn lock(dir: &Path) -> BuildLock {
+    let Some(path) = lock_path(dir) else { return BuildLock(None) };
+    let Ok(f) = std::fs::OpenOptions::new().create(true).truncate(false).write(true).open(&path) else { return BuildLock(None) };
+    match f.try_lock() {
+        Ok(()) => BuildLock(Some(f)),
+        Err(std::fs::TryLockError::WouldBlock) => {
+            eprintln!("another mb run is building {}: waiting for it, then using its build", dir.display());
+            match f.lock() {
+                Ok(()) => BuildLock(Some(f)),
+                Err(_) => BuildLock(None),
+            }
+        }
+        Err(_) => BuildLock(None),
+    }
+}
+
+/// Where `dir`'s build lock lives: one file per game directory, in the temp directory.
+fn lock_path(dir: &Path) -> Option<PathBuf> {
+    let canon = dir.canonicalize().ok()?;
+    // FNV-1a: stable across runs and mb versions.
+    let h = canon.to_string_lossy().bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x100_0000_01b3));
+    let locks = std::env::temp_dir().join("mb-build-locks");
+    std::fs::create_dir_all(&locks).ok()?;
+    let name = canon.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    Some(locks.join(format!("{name}-{h:016x}.lock")))
+}
+
 /// A compiler diagnostic, for the status line and the preview's overlay.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub struct Diag {
@@ -97,9 +135,15 @@ pub fn manifest(dir: &Path) -> Result<Manifest, Failure> {
 /// Compiles the game in `dir` (package `name`) with the watch profile and
 /// checks the result the way the runtime would.
 pub fn build(dir: &Path, name: &str) -> Result<Built, Failure> {
+    build_with(dir, name, &[])
+}
+
+/// `build`, with extra `--config` settings for cargo (e.g. a `patch` that
+/// points the SDK at another kit's).
+pub fn build_with(dir: &Path, name: &str, config: &[String]) -> Result<Built, Failure> {
     let manifest = manifest(dir)?;
     let started = std::time::Instant::now();
-    let wasm_path = cargo(dir, name, &manifest)?;
+    let wasm_path = cargo(dir, name, &manifest, config)?;
     let cargo_s = started.elapsed().as_secs_f64();
     let raw = std::fs::read(&wasm_path).map_err(|e| Failure::message("", format!("{}: {e}", wasm_path.display())))?;
     let mut errors = Vec::new();
@@ -131,12 +175,13 @@ pub fn cargo_args(dir: &Path, name: &str, color: bool) -> Vec<String> {
     args
 }
 
-fn cargo(dir: &Path, name: &str, manifest: &Manifest) -> Result<PathBuf, Failure> {
+fn cargo(dir: &Path, name: &str, manifest: &Manifest, config: &[String]) -> Result<PathBuf, Failure> {
     let max_memory = manifest.perf_tier.max_memory_pages() * 65536;
     // Colour for a person at a terminal (Windows consoles may not take ANSI codes from us).
     let color = std::io::stderr().is_terminal() && !cfg!(windows);
     let mut child = Command::new("cargo")
         .args(cargo_args(dir, name, color))
+        .args(config.iter().flat_map(|c| ["--config", c.as_str()]))
         // Exactly what `mb build` sets (SPEC §3), so dependencies aren't rebuilt for a flag change.
         .env("CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS", format!("-C link-arg=--max-memory={max_memory}"))
         .stdout(Stdio::piped())
@@ -287,6 +332,26 @@ mod tests {
     fn strips_colour_codes() {
         assert_eq!(strip_ansi("\u{1b}[0m\u{1b}[1m\u{1b}[38;5;12m-->\u{1b}[0m src"), "--> src");
         assert_eq!(strip_ansi("plain → text"), "plain → text");
+    }
+
+    #[test]
+    fn runs_on_one_game_take_turns_building_it() {
+        let game = std::env::temp_dir().join(format!("mb-lock-test-{}", std::process::id()));
+        std::fs::create_dir_all(&game).unwrap();
+        let first = lock(&game);
+        assert!(first.0.is_some());
+        let path = lock_path(&game).unwrap();
+        assert_eq!(path, lock_path(&game.join(".")).unwrap(), "one lock per directory, however it's named");
+        let held = std::time::Instant::now();
+        let waiter = std::thread::spawn(move || {
+            let l = lock(&game);
+            (l.0.is_some(), game)
+        });
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        drop(first);
+        let (got, game) = waiter.join().unwrap();
+        assert!(got && held.elapsed() >= std::time::Duration::from_millis(300), "the second run waited for the first");
+        let _ = std::fs::remove_dir_all(&game);
     }
 
     #[test]

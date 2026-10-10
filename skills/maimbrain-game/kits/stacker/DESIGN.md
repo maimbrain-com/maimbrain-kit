@@ -30,7 +30,7 @@ The stacker starter kit (`maimbrain = { features = ["physics2d"] }`). A delivery
 | `art/style.toml` | The style guide every `mb art` call uses (style, palette, music and effect words). |
 | `art/sprites/` | The generated pictures before packing (PNGs git-ignored; their `.gen.json` sidecars kept), `art/ref/` the style references. |
 | `tools/regen.sh` | Every `mb art`/`mb music`/`mb sfx` command with its prompt; regenerates, packs and checks all assets. |
-| `tools/quantize.py`, `tools/align_loop.py` | Used by regen.sh: indexed PNGs for the atlases; the tension layer locked onto the music (stdlib + vorbis-tools). |
+| `tools/quantize.py`, `tools/align_loop.py` | Used by regen.sh: indexed PNGs for the atlases; the tension layer locked onto the music (stdlib + `mb ogg`). |
 
 ## Tuning knobs
 

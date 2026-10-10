@@ -59,8 +59,9 @@ pub struct Style {
     /// "1K" (default) or "2K" etc.; backgrounds and icons default to 2K.
     #[serde(default)]
     pub resolution: Option<String>,
-    /// Per-kind overrides: [sprite], [frames], [background], [layer], [tile], [ui], [icon],
-    /// and [music] / [sfx] (a `prompt` added to every `mb music` / `mb sfx`).
+    /// Per-kind overrides: [sprite], [frames], [portrait], [background], [layer], [tile], [ui], [icon], [sky],
+    /// and [music] / [sfx] (a `prompt` added to every `mb music` / `mb sfx`), [3d] (every
+    /// `mb model` character) and [3d_object] (`mb model --kind part|prop|vehicle`).
     #[serde(flatten)]
     pub kinds: BTreeMap<String, KindStyle>,
 }
@@ -79,7 +80,7 @@ impl Default for Style {
     }
 }
 
-pub const KINDS: &[&str] = &["sprite", "frames", "background", "layer", "tile", "ui", "icon", "music", "sfx"];
+pub const KINDS: &[&str] = &["sprite", "frames", "portrait", "background", "layer", "tile", "ui", "icon", "sky", "music", "sfx", "3d", "3d_object"];
 
 impl Style {
     pub fn load(game: &Path) -> Result<(Style, Option<String>), String> {
@@ -141,6 +142,9 @@ pub fn frame_grid(n: u32) -> (u32, u32) {
     (c, n.div_ceil(c))
 }
 
+/// The mouth shapes of a talking-portrait sheet's columns, left to right.
+pub const MOUTHS: [&str; 4] = ["closed", "slightly open", "open", "wide open"];
+
 /// "side view" → "Side view." (a sentence for the prompt).
 fn sentence(s: &str) -> String {
     let s = s.trim().trim_end_matches('.');
@@ -156,6 +160,8 @@ pub struct PromptParts<'a> {
     pub kind: &'a str,
     pub subject: &'a str,
     pub frames: u32,
+    /// Talking portraits: the expressions, one per row (the first is neutral); a blink row follows.
+    pub expressions: &'a [String],
     pub grid: Option<(u32, u32)>,
     pub keyed: Option<[u8; 3]>,
     pub portrait: bool,
@@ -178,6 +184,26 @@ pub fn compose(style: &Style, p: &PromptParts) -> String {
                 p.frames
             )
         }
+        "portrait" => {
+            let rows = p.expressions.len() + 1;
+            let mut row_list: Vec<String> = p.expressions.iter().enumerate().map(|(i, e)| format!("row {} {}", i + 1, damage_row(e))).collect();
+            row_list.push(format!("row {rows} the neutral face with both eyes fully closed (a blink), the mouth still changing across the columns"));
+            let damaged = p.expressions.iter().any(|e| damage_row(e) != *e);
+            format!(
+                "A talking-portrait sprite sheet for a game's dialogue: one character, {subject}, drawn {} times in a grid of 4 columns and {rows} rows of equal square cells, with clear gaps of flat background between the cells so no two portraits touch. \
+                 Every cell is the same head-and-shoulders bust facing the viewer, centered in its cell, at exactly the same position, size, pose, framing, lighting and colors, the shoulders cut off by a straight horizontal line near the bottom of the cell. \
+                 Keep the character identical in every cell (same face shape, hair, clothes, accessories, proportions and outline): it is one drawing whose mouth, eyes and eyebrows are redrawn, and nothing else moves{}. \
+                 Columns are mouth shapes for lip-sync, left to right: 1 mouth {}, 2 mouth {}, 3 mouth {}, 4 mouth {} as if shouting. \
+                 Rows are expressions, top to bottom: {}. Nothing else in the image.",
+                4 * rows,
+                if damaged { ", except that the damaged rows add their marks (bruises, soot, scratches, a cracked visor) on top of the same drawing" } else { "" },
+                MOUTHS[0],
+                MOUTHS[1],
+                MOUTHS[2],
+                MOUTHS[3],
+                row_list.join("; ")
+            )
+        }
         "background" => format!(
             "A full-screen 2D game background, {} composition: {subject}. No characters, no text; keep the middle calm and lower in contrast so game objects read on top.",
             if p.portrait { "tall portrait" } else { "wide landscape" }
@@ -186,6 +212,9 @@ pub fn compose(style: &Style, p: &PromptParts) -> String {
             "One parallax layer of a side-scrolling 2D game background: {subject}. Only this layer's shapes, wide and horizontally continuous, the rest of the image empty."
         ),
         "tile" => format!("A seamless, tileable square texture for a 2D game: {subject}. Evenly lit, no vignette, no border; the pattern continues across all four edges."),
+        "sky" => format!(
+            "A seamless 360-degree equirectangular panorama for a 3D game's sky, like a photo sphere unwrapped: {subject}. The horizon is one straight, level line across the exact vertical middle of the image; the top edge is straight overhead and the bottom edge straight down, so the top and bottom rows are each one even color; the left and right edges are the same direction and continue into each other. Everything is far away: sky above the middle, only distant scenery along the horizon, nothing in the foreground."
+        ),
         "ui" => format!("A 2D game UI element: {subject}. Flat-on, centered, crisp edges, no text or letters."),
         "icon" => format!("A square app icon for a mobile game: {subject}. A bold close-up of the hero or hook that fills the frame, strong silhouette, rich color, no text, letters or numbers, no border."),
         _ => subject.to_string(),
@@ -202,9 +231,10 @@ pub fn compose(style: &Style, p: &PromptParts) -> String {
     }
     if style.pixel_art || p.grid.is_some() {
         match p.grid {
-            Some((w, h)) => {
-                out.push(format!("Pixel art: big crisp square pixels as if drawn on a {w}×{h} grid, no anti-aliasing, no dithering noise, a limited palette."))
-            }
+            Some((w, h)) => out.push(format!(
+                "Pixel art: big crisp square pixels as if {}drawn on a {w}×{h} grid, no anti-aliasing, no dithering noise, a limited palette.",
+                if p.kind == "portrait" { "each cell were " } else { "" }
+            )),
             None => out.push("Pixel art: big crisp square pixels, no anti-aliasing, a limited palette.".into()),
         }
     }
@@ -237,7 +267,7 @@ pub fn compose(style: &Style, p: &PromptParts) -> String {
 }
 
 pub const TEMPLATE: &str = r##"# The style guide for this game's generated art. `mb art` applies it to every
-# image (sprites, sheets, backgrounds, layers, tiles, UI, the icon) so they
+# image (sprites, sheets, backgrounds, layers, tiles, UI, the icon, skies) so they
 # look like one set. Edit freely; regenerate with `mb regen <asset>`.
 
 name = "NAME"
@@ -295,6 +325,18 @@ prompt = "warm analog synths and soft percussion, playful"
 prompt = "crisp and short, soft attack, no reverb tail"
 "##;
 
+/// A portrait row's description: damage words ("hurt", "battered"…) spelled
+/// out, so the row shows the marks the game's damage stages call for.
+fn damage_row(e: &str) -> String {
+    match e {
+        "hurt" | "pained" | "wounded" | "injured" => format!("{e} (wincing in pain: eyes squeezed, teeth gritted, a scratch or bruise, a bead of sweat)"),
+        "battered" | "beaten" | "bruised" | "damaged" | "wrecked" => {
+            format!("{e} (the same bust after a beating: black eye and bruises, soot smudges, scratches, a cracked visor or goggles if worn, exhausted and hurting)")
+        }
+        _ => e.to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -325,6 +367,47 @@ mod tests {
     }
 
     #[test]
+    fn portrait_prompt_spells_out_the_layout() {
+        let ex = vec!["neutral".to_string(), "smug".to_string(), "angry".to_string()];
+        let p = compose(
+            &Style::default(),
+            &PromptParts {
+                kind: "portrait",
+                subject: "a grinning mech pilot with a dented orange helmet",
+                frames: 16,
+                expressions: &ex,
+                grid: Some((48, 48)),
+                keyed: Some([0, 255, 0]),
+                portrait: false,
+                style_refs: 0,
+                subject_refs: 0,
+            },
+        );
+        for want in [
+            "4 columns and 4 rows",
+            "drawn 16 times",
+            "row 1 neutral; row 2 smug; row 3 angry; row 4 the neutral face with both eyes fully closed",
+            "1 mouth closed, 2 mouth slightly open, 3 mouth open, 4 mouth wide open",
+            "exactly the same position, size",
+            "each cell were drawn on a 48×48 grid",
+            "pure green",
+        ] {
+            assert!(p.contains(want), "missing {want:?} in {p}");
+        }
+    }
+
+    #[test]
+    fn damage_rows_are_spelled_out() {
+        let ex = vec!["neutral".to_string(), "hurt".to_string(), "battered".to_string()];
+        let parts = PromptParts { kind: "portrait", subject: "a mech pilot", frames: 0, expressions: &ex, grid: None, keyed: None, portrait: false, style_refs: 0, subject_refs: 0 };
+        let p = compose(&Style::default(), &parts);
+        assert!(p.contains("row 2 hurt (wincing") && p.contains("row 3 battered (the same bust after a beating"), "{p}");
+        assert!(p.contains("the damaged rows add their marks"));
+        let plain = vec!["neutral".to_string(), "smug".to_string()];
+        assert!(!compose(&Style::default(), &PromptParts { expressions: &plain, ..parts }).contains("damaged rows"));
+    }
+
+    #[test]
     fn prompt_has_style_palette_key_and_originality() {
         let s: Style = toml::from_str(TEMPLATE).unwrap();
         let p = compose(
@@ -333,6 +416,7 @@ mod tests {
                 kind: "sprite",
                 subject: "a moth with glass wings",
                 frames: 0,
+                expressions: &[],
                 grid: Some((32, 32)),
                 keyed: Some([255, 0, 255]),
                 portrait: true,

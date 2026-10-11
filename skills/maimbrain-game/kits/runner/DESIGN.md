@@ -68,7 +68,7 @@ Three changes turn this kit into a game of its own. Do at least one of each.
    - no double jump but a slide (hold = duck under) for the high gull, taps jump;
    - lanes: the ground is two levels, a tap hops up or down a level (Kind::Pit becomes a missing floor);
    - momentum: each perfect arc (`Cue::ArcDone`) speeds you up for bonus points, a crate hit costs speed instead of the run (3 hearts via `ui::Hud::lives`);
-   - one-button rhythm: obstacles land on the music's beat grid (see SKILL.md "Rhythm games");
+   - one-button rhythm: obstacles land on the music's beat grid (see the skill's audio.md "Rhythm games");
    - the double jump recharges only by collecting a coin.
 3. **One new mechanic, obstacle or power-up** — add a `Kind` (geometry in `Obstacle`, a `holds()` entry so plans and coin arcs work, a `resize` rule, an entry in `Kind::ORDER`), draw it in `look.rs`, name and hint it:
    - a springboard pad that launches you high over a wall of crates;

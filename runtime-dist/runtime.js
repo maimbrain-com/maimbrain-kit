@@ -6263,7 +6263,9 @@ var DevClient = class {
     const stored = this.load();
     if (stored && stored.game === hooks.game) this.saved = stored;
     this.enqueue(async () => {
-      if (this.saved && this.auto) await this.doRestore(this.saved, "reload");
+      if (hooks.replay === "played") this.ui.offer(null);
+      else if (hooks.replay) await this.doRestore(hooks.replay, "replay");
+      else if (this.saved && this.auto) await this.doRestore(this.saved, "reload");
       else if (this.saved) this.ui.offer(this.saved, () => this.enqueue(() => this.doRestore(this.saved, "reload")), () => this.setAuto());
       await this.sync();
     });
@@ -6378,11 +6380,11 @@ var DevClient = class {
     const ms = performance.now() - t;
     this.lastRestore = { ...r, at: Date.now() };
     const where = `frame ${r.frames}${r.frames < r.of ? ` of ${r.of} (the game stopped)` : ""}`;
-    const how = r.compared === 0 ? "no hashes were kept to compare" : r.firstMismatch === null ? "same as before" : `differs from the old run from frame ${r.firstMismatch} (changed drawing or logic), so this may not be exactly where you were`;
-    const lead = why === "assets" ? "assets updated, replayed to" : "restored to";
+    const how = why === "replay" ? "a run from elsewhere keeps no per-frame draw hashes, so where it differs on this code isn't known; after an edit it's replayed again and compared with this" : r.compared === 0 ? "no hashes were kept to compare" : r.firstMismatch === null ? "same as before" : `differs from the old run from frame ${r.firstMismatch} (changed drawing or logic), so this may not be exactly where you were`;
+    const lead = why === "assets" ? "assets updated, replayed to" : why === "replay" ? "replayed the run to" : "restored to";
     this.ui.pill(`${lead} ${where}: ${how}`, r.firstMismatch === null ? "ok" : "warn", r.firstMismatch === null ? 3e3 : 8e3);
     console.info(`[mb dev] ${lead} ${where} in ${ms.toFixed(0)} ms: ${how}`);
-    this.running(r);
+    this.running({ ...r, why });
     return r;
   }
   setAuto() {
@@ -6741,12 +6743,22 @@ async function main() {
     post({ op: "replay-done", frames: boot.replay.frames.length, hash: host_draw_hash() });
     return;
   }
-  rt = await createSession(page2, { kind: "live" });
-  const paused = boot.startPaused === true;
-  post({ op: "ready", info: JSON.parse(host_info()), bootMs: performance.now() - t0, paused });
-  void probe().then((p) => post({ op: "probe", probe: p }));
-  if (paused) rt.startPaused();
-  else rt.start();
+  const pin = !hasNative && !boot.web && !window.__MB_BOOT ? await pinnedRun(m.id) : null;
+  const restorePin = pin?.mode === "restore" && dev ? pin : null;
+  if (pin && !restorePin) {
+    await restart({ replay: pin.log, loop: false, hold: true });
+    post({ op: "ready", info: JSON.parse(host_info()), bootMs: performance.now() - t0, paused: true });
+    const b = await window.mb.step(pin.at, { paced: false });
+    console.info(`[mb] replayed ${b.frames} of the run's ${pin.log.frames.length} frames, held: mb.step(1) steps on, mb.resume() plays on`);
+  } else {
+    rt = await createSession(page2, { kind: "live" });
+    const paused = boot.startPaused === true;
+    post({ op: "ready", info: JSON.parse(host_info()), bootMs: performance.now() - t0, paused });
+    void probe().then((p) => post({ op: "probe", probe: p }));
+    if (restorePin) rt.startHeld();
+    else if (paused) rt.startPaused();
+    else rt.start();
+  }
   dev?.attach({
     game: m.id,
     boot: boot.dev,
@@ -6764,8 +6776,20 @@ async function main() {
     },
     fresh: (held) => restart({ hold: held }),
     restore: restore2,
-    frames: () => rt.brief().frames
+    frames: () => rt.brief().frames,
+    replay: restorePin ? { v: 1, game: m.id, frames: restorePin.at, time: 0, held: true, log: { ...restorePin.log, frames: restorePin.log.frames.slice(0, restorePin.at) }, hashes: [] } : pin ? "played" : void 0
   });
+}
+async function pinnedRun(game) {
+  const q2 = new URLSearchParams(location.search);
+  const mode = q2.get("replay");
+  if (mode !== "play" && mode !== "restore") return null;
+  const r = await fetch("/__mb/replay", { cache: "no-store" });
+  if (!r.ok) throw new Error(`?replay: /__mb/replay: ${r.status} (mb serve --replay serves the run)`);
+  const log2 = await r.json();
+  if (log2.game !== game) throw new Error(`?replay: the run is of ${log2.game}, not ${game}`);
+  const at = Number(q2.get("at") ?? log2.frames.length);
+  return { log: log2, at: Number.isInteger(at) && at >= 0 ? Math.min(at, log2.frames.length) : log2.frames.length, mode };
 }
 async function saveFile(name, data) {
   const body = data instanceof Uint8Array ? new Blob([data.slice()]) : data;

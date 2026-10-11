@@ -7,9 +7,13 @@
 //!     mb publish frogger              # build, upload a private draft, wait for validation
 //!     mb submit frogger               # send the draft to review (after testing it on your phone)
 //!     mb submit frogger --season      # …as a new season (or --fix, --update; its number suggests one)
+//!     mb test frogger --invite ann,cleo   # let friends play the draft before it's released
+//!     mb feedback frogger             # to-dos and testers' notes, with their runs in screenshots/
+//!     mb publish frogger --fixes 7,10 # …and say which to-dos the upload fixes
 //!     mb validate feed/dev.maimbrain.stack-0.1.0.mbx
 //!     mb serve frogger                # preview in a browser; reload to rebuild
 //!     mb serve --watch frogger        # …or rebuild on save and update the preview by itself
+//!     mb serve frogger/screenshots/fb-build-3.mbx --replay frogger/screenshots/fb-7-ann.json --at 6180
 //!     mb shot frogger --autoplay --sheet   # screenshots at 0.5, 2, 5 and 10 s, and a sheet of them
 //!     mb measure frogger --autoplay   # 10 s live: frame times, GPU ms, input latency, mb.verify()
 //!     mb doctor                       # check the toolchain
@@ -39,6 +43,7 @@ mod glyphs;
 mod live;
 mod measure;
 mod packnotes;
+mod playtest;
 mod readability;
 mod remote;
 mod replay;
@@ -122,7 +127,26 @@ enum Cmd {
         /// publishing gives its own. Asked for when missing and run in a terminal.
         #[arg(long, value_name = "NAME")]
         model: Option<String>,
+        /// The to-dos this upload fixes (`mb feedback` numbers them: --fixes 7,10). Once it's valid
+        /// they're marked fixed in it, and testers who reported them hear when it reaches them.
+        #[arg(long, value_delimiter = ',', value_name = "NUMBERS", value_parser = playtest::note_number)]
+        fixes: Vec<u64>,
     },
+    /// Show the test of your game's draft (its testers, their runs and notes) and your friends, or
+    /// let friends test it: --invite, --invite-all, --remove, --end. Testers play the newest build
+    /// before it's released; their runs and notes come to you through `mb feedback`.
+    Test(playtest::TestArgs),
+    /// What's been noted about your game's builds: your own notes (to-dos, to act on) and testers'
+    /// (yours to decide: the agent reports them and changes nothing until you accept one). Each
+    /// note's run, the pictures of its moments and its build are downloaded into the game's
+    /// screenshots/, with the `mb serve --replay … --at …` command that shows the moment.
+    ///
+    ///     mb feedback games/frogger [--all] [--wait] [--json]
+    ///     mb feedback accept games/frogger 9 10     # testers' notes become to-dos
+    ///     mb feedback decline games/frogger 9
+    ///     mb feedback resolve games/frogger 7 10 [--wontfix]
+    #[command(verbatim_doc_comment)]
+    Feedback(playtest::FeedbackArgs),
     /// Submit your draft of a game for review (moderators play it before it's in the feed).
     Submit {
         /// Game directory, .mbx bundle, game id (com.maimbrain.you.frogger) or just its name (frogger).
@@ -164,6 +188,15 @@ enum Cmd {
         /// lines; GET /__mb/wait blocks until what's on disk is built and running.
         #[arg(long)]
         watch: bool,
+        /// Replay this run (a replay log, like the screenshots/fb-7-ann.json `mb feedback` downloads)
+        /// to --at and hold there. On the bundle it was played on, it's what the player saw; on a game
+        /// directory with --watch, it's replayed onto the current code, and again after each edit,
+        /// saying from which frame it plays differently from the replay before.
+        #[arg(long, value_name = "LOG")]
+        replay: Option<PathBuf>,
+        /// The frame to hold the --replay run at (frames run, 60 a second; default: its last).
+        #[arg(long, requires = "replay", value_name = "FRAME")]
+        at: Option<u64>,
     },
     /// Screenshot a game at given moments from a headless Chrome, rendered like a phone (logical
     /// size, 2× pixels, touch), deterministically (a held session stepped at 60 Hz, or --hz 120),
@@ -433,7 +466,7 @@ fn run() -> ExitCode {
             let l = level.level().unwrap_or_default();
             Err(format!("--{l} needs --submit: it says what kind of release you're submitting"))
         }
-        Cmd::Publish { path, out, submit, model, level } => {
+        Cmd::Publish { path, out, submit, model, level, fixes } => {
             let hint = path.display().to_string();
             let level = level.level();
             // Before building, so a missing --model or a placeholder icon fails fast.
@@ -441,28 +474,42 @@ fn run() -> ExitCode {
                 if path.extension().is_some_and(|e| e == "mbx") {
                     bundle_icon(&path)
                         .map_or(Ok(()), |png| check_publish_icon(&png, "<game dir>"))
-                        .and_then(|()| remote::publish(&path, submit, level, model.as_deref(), None, &hint))
+                        .and_then(|()| remote::publish(&path, submit, level, model.as_deref(), None, &fixes, &hint))
                 } else {
                     let notes = read_manifest(&path).and_then(|m| release_notes(&path, &m.version))?;
                     std::fs::read(path.join("icon.png"))
                         .map_or(Ok(()), |png| check_publish_icon(&png, &hint))
                         .and_then(|()| build_and_pack(&path, &out))
-                        .and_then(|bundle| remote::publish(&bundle, submit, level, model.as_deref(), notes.as_deref(), &hint))
+                        .and_then(|bundle| remote::publish(&bundle, submit, level, model.as_deref(), notes.as_deref(), &fixes, &hint))
                 }
             })
         }
         Cmd::Submit { game, level } => submit_target(&game).and_then(|t| remote::submit(&t, level.level())),
+        Cmd::Test(a) => submit_target(&a.game).and_then(|t| playtest::test(&t, &a)),
+        Cmd::Feedback(a) => match (&a.cmd, &a.game) {
+            (Some(cmd), _) => {
+                let game = match cmd {
+                    playtest::FeedbackCmd::Accept(n) | playtest::FeedbackCmd::Decline(n) | playtest::FeedbackCmd::Resolve { n, .. } => n.resolve().map(|(g, _)| g),
+                };
+                game.and_then(|g| submit_target(&g)).and_then(|t| playtest::feedback_action(&t, cmd))
+            }
+            (None, Some(game)) => submit_target(game).and_then(|t| playtest::feedback(&t, &a)),
+            (None, None) => Err("give the game: mb feedback <game dir>".into()),
+        },
         Cmd::Describe { game, text, file, clear } => {
             description_text(&game, text, file.as_deref(), clear).and_then(|d| submit_target(&game).and_then(|t| remote::describe(&t.query, d.as_deref())))
         }
         Cmd::Doctor => doctor(),
-        Cmd::Serve { path, port, watch: true, .. } => serve::watch(&path, port, |m| boot_json(m, 1, "2026-10-06")),
-        Cmd::Serve { path, port, out, watch: false } => serve::serve(
-            &path,
-            port,
-            |dir| build_and_pack(dir, &out),
-            |bundle, site, runtime| stage(bundle, site, runtime, 1, "2026-10-06"),
-        ),
+        Cmd::Serve { path, port, out, watch, replay, at } => {
+            let pin = replay.map(|log| replay_pin(&path, &log, at, watch)).transpose();
+            pin.and_then(|pin| {
+                if watch {
+                    serve::watch(&path, port, pin.as_ref(), |m| boot_json(m, 1, "2026-10-06"))
+                } else {
+                    serve::serve(&path, port, pin.as_ref(), |dir| build_and_pack(dir, &out), |bundle, site, runtime| stage(bundle, site, runtime, 1, "2026-10-06"))
+                }
+            })
+        }
         Cmd::Shot(a) => shot::run(a),
         Cmd::Measure(a) => measure::run(a),
         Cmd::Build { dir, out } => build_and_pack(&dir, &out).map(|_| ()),
@@ -523,6 +570,36 @@ fn submit_target(game: &str) -> Result<remote::SubmitTarget, String> {
         return Ok(remote::SubmitTarget { query: m.id, version: Some(m.version), sha256: Some(report.sha256), source: game.into() });
     }
     Ok(remote::SubmitTarget { query: game.into(), version: None, sha256: None, source: game.into() })
+}
+
+/// The run `mb serve --replay` holds at a frame: it must be a run of the game
+/// being served, and a bundle other than the one it was recorded on gets a
+/// warning (it may play differently there).
+fn replay_pin(path: &Path, log: &Path, at: Option<u64>, watch: bool) -> Result<serve::Pin, String> {
+    let is_dir = path.is_dir();
+    let pin = serve::Pin::read(log, at, watch && is_dir)?;
+    let (id, sha) = if is_dir {
+        (read_manifest(path)?.id, None)
+    } else {
+        let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let report = mb_format::validate(&bytes);
+        let m = report.manifest.ok_or_else(|| format!("{}: not a valid bundle (mb validate {})", path.display(), path.display()))?;
+        (m.id, Some(report.sha256))
+    };
+    if pin.game != id {
+        return Err(format!("{} is a run of {}, not of {id}", log.display(), pin.game));
+    }
+    if let (Some(recorded), Some(sha)) = (&pin.bundle, &sha)
+        && recorded != sha
+    {
+        eprintln!(
+            "warning: {} was recorded on another build of {id} (sha256 {}…), so it may play differently on {}",
+            log.display(),
+            recorded.chars().take(12).collect::<String>(),
+            path.display()
+        );
+    }
+    Ok(pin)
 }
 
 /// The AI model `mb publish` records as having built the game (None: a person

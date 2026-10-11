@@ -80,7 +80,7 @@ No key of your own? If the Maimbrain team has given your account access to **Mai
 
 | Path | What |
 |---|---|
-| `skills/maimbrain-game/` | The skill: workflow, engagement guide, art and sound guide, 2D `template/` and 3D `template-3d/`, genre starter `kits/` (runner, stacker, shooter, match3, racer, tower-defense, trivia; `mb new --kit`), `pixel.py`, `sfx.py`, `check_audio.py`, `mix_check.py`, `make_glb.py`, `make_rigged_glb.py` (a rigged, animated character), `lut.py` (bake a color grade into a LUT) |
+| `skills/maimbrain-game/` | The skill: workflow (SKILL.md), engagement guide, art and sound guide, guides read when a game needs them (3D in `3d.md`, music and foley in `audio.md`, publishing and feedback in `publish.md`), 2D `template/` and 3D `template-3d/`, genre starter `kits/` (runner, stacker, shooter, match3, racer, tower-defense, trivia; `mb new --kit`), `pixel.py`, `sfx.py`, `check_audio.py`, `mix_check.py`, `make_glb.py`, `make_rigged_glb.py` (a rigged, animated character), `lut.py` (bake a color grade into a LUT) |
 | `docs/SPEC.md` | The game spec (manifest, host API, limits, determinism) |
 | `docs/MB3D.md` | The 3D engine: PBR, sky lighting, shadows, post effects, particles, trails, glTF; mb3d 2: animated characters, instancing, fog, toon and outlines, 3D text, depth of field, reflective water (water v2), sky v2, the beauty pass |
 | `docs/GENERATE.md` | Generated art and sound: `mb art`, `mb music`, `mb sfx`, providers and keys, the style guide |

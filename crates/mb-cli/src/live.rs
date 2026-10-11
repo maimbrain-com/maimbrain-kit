@@ -283,11 +283,7 @@ impl Hub {
                 p.state = "running".into();
                 let mut line = format!("page {} running build {build} at frame {}", p.num, p.frames);
                 if let Some(r) = p.restored.as_object() {
-                    let diverged = r.get("firstMismatch").and_then(Value::as_u64);
-                    line += &match diverged {
-                        Some(f) => format!(" (restored; differs from the old run from frame {f})"),
-                        None => " (restored; same as the old run)".into(),
-                    };
+                    line += &restored_note(r);
                 }
                 if let Some(o) = last.filter(|o| o.build == build && first) {
                     match o.edited.and_then(|t| t.elapsed().ok()) {
@@ -352,6 +348,31 @@ impl Hub {
 }
 
 /// A multi-line message (a panic: location, then what) on one status line.
+/// What a page's report says about the session it restored: where the run
+/// went differently from the one before it, or, for a run `mb serve --replay`
+/// replayed onto this code, that there's nothing to compare it with yet.
+fn restored_note(r: &serde_json::Map<String, Value>) -> String {
+    let n = |k: &str| r.get(k).and_then(Value::as_u64);
+    let (frames, of) = (n("frames").unwrap_or(0), n("of").unwrap_or(0));
+    let mut extra = String::new();
+    if frames < of {
+        extra += &format!("; the game stopped at frame {frames} of {of}");
+    }
+    if let Some(m) = n("missingAssets").filter(|m| *m > 0) {
+        extra += &format!("; {m} asset loads the run saw never happened, so it went differently");
+    }
+    if r.get("why").and_then(Value::as_str) == Some("replay") {
+        return format!(
+            " (replayed the run onto this code{extra}; where it differs from the run as recorded can't be told, since the log keeps no per-frame draw hashes: after each edit it's replayed again and compared with this)"
+        );
+    }
+    match (n("firstMismatch"), n("compared")) {
+        (Some(f), _) => format!(" (restored; differs from the old run from frame {f}{extra})"),
+        (None, Some(0)) => format!(" (restored; no draw hashes were kept to compare{extra})"),
+        (None, _) => format!(" (restored; same as the old run{extra})"),
+    }
+}
+
 fn one_line(s: &str) -> String {
     let joined = s.lines().map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join(" | ");
     if joined.chars().count() > 400 { joined.chars().take(400).collect::<String>() + "…" } else { joined }
@@ -515,5 +536,16 @@ mod tests {
         assert_eq!(st["state"], "error");
         assert_eq!(st["pages"][0]["message"], "mb_update trapped: unreachable");
         assert!(hub.report("{}").is_err());
+    }
+
+    #[test]
+    fn restores_say_where_the_run_differs_or_that_it_cannot_tell() {
+        let note = |v: Value| restored_note(v.as_object().unwrap());
+        assert_eq!(note(json!({ "frames": 90, "of": 90, "firstMismatch": 41, "compared": 91 })), " (restored; differs from the old run from frame 41)");
+        assert_eq!(note(json!({ "frames": 90, "of": 90, "firstMismatch": null, "compared": 91 })), " (restored; same as the old run)");
+        assert_eq!(note(json!({ "frames": 90, "of": 90, "firstMismatch": null, "compared": 0 })), " (restored; no draw hashes were kept to compare)");
+        let r = note(json!({ "frames": 50, "of": 90, "firstMismatch": null, "compared": 0, "missingAssets": 2, "why": "replay" }));
+        assert!(r.starts_with(" (replayed the run onto this code; the game stopped at frame 50 of 90; 2 asset loads"), "{r}");
+        assert!(r.contains("can't be told"), "{r}");
     }
 }

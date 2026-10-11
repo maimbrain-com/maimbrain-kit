@@ -73,6 +73,7 @@ pub fn listen(port: u16) -> Result<(tiny_http::Server, u16), String> {
 pub fn serve(
     path: &Path,
     port: u16,
+    pin: Option<&Pin>,
     build: impl Fn(&Path) -> Result<PathBuf, String>,
     stage: impl Fn(&Path, &Path, &Path) -> Result<(), String>,
 ) -> Result<(), String> {
@@ -89,13 +90,18 @@ pub fn serve(
     let mut built_at = SystemTime::now();
 
     let (server, port) = listen(port)?;
-    eprintln!("\nPreview: http://127.0.0.1:{port}/runtime/index.html?overlays");
+    let page = page_path(pin);
+    eprintln!("\nPreview: http://127.0.0.1:{port}{page}");
+    if let Some(p) = pin {
+        eprintln!("{}", p.describe(is_dir));
+    }
     eprintln!("Reload the page after saving to rebuild. Ctrl-C to stop.\n");
     // Preview saves (`mb.screenshot`, `mb.save`) land here.
     let saves = if is_dir { path.join("screenshots") } else { std::env::current_dir().map_err(|e| e.to_string())?.join("screenshots") };
     for req in server.incoming_requests() {
         let url = req.url().split('?').next().unwrap_or("/").to_string();
         let Some(req) = saves_route(&saves, req) else { continue };
+        let Some(req) = replay_route(pin, req) else { continue };
         if url == "/" || url == "/runtime/index.html" {
             if is_dir && newest_change(path) > built_at {
                 eprintln!("change detected, rebuilding…");
@@ -105,7 +111,7 @@ pub fn serve(
                 }
             }
             if url == "/" {
-                let r = tiny_http::Response::empty(302).with_header(header("Location", "/runtime/index.html?overlays"));
+                let r = tiny_http::Response::empty(302).with_header(header("Location", &page));
                 let _ = req.respond(r);
                 continue;
             }
@@ -176,6 +182,119 @@ fn saves_route(saves: &Path, mut req: tiny_http::Request) -> Option<tiny_http::R
     let r = match ok.then(|| std::fs::read(saves.join(&name))).and_then(Result::ok) {
         Some(bytes) => tiny_http::Response::from_data(bytes).with_header(header("Cache-Control", "no-store")),
         None => tiny_http::Response::from_data(b"not found".to_vec()).with_status_code(404),
+    };
+    let _ = req.respond(r);
+    None
+}
+
+// --- mb serve --replay <log> --at <frame> -----------------------------------------
+
+/// A run for the preview to replay to a frame and hold there (`mb serve
+/// --replay`, docs/UPDATES.md "Feedback reaches the agent"). The page asks
+/// for it at [`REPLAY_URL`] when its address says `?replay=play|restore&at=N`
+/// (runtime/src/main.ts `pinnedRun`):
+/// - `play`: a replay session, the run exactly as recorded, held at the frame
+///   (`mb.restart({ replay, hold: true })` and `mb.step(at)`). A bundle, or a
+///   game directory without --watch.
+/// - `restore`: on a game directory with --watch, the run's input replayed
+///   into a live session on the current code, as watch mode's restore does;
+///   after each edit the page replays it onto the new code and the terminal
+///   says from which frame it differs from the replay before.
+#[derive(Debug, Clone)]
+pub struct Pin {
+    /// The replay log alone (unwrapped from a file that has it under `log`), as JSON.
+    pub log: Vec<u8>,
+    /// The frame to hold at: frames run (`mb_update` calls), at most the log's.
+    pub at: u64,
+    /// How many frames the log has.
+    pub frames: u64,
+    /// The game it's a run of, and the build it was recorded on (when it says).
+    pub game: String,
+    pub bundle: Option<String>,
+    pub restore: bool,
+    /// The file it came from, for messages.
+    pub name: String,
+}
+
+impl Pin {
+    /// Reads `file` (a replay log, or JSON with one under `log`) for `mb serve
+    /// --replay`, held at `at` (default: its last frame). `restore`: replay it
+    /// onto a game directory's code in watch mode.
+    pub fn read(file: &Path, at: Option<u64>, restore: bool) -> Result<Pin, String> {
+        let text = std::fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
+        let v: Value = serde_json::from_str(&text).map_err(|e| format!("{}: not JSON: {e}", file.display()))?;
+        let log = if v["frames"].is_array() { v } else { v["log"].clone() };
+        let (Some(frames), Some(game)) = (log["frames"].as_array().map(Vec::len), log["game"].as_str()) else {
+            return Err(format!("{}: not a replay log (no frames or game)", file.display()));
+        };
+        if !log["seed"].is_string() {
+            return Err(format!("{}: not a replay log (no seed)", file.display()));
+        }
+        let frames = frames as u64;
+        let at = at.unwrap_or(frames);
+        if at > frames {
+            return Err(format!("{}: the run has {frames} frames, so --at {at} is past its end", file.display()));
+        }
+        Ok(Pin {
+            game: game.to_string(),
+            bundle: log["bundle"].as_str().map(str::to_string),
+            log: serde_json::to_vec(&log).unwrap(),
+            at,
+            frames,
+            restore,
+            name: file.display().to_string(),
+        })
+    }
+
+    /// The page's query: `replay=play&at=1200`; for `restore`, also `restore=on`
+    /// so that every edit replays the run onto the new code.
+    pub fn query(&self) -> String {
+        if self.restore { format!("replay=restore&at={}&restore=on", self.at) } else { format!("replay=play&at={}", self.at) }
+    }
+
+    /// What the terminal is told about it.
+    pub fn describe(&self, is_dir: bool) -> String {
+        let at = format!("frame {} of {} ({} at 60 fps)", self.at, self.frames, crate::playtest::clock(self.at));
+        if self.restore {
+            format!(
+                "Replaying {} onto the current code to {at} and holding there. Where it differs from the run as recorded can't be \
+                 told (its log keeps no per-frame draw hashes); after each edit the run is replayed onto the new code, and the \
+                 page's line here says from which frame it differs from the replay before.",
+                self.name
+            )
+        } else if is_dir {
+            format!(
+                "Replaying {} on the current build to {at} and holding there. Where it differs from the run as recorded isn't \
+                 reported (no per-frame draw hashes); with --watch, each edit is compared with the replay before it.",
+                self.name
+            )
+        } else {
+            format!("Replaying {} to {at} and holding there: what the player saw. In the console, mb.step(1) steps on and mb.resume() plays on.", self.name)
+        }
+    }
+}
+
+/// The preview page's address, with the run to replay if there is one.
+pub fn page_path(pin: Option<&Pin>) -> String {
+    match pin {
+        Some(p) => format!("/runtime/index.html?overlays&{}", p.query()),
+        None => "/runtime/index.html?overlays".into(),
+    }
+}
+
+/// Where the page fetches the run `mb serve --replay` was given.
+const REPLAY_URL: &str = "/__mb/replay";
+
+/// Answers [`REPLAY_URL`] with the run (404 without one); any other request is handed back.
+fn replay_route(pin: Option<&Pin>, req: tiny_http::Request) -> Option<tiny_http::Request> {
+    if req.url().split('?').next() != Some(REPLAY_URL) {
+        return Some(req);
+    }
+    let r = match pin {
+        Some(p) => tiny_http::Response::from_data(p.log.clone())
+            .with_header(header("Content-Type", "application/json"))
+            .with_header(header("Cache-Control", "no-store")),
+        None => tiny_http::Response::from_data(b"no run: mb serve --replay <log> serves one".to_vec()).with_status_code(404),
     };
     let _ = req.respond(r);
     None
@@ -255,7 +374,7 @@ fn newest_change(dir: &Path) -> SystemTime {
 /// `mb serve --watch`: serves the runtime and the latest good build from
 /// memory (assets straight from the game directory), rebuilds on every save
 /// and pushes the result to the open pages. `boot` makes game/boot.json.
-pub fn watch(path: &Path, port: u16, boot: fn(&Manifest) -> Value) -> Result<(), String> {
+pub fn watch(path: &Path, port: u16, pin: Option<&Pin>, boot: fn(&Manifest) -> Value) -> Result<(), String> {
     require_runtime()?;
     let is_dir = path.is_dir();
     if !is_dir && !path.is_file() {
@@ -275,7 +394,11 @@ pub fn watch(path: &Path, port: u16, boot: fn(&Manifest) -> Value) -> Result<(),
     } else {
         status!("watching {}", path.display());
     }
-    status!("preview http://127.0.0.1:{port}/runtime/index.html?overlays");
+    let page = page_path(pin);
+    status!("preview http://127.0.0.1:{port}{page}");
+    if let Some(p) = pin {
+        status!("{}", p.describe(is_dir));
+    }
     status!("status http://127.0.0.1:{port}/__mb/status, wait http://127.0.0.1:{port}/__mb/wait");
     {
         let hub = hub.clone();
@@ -286,8 +409,8 @@ pub fn watch(path: &Path, port: u16, boot: fn(&Manifest) -> Value) -> Result<(),
     // Preview saves (`mb.screenshot`, `mb.save`) land in the game's screenshots/.
     let saves = if is_dir { path.join("screenshots") } else { std::env::current_dir().map_err(|e| e.to_string())?.join("screenshots") };
     for req in server.incoming_requests() {
-        if let Some(req) = saves_route(&saves, req) {
-            handle(&hub, req);
+        if let Some(req) = saves_route(&saves, req).and_then(|r| replay_route(pin, r)) {
+            handle(&hub, req, &page);
         }
     }
     Ok(())
@@ -442,12 +565,12 @@ fn header_value(req: &tiny_http::Request, name: &'static str) -> Option<String> 
     req.headers().iter().find(|h| h.field.equiv(name)).map(|h| h.value.as_str().to_string())
 }
 
-fn handle(hub: &Arc<Hub>, mut req: tiny_http::Request) {
+fn handle(hub: &Arc<Hub>, mut req: tiny_http::Request, page: &str) {
     let full = req.url().to_string();
     let (url, q) = full.split_once('?').unwrap_or((&full, ""));
     match url {
         "/" => {
-            let _ = req.respond(tiny_http::Response::empty(302).with_header(header("Location", "/runtime/index.html?overlays")));
+            let _ = req.respond(tiny_http::Response::empty(302).with_header(header("Location", page)));
         }
         "/__mb/ws" => {
             let Some(key) = header_value(&req, "Sec-WebSocket-Key") else { return not_found(req, "websocket only") };
@@ -558,6 +681,25 @@ mod tests {
         let p = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         assert_eq!(short_list(&p(&["src/lib.rs"])), "src/lib.rs");
         assert_eq!(short_list(&p(&["a", "b", "c", "d", "e"])), "a, b and 3 more");
+    }
+
+    #[test]
+    fn a_pinned_run_is_unwrapped_and_asked_for_by_the_page() {
+        let dir = std::env::temp_dir().join(format!("mb-serve-pin-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let log = json!({ "version": 1, "game": "dev.x.y", "seed": "1", "bundle": "ab", "frames": [{ "dt": 0.016 }, { "dt": 0.016 }, { "dt": 0.016 }] });
+        std::fs::write(dir.join("wrapped.json"), json!({ "note": "hi", "log": log }).to_string()).unwrap();
+        let p = Pin::read(&dir.join("wrapped.json"), Some(2), false).unwrap();
+        assert_eq!(serde_json::from_slice::<Value>(&p.log).unwrap(), log);
+        assert_eq!((p.at, p.frames, p.game.as_str(), p.bundle.as_deref()), (2, 3, "dev.x.y", Some("ab")));
+        assert_eq!(page_path(Some(&p)), "/runtime/index.html?overlays&replay=play&at=2");
+        let p = Pin::read(&dir.join("wrapped.json"), None, true).unwrap();
+        assert_eq!(page_path(Some(&p)), "/runtime/index.html?overlays&replay=restore&at=3&restore=on", "default: its last frame");
+        assert_eq!(page_path(None), "/runtime/index.html?overlays");
+        assert!(Pin::read(&dir.join("wrapped.json"), Some(4), false).unwrap_err().contains("the run has 3 frames, so --at 4 is past its end"));
+        std::fs::write(dir.join("not.json"), r#"{"frames":[]}"#).unwrap();
+        assert!(Pin::read(&dir.join("not.json"), None, false).unwrap_err().contains("not a replay log"));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

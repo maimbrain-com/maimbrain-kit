@@ -1,5 +1,6 @@
 //! Talking to the Maimbrain server: `mb login`, `mb publish`, `mb submit`, `mb describe`, `mb whoami`,
 //! and whether you may use Maimbrain's generation keys (generate/maimbrain.rs makes those calls).
+//! `mb test` and `mb feedback` (playtest.rs) use the helpers here.
 //!
 //! Credentials live in `~/.config/maimbrain/credentials.json` (mode 0600), or
 //! `%APPDATA%\maimbrain\credentials.json` on Windows.
@@ -71,7 +72,7 @@ pub fn server(flag: Option<&str>) -> String {
         .to_string()
 }
 
-fn agent() -> ureq::Agent {
+pub(crate) fn agent() -> ureq::Agent {
     agent_with(Duration::from_secs(120))
 }
 
@@ -85,14 +86,14 @@ fn agent_with(timeout: Duration) -> ureq::Agent {
 }
 
 /// (status, JSON body) for a request; network errors become Err.
-fn json_of(resp: Result<ureq::http::Response<ureq::Body>, ureq::Error>) -> Result<(u16, Value), String> {
+pub(crate) fn json_of(resp: Result<ureq::http::Response<ureq::Body>, ureq::Error>) -> Result<(u16, Value), String> {
     let mut resp = resp.map_err(|e| format!("can't reach the server: {e}"))?;
     let status = resp.status().as_u16();
     let body = resp.body_mut().read_to_string().unwrap_or_default();
     Ok((status, serde_json::from_str(&body).unwrap_or(Value::Null)))
 }
 
-fn error_text(status: u16, body: &Value) -> String {
+pub(crate) fn error_text(status: u16, body: &Value) -> String {
     body["error"].as_str().map(str::to_string).unwrap_or_else(|| format!("HTTP {status}"))
 }
 
@@ -184,8 +185,9 @@ pub fn whoami() -> Result<Value, String> {
 /// straight to review, as `level` (fix, update or season; None: what its
 /// number suggests). `model` is the AI model that built it (None: a person);
 /// `notes` what's new in it for players. `source` is what to pass to `mb submit`
-/// afterwards.
-pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&str>, notes: Option<&str>, source: &str) -> Result<(), String> {
+/// afterwards. `fixes` are the to-dos it fixes (`--fixes 7,10`, docs/UPDATES.md
+/// "Closing the loop"): once it's valid, the server marks them fixed in it.
+pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&str>, notes: Option<&str>, fixes: &[u64], source: &str) -> Result<(), String> {
     let c = credentials()?;
     let bytes = std::fs::read(bundle).map_err(|e| format!("{}: {e}", bundle.display()))?;
     eprintln!("Uploading {} ({} KB) to {}…", bundle.display(), bytes.len() / 1024, c.server);
@@ -201,6 +203,9 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
     }
     if let Some(n) = notes {
         request = request.query("notes", n);
+    }
+    if !fixes.is_empty() {
+        request = request.query("fixes", fixes.iter().map(u64::to_string).collect::<Vec<_>>().join(","));
     }
     let (status, body) = json_of(
         request
@@ -247,6 +252,7 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
         }
         "draft" => {
             eprintln!("✓ {name} passed validation. It's a private draft: only you can see it.");
+            fixes_summary(&v, fixes, source);
             eprintln!("  Test it on your phone: open Maimbrain → Account → My games (it's also first in your feed).");
             eprintln!("  Fix something? Run mb publish again; the new upload replaces the draft.");
             eprintln!("  When it's ready, submit it for review:  {submit_command}");
@@ -258,6 +264,7 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
                 Some(level) => eprintln!("✓ {name} passed validation and was submitted for review as {level}."),
                 None => eprintln!("✓ {name} passed validation and is waiting for review."),
             }
+            fixes_summary(&v, fixes, source);
             eprintln!("  Track it at {}/create", c.server);
             Ok(())
         }
@@ -273,6 +280,26 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
             eprintln!("{name}: {other}");
             Ok(())
         }
+    }
+}
+
+/// Which to-dos a valid upload fixes: the notes the server marked fixed in it
+/// (its `fixed`), or, when it doesn't say, the ones it was sent.
+fn fixes_summary(v: &Value, sent: &[u64], source: &str) {
+    if sent.is_empty() {
+        return;
+    }
+    let fixed: Vec<u64> = match v["fixed"].as_array() {
+        Some(a) => a.iter().filter_map(Value::as_u64).collect(),
+        None => sent.to_vec(),
+    };
+    let list = |ns: &[u64]| ns.iter().map(|n| format!("#{n}")).collect::<Vec<_>>().join(" ");
+    if !fixed.is_empty() {
+        eprintln!("  Fixes {} (their testers hear when this build reaches them)", list(&fixed));
+    }
+    let not: Vec<u64> = sent.iter().copied().filter(|n| !fixed.contains(n)).collect();
+    if !not.is_empty() {
+        eprintln!("  Not marked fixed: {} (--fixes takes to-dos only; see mb feedback {source} --all)", list(&not));
     }
 }
 
@@ -356,7 +383,7 @@ pub struct SubmitTarget {
 
 /// Your uploads (`GET /me/games`, newest first) and the id of the one game
 /// among them that `query` names: its whole id, or the last part of it.
-fn my_game(c: &Credentials, query: &str) -> Result<(Vec<Value>, String), String> {
+pub(crate) fn my_game(c: &Credentials, query: &str) -> Result<(Vec<Value>, String), String> {
     let (status, body) = json_of(agent().get(format!("{}/api/v1/me/games", c.server)).header("Authorization", format!("Bearer {}", c.token)).call())?;
     if status != 200 {
         return Err(format!("listing your games: {} (try mb login)", error_text(status, &body)));

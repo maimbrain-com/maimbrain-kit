@@ -1,5 +1,9 @@
 # Creator kit changelog
 
+## 0.7.4
+
+- **The skill reads less up front, so building a game takes less time per step.** 0.7.0 more than doubled what the skill asked a builder to read before writing code, and everything read stays in its context, slowing every later step. SKILL.md is now a 57 KB core (workflow, platform facts, UI and juice, physics, the done checklist). The 3D section, music/foley/rhythm and publishing/feedback moved unchanged into `3d.md`, `audio.md` and `publish.md`, which the skill reads when a game needs them. Before coding it asks for only SPEC §2, §3, §5.2, §5.7 and §9, and says to look SDK items up as needed instead of reading modules in full. Required reading before code goes from about 480 KB to about 165 KB for a 2D game (about 230 KB for 3D).
+
 ## 0.7.3
 
 - **Games are crisp pixel art by default, not a flat-vector cartoon.** The `art/style.toml` that `mb art init` writes used to set `style = "bold flat vector shapes with thick dark outlines, soft cel shading"` with "chunky proportions", so every image a game generated came out as the same generic cartoon unless its builder rewrote it. The template now turns `pixel_art` on (sprites reduced to a grid of whole art pixels, 4 texels each; backgrounds, skies and the icon keep full resolution) and leaves `style` empty, with commented pixel-art examples and a couple of other media for games that turn it off. "Chunky proportions" and the blanket avoid-"photorealism" are gone. An existing `art/style.toml` is unchanged: edit its `style` (and `pixel_art`), then `mb art check` lists what to regenerate.

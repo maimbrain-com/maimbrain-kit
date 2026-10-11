@@ -1366,7 +1366,7 @@ mod tests {
         coin.free();
     }
 
-    /// The explosion example in the maimbrain-game skill's 3D section compiles and runs off-wasm.
+    /// The explosion example in the maimbrain-game skill's 3d.md compiles and runs off-wasm.
     #[test]
     fn skill_explosion_example() {
         let at = vec3(1.0, 2.0, 3.0);

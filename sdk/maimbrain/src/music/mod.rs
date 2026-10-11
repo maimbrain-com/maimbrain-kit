@@ -36,7 +36,7 @@
 //!
 //! Audio is output only, so none of this touches replays. The levels are the
 //! ones the skill's `mix_check.py` passes and that are clearly heard on a
-//! phone at full danger (SKILL.md "Music that follows the game"); with a
+//! phone at full danger (the skill's audio.md "Music that follows the game"); with a
 //! graph, the tension kit's are raised by the gain `mb music` measured for
 //! the take ([`Levels::for_graph`]), since a loud take buries the defaults.
 //!

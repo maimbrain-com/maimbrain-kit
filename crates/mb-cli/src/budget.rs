@@ -1,6 +1,6 @@
 //! The skill's per-frame budgets (≤ 200 mb3d draws, ≤ 150 k triangles, a
-//! handful of skinned draws, a few thousand particles; SKILL.md
-//! "Performance budgets") checked against what frames drew, for `mb shot`
+//! handful of skinned draws, a few thousand particles; the skill's
+//! 3d.md "Performance budgets") checked against what frames drew, for `mb shot`
 //! and `mb measure`. The page decides which frames are over (`BUDGETS` in
 //! runtime/src/stats.ts: each over-budget frame has `over`, the budgets it
 //! went over, and `top`, the nodes that cost it the most triangles); this

@@ -72,6 +72,19 @@ impl Event {
     pub fn is_press(&self) -> bool {
         matches!(self.kind(), Kind::TouchDown | Kind::MouseDown)
     }
+
+    /// True for a touch or mouse moving (a drag, or the mouse hovering in
+    /// the preview: check you're tracking a press).
+    pub fn is_move(&self) -> bool {
+        matches!(self.kind(), Kind::TouchMove | Kind::MouseMove)
+    }
+
+    /// True for a touch or mouse let go, including a touch the system took
+    /// away (`TouchCancel`: a notification, a gesture): end the drag or hold
+    /// either way.
+    pub fn is_release(&self) -> bool {
+        matches!(self.kind(), Kind::TouchUp | Kind::TouchCancel | Kind::MouseUp)
+    }
 }
 
 /// Touches made in code, for bots and tests: the events a finger produces,

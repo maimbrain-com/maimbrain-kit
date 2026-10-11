@@ -4,7 +4,7 @@
 Effects:
 
     import sys; sys.path.insert(0, "<skill dir>/scripts")   # or copy this file into your tools/
-    from sfx import Sfx, Song, Inst, mix, reverb, echo, save_ogg, save_stems
+    from sfx import Sfx, Song, Inst, mix, noise, reverb, echo, save_ogg, save_stems
 
     # An instrument (preset name or Inst) playing a possibly sweeping note.
     jump = Sfx("square", freq=330, freq_end=880, dur=0.18)
@@ -12,6 +12,15 @@ Effects:
     boom = mix(Sfx("kick", freq=60, dur=0.5).render(), Sfx("noise_burst", freq=900, dur=0.6).render())
     save_ogg("games/g/assets/jump.ogg", jump.render())
     save_ogg("games/g/assets/boom.ogg", reverb(boom, room=0.6, wet=0.25))
+    # Layered in time: offsets are SECONDS from the start (not samples).
+    ding_dong = mix(Sfx("bell", 784, dur=0.4).render(), Sfx("bell", 659, dur=0.6).render(), offsets=[0.0, 0.25])
+    # Any preset setting can be overridden, or an instrument built whole; the
+    # envelope is one tuple, adsr=(attack s, decay s, sustain 0–1, release s).
+    soft = Inst("triangle", adsr=(0.02, 0.2, 0.5, 0.3), cutoff=3000, vibrato=(0.3, 6.0, 0.1))
+    hum = Sfx(soft, freq=220, dur=0.8)
+    # Smooth filtered noise with an attack and an exponential decay: a hiss,
+    # a "shh", wind, a whoosh (the noise presets are grittier, 8-bit noise).
+    shh = noise(0.6, cutoff=5000, attack=0.08, decay=0.35)
 
 Music (a step sequencer with instruments, accents, seamless loops and stems):
 
@@ -317,9 +326,18 @@ class Song:
 # --- effects ------------------------------------------------------------------
 
 def mix(*parts, offsets=None, gains=None) -> list[float]:
-    """Layers sounds (e.g. a thump under a sweep); offsets in seconds."""
+    """Layers sounds (e.g. a thump under a sweep). `offsets`: when each part
+    starts, in seconds (not samples), one per part; `gains`: one per part."""
     offsets = offsets or [0.0] * len(parts)
     gains = gains or [1.0] * len(parts)
+    if len(offsets) != len(parts) or len(gains) != len(parts):
+        raise ValueError(f"mix: {len(parts)} parts, {len(offsets)} offsets and {len(gains)} gains; give one of each per part")
+    for o in offsets:
+        # An offset in samples (0.09 * RATE) would pad hours of silence and
+        # run for many minutes: refuse it.
+        if not 0 <= o <= 60:
+            hint = f" ({o:g} samples would be {o / RATE:.3f} s)" if o > 60 else ""
+            raise ValueError(f"mix: offsets are seconds from the start, 0-60; got {o:g}{hint}")
     starts = [int(o * RATE) for o in offsets]
     out = [0.0] * max(s + len(p) for s, p in zip(starts, parts))
     for s, p, g in zip(starts, parts, gains):
@@ -586,6 +604,16 @@ def _partials(freqs, dur: float, decay: float, seed: int = 1) -> list[float]:
 def _noise(dur: float, seed: int, cutoff: float) -> list[float]:
     rng = random.Random(seed)
     return lowpass([rng.uniform(-1, 1) for _ in range(int(dur * RATE))], cutoff)
+
+
+def noise(dur: float, cutoff: float = 4000.0, attack: float = 0.005, decay: float = 0.2, seed: int = 1) -> list[float]:
+    """White noise through a low-pass at `cutoff` Hz, shaped by an envelope:
+    rising over `attack` seconds, then falling exponentially (to about a
+    third every `decay` seconds) for `dur` seconds in all. A hiss, a "shh",
+    a breath, wind (a long decay), a whoosh (layer two cutoffs), a crash's
+    tail. Pass it to `mix`, `reverb` and `save_ogg` like any render."""
+    x = _noise(dur, seed, cutoff)
+    return [v * e for v, e in zip(x, _env(len(x), attack, decay))]
 
 
 def mech_pack(seed: int = 3) -> dict[str, tuple[list[float], bool]]:

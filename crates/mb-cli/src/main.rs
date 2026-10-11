@@ -402,6 +402,18 @@ enum FontCmd {
         #[arg(long)]
         license: Option<String>,
     },
+    /// Take fonts out of a game: each one's assets/fonts/<name>.mbf, its license file and its
+    /// fonts.toml entry (`mb new` bakes its starting identity's fonts; this drops them).
+    Remove {
+        /// Game directory.
+        game: PathBuf,
+        /// Font names, as in assets/fonts/<name>.mbf (e.g. rye, bricolage-grotesque-800).
+        #[arg(required_unless_present = "all")]
+        names: Vec<String>,
+        /// Every font the game bakes.
+        #[arg(long, conflicts_with = "names")]
+        all: bool,
+    },
 }
 
 /// What kind of release a submit is (docs/UPDATES.md "Version levels"). Without one, what the
@@ -540,6 +552,7 @@ fn run() -> ExitCode {
         Cmd::Font { cmd: FontCmd::Add { game, font, weight, chars, em, name, bitmap, sdf, license, .. } } => {
             fonts::add(&game, font.as_deref().unwrap_or_default(), weight, chars, em, name, bitmap, sdf, license)
         }
+        Cmd::Font { cmd: FontCmd::Remove { game, names, all } } => fonts::remove(&game, &names, all),
         Cmd::Fonts { category, search, json, preview: false, .. } => fonts::list(category.as_deref(), search.as_deref(), json),
         Cmd::Fonts { category, search, preview: true, out, .. } => fonts::preview(category.as_deref(), search.as_deref(), &out),
         Cmd::Abi => {

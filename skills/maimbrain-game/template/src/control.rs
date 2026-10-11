@@ -3,7 +3,9 @@
 //! tests play through the same mapping a finger does. Every rule about raw
 //! input lives here: which events count, swipe distances and speeds, hold
 //! times, dead zones. A gesture that needs memory (where a swipe started,
-//! when a hold began) keeps it in `Control`.
+//! when a hold began) keeps it in `Control`. `e.is_press()`, `e.is_move()`
+//! and `e.is_release()` cover touch and mouse alike (a release includes a
+//! touch the system cancelled), so a drag or hold ends either way.
 
 use maimbrain::input::Event;
 

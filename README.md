@@ -54,6 +54,7 @@ mb fonts                         # the library, with mood, era, uses and pairing
 mb fonts --preview               # a specimen sheet, fonts.png
 mb font add mygame rye           # bake a font into mygame/assets/fonts/rye.mbf (+ its license)
 mb font add mygame --identity saloon   # every font a kit identity uses
+mb font remove mygame --all      # take fonts out again (or name them), e.g. mb new's starting ones
 ```
 
 Draw with `Font::asset("assets/fonts/rye.mbf", Font::SansBold)` or a theme's `.load_fonts()` (needs `stdlib = { mb2d = 2 }`); see docs/UI.md and docs/SPEC.md §5.3.

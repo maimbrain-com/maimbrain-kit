@@ -1,12 +1,14 @@
 //! A bot that plays like a person, to tune difficulty against (SKILL.md,
 //! "Write a bot"). `cargo test -p NAME -- --nocapture difficulty` plays 200
 //! seeded rounds per preset and prints how long they last, how they end and
-//! how they miss. It's a pattern to adapt as the game changes, not a library:
+//! how they miss; `mix_log` records one round's sound for mix_check.py. It's a pattern to adapt as the game changes, not a library:
 //! - It only *looks* at the sim (what's on screen) and only acts through touch
 //!   events with their own times, what a finger produces (`input::synth`).
 //!   `play` delivers them frame by frame through `control`, the same mapping
 //!   lib.rs uses. Never poke sim state from a bot.
 //! - It acts on what it saw `delay` ago, and sometimes looks away (a lapse).
+//!   So after it acts it waits at least `delay` + a frame before judging the
+//!   result: any sooner and it sees the moment before its own action.
 //! - One action in flight: it plans the next move only once the current tap
 //!   is committed and its result seen. A correction belongs to the move it
 //!   corrects, so a stale one can't override a newer move.
@@ -23,6 +25,7 @@ use maimbrain::input::{Event, synth};
 
 use crate::control::{self, Control};
 use crate::sim::Sim;
+use crate::sound::Sound;
 
 /// How a kind of player plays: a person's reaction time, lapses, finger
 /// speed and precision (Fitts' law) and timing, from `synth::Skill` (the
@@ -174,6 +177,10 @@ impl Bot {
                     self.early += ((to.0 - x).hypot(to.1 - y) > 10.0) as u32;
                     self.tapped = true;
                     // Watch it land: a pop shows up as a new bubble; if none, it missed.
+                    // Keep this wait at least `delay` + a frame past the touch: the bot sees
+                    // the sim as it was `delay` ago, so sooner it still sees the frame before
+                    // its own tap (no a new bubble yet), takes it for a miss and taps the same
+                    // target again. Every action that changes what the bot looks at needs it.
                     self.act = Act::Wait(at + self.delay + 2.0 * dt);
                     return synth::tap(x, y, at);
                 }
@@ -204,8 +211,9 @@ const DT: f32 = 1.0 / 60.0;
 struct Round { seconds: f32, taps: u32, missed: u32, early: u32, cause: &'static str }
 
 /// One round. Each frame, as the host runs it: the touches made up to the
-/// frame's end, through `control` as in lib.rs, then the step.
-fn play(skill: Skill, seed: u64) -> Round {
+/// frame's end, through `control` as in lib.rs, then the step, then the
+/// sim's cues into `sound` (if given) as lib.rs does.
+fn play(skill: Skill, seed: u64, mut sound: Option<&mut Sound>) -> Round {
     let (mut sim, mut bot) = (Sim::new(seed), Bot::new(skill, seed ^ 0x5eed));
     let (mut finger, mut control) = (synth::Queue::new(), Control::default());
     let (mut t, mut taps, mut missed) = (0.0, 0, 0);
@@ -216,6 +224,11 @@ fn play(skill: Skill, seed: u64) -> Round {
             missed += !control::apply(&mut sim, a) as u32;
         }
         sim.step(DT);
+        let cues = std::mem::take(&mut sim.cues);
+        if let Some(sound) = sound.as_deref_mut() {
+            sound.update(DT);
+            cues.into_iter().for_each(|c| sound.cue(c));
+        }
         t += DT;
     }
     let cause = if sim.over { bot.doing() } else { "still going at 300 s" };
@@ -227,7 +240,7 @@ fn difficulty() {
     println!("\n200 rounds per preset. Targets (SKILL.md): first-timer p50 20-45 s, good 60-180 s.");
     let mut p50 = Vec::new();
     for skill in [FIRST_TIMER, CASUAL, GOOD] {
-        let runs: Vec<Round> = (0..200).map(|seed| play(skill, seed)).collect();
+        let runs: Vec<Round> = (0..200).map(|seed| play(skill, seed, None)).collect();
         let mut secs: Vec<f32> = runs.iter().map(|r| r.seconds).collect();
         secs.sort_by(f32::total_cmp);
         let pct = |p: usize| secs[p * (secs.len() - 1) / 100];
@@ -247,4 +260,20 @@ fn difficulty() {
         p50.push(pct(50));
     }
     assert!(p50[0] < p50[2], "a good player should outlast a first-timer: {p50:?}");
+}
+
+/// One casual round's sound, as `sound.rs` plays it, for the skill's
+/// `scripts/mix_check.py` (sound.rs has the commands). `MB_MIX_SEED` picks
+/// the round. Rerun it after changing a sound, a level or a cue.
+#[test]
+fn mix_log() {
+    let seed = std::env::var("MB_MIX_SEED").ok().and_then(|s| s.parse().ok()).unwrap_or(3);
+    let mut sound = Sound::new();
+    play(CASUAL, seed, Some(&mut sound));
+    let log = sound.log.join("\n") + "\n";
+    assert!(log.contains(" pop ") && log.contains(" over "), "a round pops bubbles and ends:\n{log}");
+    if let Ok(path) = std::env::var("MB_MIX_LOG") {
+        std::fs::write(&path, log).unwrap();
+        println!("wrote {path}");
+    }
 }

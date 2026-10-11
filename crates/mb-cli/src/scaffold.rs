@@ -15,6 +15,8 @@ macro_rules! template {
 struct Template {
     /// (path in the crate, contents); `NAME` is replaced with the crate name.
     files: &'static [(&'static str, &'static str)],
+    /// Binary files copied as they are (the 2D template's placeholder sounds).
+    assets: &'static [(&'static str, &'static [u8])],
     icon: &'static [u8],
 }
 
@@ -26,6 +28,13 @@ const TEMPLATE_2D: Template = Template {
         ("src/control.rs", template!("MB_TEMPLATE_DIR", "src/control.rs")),
         ("src/sim.rs", template!("MB_TEMPLATE_DIR", "src/sim.rs")),
         ("src/bot.rs", template!("MB_TEMPLATE_DIR", "src/bot.rs")),
+        ("src/sound.rs", template!("MB_TEMPLATE_DIR", "src/sound.rs")),
+        ("tools/sounds.py", template!("MB_TEMPLATE_DIR", "tools/sounds.py")),
+    ],
+    assets: &[
+        ("assets/pop.ogg", include_bytes!(concat!(env!("MB_TEMPLATE_DIR"), "/assets/pop.ogg"))),
+        ("assets/miss.ogg", include_bytes!(concat!(env!("MB_TEMPLATE_DIR"), "/assets/miss.ogg"))),
+        ("assets/over.ogg", include_bytes!(concat!(env!("MB_TEMPLATE_DIR"), "/assets/over.ogg"))),
     ],
     icon: include_bytes!(concat!(env!("MB_TEMPLATE_DIR"), "/icon.png")),
 };
@@ -40,6 +49,7 @@ const TEMPLATE_3D: Template = Template {
         ("src/scene.rs", template!("MB_TEMPLATE_3D_DIR", "src/scene.rs")),
         ("src/bot.rs", template!("MB_TEMPLATE_3D_DIR", "src/bot.rs")),
     ],
+    assets: &[],
     icon: include_bytes!(concat!(env!("MB_TEMPLATE_3D_DIR"), "/icon.png")),
 };
 
@@ -198,6 +208,7 @@ pub fn new_game(dir: &Path, opts: &Options) -> Result<(), String> {
             for &(path, text) in template.files {
                 files.push((path.to_string(), text.replace("NAME", name).replace("__IDENTITY__", &identity).into_bytes()));
             }
+            files.extend(template.assets.iter().map(|&(path, bytes)| (path.to_string(), bytes.to_vec())));
             files.push(("icon.png".into(), template.icon.to_vec()));
         }
     }
@@ -363,6 +374,11 @@ mod tests {
             assert!(dir.join("tools").join(script).is_file(), "tools/{script}");
         }
         assert!(!dir.join("tools/make_glb.py").exists(), "make_glb.py is for 3D games");
+        // Sound from the start, and what makes and measures it.
+        assert!(dir.join("src/sound.rs").is_file() && dir.join("tools/sounds.py").is_file());
+        for f in ["pop", "miss", "over"] {
+            assert!(std::fs::read(dir.join(format!("assets/{f}.ogg"))).unwrap().starts_with(b"OggS"), "assets/{f}.ogg");
+        }
         std::fs::remove_dir_all(root).unwrap();
     }
 

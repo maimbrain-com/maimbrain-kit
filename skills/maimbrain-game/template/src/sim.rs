@@ -1,4 +1,6 @@
 //! The rules, with no host calls: `cargo test -p NAME` runs them natively.
+//! The sim never plays anything: it pushes `Cue`s for the moments that make
+//! a sound, and the host (lib.rs, or a test) hands them to `sound.rs`.
 
 use maimbrain::Rng;
 
@@ -9,9 +11,22 @@ pub struct Sim {
     pub r: f32,
     pub score: u32,
     pub over: bool,
+    /// What happened since the host last took them (`std::mem::take`).
+    pub cues: Vec<Cue>,
     /// Shrink speed (units/s); rises with every pop.
     shrink: f32,
     rng: Rng,
+}
+
+/// A moment that makes a sound (sound.rs plays each).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Cue {
+    /// A bubble popped; `score` is the new score.
+    Pop { score: u32 },
+    /// A tap that missed.
+    Miss,
+    /// The bubble shrank away: the round is over.
+    Over,
 }
 
 pub const START_R: f32 = 60.0;
@@ -31,7 +46,7 @@ const SHRINK_RAMP: f32 = 2.0;
 
 impl Sim {
     pub fn new(seed: u64) -> Sim {
-        Sim { x: 180.0, y: 320.0, r: START_R, score: 0, over: false, shrink: SHRINK, rng: Rng::new(seed) }
+        Sim { x: 180.0, y: 320.0, r: START_R, score: 0, over: false, cues: Vec::new(), shrink: SHRINK, rng: Rng::new(seed) }
     }
 
     pub fn step(&mut self, dt: f32) {
@@ -41,15 +56,21 @@ impl Sim {
         self.r -= self.shrink * dt;
         if self.r <= 8.0 {
             self.over = true;
+            self.cues.push(Cue::Over);
         }
     }
 
     /// A tap at (x, y); true if it popped the bubble.
     pub fn tap(&mut self, x: f32, y: f32) -> bool {
-        if self.over || (x - self.x).hypot(y - self.y) > (self.r + 12.0).max(HIT_MIN) {
+        if self.over {
+            return false;
+        }
+        if (x - self.x).hypot(y - self.y) > (self.r + 12.0).max(HIT_MIN) {
+            self.cues.push(Cue::Miss);
             return false;
         }
         self.score += 1;
+        self.cues.push(Cue::Pop { score: self.score });
         self.shrink = SHRINK + SHRINK_RAMP * (self.score as f32).sqrt();
         self.r = START_R;
         self.x = self.rng.range(70.0, 290.0);
@@ -77,5 +98,6 @@ mod tests {
         assert!(s.tap(s.x, s.y));
         assert_eq!(s.score, 1);
         assert!(!s.tap(-100.0, -100.0));
+        assert_eq!(s.cues, [Cue::Pop { score: 1 }, Cue::Miss]);
     }
 }

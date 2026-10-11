@@ -7,6 +7,8 @@
 //!   (`input::synth`). `play` delivers them frame by frame through `control`,
 //!   the same mapping lib.rs uses. Never poke sim state from a bot.
 //! - It acts on what it saw `delay` ago, and sometimes looks away (a lapse).
+//!   So after it acts it waits at least `delay` + a frame before judging the
+//!   result: any sooner and it sees the moment before its own action.
 //! - One action in flight: it plans the next move only once the current tap
 //!   is committed and its result seen. A correction belongs to the move it
 //!   corrects, so a stale one can't override a newer move.
@@ -206,6 +208,10 @@ impl Bot {
                     self.early += ((to.0 - x).hypot(to.1 - y) > 10.0) as u32;
                     self.tapped = true;
                     // Watch it land: a catch shows up as a new score; if not, it missed.
+                    // Keep this wait at least `delay` + a frame past the touch: the bot sees
+                    // the sim as it was `delay` ago, so sooner it still sees the frame before
+                    // its own tap (no a new score yet), takes it for a miss and taps the same
+                    // target again. Every action that changes what the bot looks at needs it.
                     self.act = Act::Wait(at + self.delay + 2.0 * dt);
                     return synth::tap(x, y, at);
                 }

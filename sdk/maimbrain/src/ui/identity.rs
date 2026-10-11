@@ -413,16 +413,34 @@ impl Theme {
     /// "notebook", "synthwave"…), then any of these override parts of it:
     /// - colors (first = accent, second = highlight): red, crimson, orange,
     ///   mustard, yellow, gold, lime, green, olive, teal, cyan, blue, navy,
-    ///   purple, pink, magenta, brown, black, white
-    /// - shape: sharp, rounded, pill, chamfered, wobbly / hand-drawn, pixel, bevel, ticket
+    ///   purple, violet, pink, magenta, brown, black, white, cream
+    /// - shape: sharp, rounded, pill, chamfered, wobbly / hand-drawn, pixelated, bevel, ticket
+    ///   ("pixel" alone picks the cozy-pixel identity)
     /// - motion: snappy, floaty, bouncy, mechanical, jittery, elastic
-    /// - texture: grain, scanlines, halftone, stripes, grid, lined, flat
+    /// - texture: grain, scanlines, dots (halftone), stripes, grid, lined, flat
     /// - shadow: hard (offset print shadow), glow, flat
     /// - layouts: receipt, scoreboard, stamp, typewriter, marquee, banner, neon, arc, plate, editorial
     ///
     /// With no recognisable words it still picks an identity, from the text
     /// itself, so two different descriptions rarely land on the same look.
+    ///
+    /// It logs what it understood, once, at info (`mb shot` prints it, as
+    /// does the preview's console): `identity "wild west saloon, crimson,
+    /// wobbly": saloon (wild west, saloon); crimson (accent), wobbly (shape)`.
+    /// [`Theme::explain_identity`] returns the same text.
     pub fn from_identity(desc: &str) -> Theme {
+        let (t, notes) = Theme::compose_identity(desc);
+        crate::sys::log(crate::sys::Level::Info, &format!("identity {desc:?}: {notes}"));
+        t
+    }
+
+    /// What [`Theme::from_identity`] makes of `desc`: the identity it picked
+    /// and the words that chose it, then each word that changed a part of it.
+    pub fn explain_identity(desc: &str) -> String {
+        Theme::compose_identity(desc).1
+    }
+
+    fn compose_identity(desc: &str) -> (Theme, String) {
         let d = desc.to_lowercase();
         let words: Vec<&str> = d.split(|c: char| !(c.is_alphanumeric() || c == '-')).filter(|w| !w.is_empty()).collect();
         let has = |k: &str| if k.contains(' ') { d.contains(k) } else { words.contains(&k) };
@@ -434,6 +452,14 @@ impl Theme {
             }
         }
         let mut t = Theme::preset(best.1);
+        let mut notes = match KEYWORDS.iter().find(|(n, _)| *n == best.1) {
+            Some((name, keys)) if best.0 > 0 => {
+                let hits: Vec<&str> = std::iter::once(*name).chain(keys.iter().copied()).filter(|k| has(k)).collect();
+                format!("{} ({})", best.1, hits.join(", "))
+            }
+            _ => format!("{} (no identity words: picked from the text)", best.1),
+        };
+        let mut changed: Vec<String> = Vec::new();
         // Colors.
         const COLORS: [(&str, u32); 21] = [
             ("red", 0xe5484d), ("crimson", 0xa3121f), ("orange", 0xff7a1a), ("mustard", 0xe0a526), ("yellow", 0xffd23f), ("gold", 0xd4af37),
@@ -442,10 +468,13 @@ impl Theme {
             ("black", 0x111111), ("white", 0xf8f8f8), ("cream", 0xf4ecd8),
         ];
         let picked: Vec<u32> = words.iter().filter_map(|w| COLORS.iter().find(|(n, _)| n == w).map(|(_, c)| hex(*c))).collect();
+        let color_words: Vec<&str> = words.iter().copied().filter(|w| COLORS.iter().any(|(n, _)| n == w)).collect();
         if let Some(&a) = picked.first() {
             t = t.with_accent(a);
+            changed.push(format!("{} (accent)", color_words[0]));
         }
         if let Some(&g) = picked.get(1) {
+            changed.push(format!("{} (highlight)", color_words[1]));
             t.gold = g;
             if luma(t.bg_top) > 0.55 && luma(g) > 0.75 {
                 t.gold = super::color::darken(g, 0.35);
@@ -453,6 +482,7 @@ impl Theme {
         }
         let st = &mut t.style;
         for w in &words {
+            let before = *st;
             match *w {
                 "sharp" | "square" | "angular" => st.shape = Shape::Sharp,
                 "rounded" | "round" | "soft" => st.shape = Shape::Rounded,
@@ -495,15 +525,35 @@ impl Theme {
                 "lowercase" => st.case = Case::Lower,
                 _ => {}
             }
+            let parts = [
+                (before.shape != st.shape, "shape"),
+                (before.motion != st.motion, "motion"),
+                (before.texture != st.texture, "texture"),
+                (before.shadow != st.shadow, "shadow"),
+                (before.title != st.title, "title layout"),
+                (before.results != st.results, "results layout"),
+                (before.case != st.case, "letter case"),
+            ];
+            let parts: Vec<&str> = parts.iter().filter(|p| p.0).map(|p| p.1).collect();
+            if !parts.is_empty() {
+                changed.push(format!("{w} ({})", parts.join(", ")));
+            }
         }
-        if has("scoreboard") {
+        // Words that can't be one-word matches above; claimed only when they change something.
+        if has("scoreboard") && t.style.results != ResultsLayout::Scoreboard {
             t.style.results = ResultsLayout::Scoreboard;
+            changed.push("scoreboard (results layout)".into());
         }
         if has("neon") {
+            let parts: Vec<&str> = [(t.style.title != TitleLayout::Neon, "title layout"), (t.style.shadow != Shadow::Glow, "shadow")].iter().filter(|p| p.0).map(|p| p.1).collect();
             t.style.title = TitleLayout::Neon;
             t.style.shadow = Shadow::Glow;
+            if !parts.is_empty() {
+                changed.push(format!("neon ({})", parts.join(", ")));
+            }
         }
-        t
+        notes += &if changed.is_empty() { "; no color, shape, motion, texture, shadow or layout words".to_string() } else { format!("; {}", changed.join(", ")) };
+        (t, notes)
     }
 }
 
@@ -542,5 +592,20 @@ mod tests {
         let x = Theme::from_identity("qwzx");
         assert!(IDENTITIES.iter().any(|n| Theme::preset(n).fonts == x.fonts));
         assert_eq!(Theme::preset("nope"), Theme::preset("riso"));
+    }
+
+    #[test]
+    fn explains_what_it_matched() {
+        assert_eq!(
+            Theme::explain_identity("Wild west saloon, crimson, teal, wobbly, floaty"),
+            "saloon (saloon, wild west); crimson (accent), teal (highlight), wobbly (shape), floaty (motion)"
+        );
+        let none = Theme::explain_identity("qwzx");
+        assert!(none.contains("no identity words") && none.ends_with("no color, shape, motion, texture, shadow or layout words"), "{none}");
+        // A word that leaves a part as it was isn't claimed.
+        assert!(!Theme::explain_identity("riso, grain").contains("grain ("), "riso is already grainy");
+        assert_eq!(Theme::explain_identity("neon"), "neon (neon); no color, shape, motion, texture, shadow or layout words", "the neon preset is already neon");
+        assert!(!Theme::explain_identity("stadium scoreboard").contains("scoreboard ("), "stadium already has the scoreboard");
+        assert!(Theme::explain_identity("riso with a neon sign").contains("; neon (title layout, shadow)"));
     }
 }

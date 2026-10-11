@@ -37,9 +37,10 @@ theme.style.results = ResultsLayout::Receipt;
 mb font add games/<name> shrikhand              # → assets/fonts/shrikhand.mbf (+ its OFL license)
 mb font add games/<name> courier-prime
 mb font add games/<name> --identity riso        # or every font a kit identity was designed with
+mb font remove games/<name> --all               # drop fonts you've replaced (mb new's starting identity's), or name them
 ```
 
-- `Theme::preset("riso")` and the other 16 presets are complete starting points. `Theme::from_identity(words)` picks the closest one and applies the colors, shapes, motion, textures and layouts you name. `.load_fonts()` points the theme at the preset's own fonts, which `mb font add --identity <name>` bakes.
+- `Theme::preset("riso")` and the other 16 presets are complete starting points. `Theme::from_identity(words)` picks the closest one and applies the colors, shapes, motion, textures and layouts you name (docs/UI.md lists the words), and logs what it matched: check `mb shot`'s game log that your words did something. `.load_fonts()` points the theme at the preset's own fonts, which `mb font add --identity <name>` bakes.
 - Manifest: `stdlib = { mb2d = 2 }` for game fonts. `Font::asset` draws in its fallback until the font loads, so naming it in `init` is fine. Set 3D text (`Node::set_text`) only once `font.ready()`, because it's laid out when it's set.
 - Fonts are subset atlases: Latin-1 by default ("Touché", "Señor", curly quotes and dashes), `--chars caps` for caps-only display faces (the default when the library marks the font `caps_only`), `--chars digits` for a score-only face, `--chars ascii` to save about half when the text is plain English. A Latin-1 font is typically 60–110 KB (35–75 KB in the bundle, which is compressed). Keep a game to 2–3 fonts.
 - Draw the scene in the identity too, not just the kit's chrome. Use the palette for your sprites and shapes. Paint `theme.backdrop(screen, t)` or your own background, and give your animation the motion personality you chose.

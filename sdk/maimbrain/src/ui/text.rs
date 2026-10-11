@@ -78,6 +78,8 @@ pub struct Text<'a> {
     pub wrap: f32,
     /// Line spacing multiplier.
     pub leading: f32,
+    /// Shrink to fit this width (0 = never shrink): see [`Text::max_width`].
+    pub max_width: f32,
 }
 
 /// Starts styling `s`: Inter Bold, 24 units, white, left/top.
@@ -96,6 +98,7 @@ pub fn text(s: &str) -> Text<'_> {
         tracking: 0.0,
         wrap: 0.0,
         leading: 1.0,
+        max_width: 0.0,
     }
 }
 
@@ -172,6 +175,16 @@ impl<'a> Text<'a> {
         self.leading = k;
         self
     }
+    /// Shrinks the text (never grows it) until its widest line fits `width`:
+    /// a title in a fixed stamp or panel, a name of any length, a label on a
+    /// button. Bitmap fonts step down by whole multiples of their pixel grid,
+    /// so they stay crisp. With `wrap`, it wraps first and shrinks only if a
+    /// line still doesn't fit (one long word). `fitted_size()` is the size
+    /// it ends up at, to size a box around it.
+    pub fn max_width(mut self, width: f32) -> Self {
+        self.max_width = width;
+        self
+    }
     /// Multiplies every color's alpha (fading the whole thing).
     pub fn alpha(mut self, a: f32) -> Self {
         let f = |c: u32| super::color::fade(c, a);
@@ -196,8 +209,29 @@ impl<'a> Text<'a> {
         }
     }
 
+    /// The size it draws at: `size`, or smaller to fit `max_width`.
+    pub fn fitted_size(&self) -> f32 {
+        self.fitted().size
+    }
+
+    /// This text at the size `max_width` allows (with `max_width` cleared).
+    fn fitted(&self) -> Text<'a> {
+        let mut t = *self;
+        t.max_width = 0.0;
+        if self.max_width > 0.0 {
+            t.size = shrink_to_fit(self.size, self.max_width, self.font.pixel_em(), |size| {
+                let at = Text { size, ..t };
+                at.lines().iter().map(|l| at.line_w(l)).fold(0.0, f32::max)
+            });
+        }
+        t
+    }
+
     /// The lines after `\n` and wrapping.
     pub fn lines(&self) -> Vec<&'a str> {
+        if self.max_width > 0.0 {
+            return self.fitted().lines();
+        }
         let mut out = Vec::new();
         for para in self.s.split('\n') {
             if self.wrap <= 0.0 {
@@ -231,6 +265,9 @@ impl<'a> Text<'a> {
 
     /// Width (the widest line) and height of the block.
     pub fn measure(&self) -> (f32, f32) {
+        if self.max_width > 0.0 {
+            return self.fitted().measure();
+        }
         let lines = self.lines();
         let w = lines.iter().map(|l| self.line_w(l)).fold(0.0, f32::max);
         let m = metrics(self.font);
@@ -241,6 +278,9 @@ impl<'a> Text<'a> {
     /// Draws with (x, y) interpreted by `align` and `valign`. Returns the
     /// block's bounds.
     pub fn draw(&self, x: f32, y: f32) -> super::Rect {
+        if self.max_width > 0.0 {
+            return self.fitted().draw(x, y);
+        }
         let lines = self.lines();
         let m = metrics(self.font);
         let total_h = self.line_h() * (lines.len().max(1) - 1) as f32 + m.line * self.size;
@@ -333,6 +373,29 @@ impl<'a> Text<'a> {
     }
 }
 
+/// The largest size up to `size` at which `widest(size)` (the widest line
+/// at that size) fits `max_w`; for a bitmap font (`pixel_em` > 0) a whole
+/// multiple of its grid, at least one. Width scales with size, so one step
+/// usually fits; wrapping at the new size can move words, and the grid
+/// rounds down, so it checks again.
+fn shrink_to_fit(mut size: f32, max_w: f32, pixel_em: f32, widest: impl Fn(f32) -> f32) -> f32 {
+    for _ in 0..4 {
+        let w = widest(size);
+        if w <= max_w + 0.01 || w <= 0.0 {
+            break;
+        }
+        let mut s = size * max_w / w;
+        if pixel_em > 0.0 {
+            s = ((s / pixel_em).floor() * pixel_em).max(pixel_em);
+        }
+        if s >= size {
+            break;
+        }
+        size = s;
+    }
+    size
+}
+
 /// `12345` → `"12,345"` (negative numbers keep their sign).
 pub fn fmt_int(n: i64) -> String {
     fmt_int_sep(n, ',')
@@ -364,6 +427,24 @@ mod tests {
         assert_eq!((t.align, t.valign), (Align::Right, VAlign::Middle));
         let t = text("9").right().middle();
         assert_eq!((t.align, t.valign), (Align::Center, VAlign::Middle));
+    }
+
+    #[test]
+    fn max_width_shrinks_to_fit_and_never_grows() {
+        // 10 units per unit of size: 64 → 640 wide.
+        let linear = |size: f32| size * 10.0;
+        assert_eq!(shrink_to_fit(64.0, 320.0, 0.0, linear), 32.0);
+        assert_eq!(shrink_to_fit(20.0, 320.0, 0.0, linear), 20.0, "already fits");
+        // A bitmap font rounds down to its grid, so it still fits.
+        assert_eq!(shrink_to_fit(64.0, 300.0, 8.0, linear), 24.0);
+        assert_eq!(shrink_to_fit(64.0, 10.0, 8.0, linear), 8.0, "never below one grid step");
+        // Wider than proportional (a wrap that moves a word): it checks again.
+        let lumpy = |size: f32| if size > 30.0 { size * 10.0 } else { size * 12.0 };
+        let s = shrink_to_fit(64.0, 320.0, 0.0, lumpy);
+        assert!(lumpy(s) <= 320.01 && s > 25.0, "{s}");
+        let t = text("SHUSH STACK").size(48.0).max_width(200.0);
+        assert_eq!(t.max_width, 200.0);
+        assert_eq!(t.fitted().max_width, 0.0);
     }
 
     #[test]

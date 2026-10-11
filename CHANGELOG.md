@@ -1,5 +1,19 @@
 # Creator kit changelog
 
+## 0.7.5
+
+Fixes for what tripped up a builder making a game with 0.7.2.
+
+- **`ui::shape::arc`'s angles are documented where they're used.** They're a clock face's: radians from 0 = up, clockwise, not `atan2`'s 0 = right. A builder's smile and hair arcs came out rotated, and screenshots didn't catch it. `arc`'s doc and UI.md now say so, with a smile, a frown and the conversion (add `PI / 2`).
+- **`sfx.py`'s `mix` refuses offsets in samples.** Offsets are seconds. `0.09 * RATE` asked for an hour of silence and a build hung for 20 minutes. An offset outside 0–60 s is now an error that gives the conversion, and so are offset or gain lists that don't match the parts.
+- **`ui::text(..).max_width(w)`** shrinks text, never grows it, until its widest line fits (`fitted_size()` is the result): a title in a fixed stamp, a name of any length. Bitmap fonts stay on their grid.
+- **`mb font remove <game> <name>… | --all`** takes fonts out again: the `.mbf`, its license and its `fonts.toml` entry. Use it, for example, to drop the starting identity's fonts that `mb new` baked.
+- **The 2D template has sound:** the sim's cues, `src/sound.rs` (a pop that climbs the scale, a miss, the end), placeholder files from `tools/sounds.py`, and a `mix_log` test for `mix_check.py`, as the kits have.
+- **`Theme::from_identity` says what it understood** in the game log (`mb shot` prints it), and UI.md lists the words it knows. `Theme::explain_identity` returns the same text.
+- New helpers: `shape::ellipse`, `Event::is_move()` and `is_release()` (the release includes a cancelled touch), `Rng::below(n)`, `pick(&items)` and `shuffle(&mut items)`, and `sfx.py`'s `noise(dur, cutoff, attack, decay)` for hisses and whooshes. The `sfx.py` docstring now shows `Inst(...)` and `offsets`.
+- The template bots explain why they wait `delay` + a frame after a tap: any sooner, the bot sees the moment before its own tap and taps the same target twice.
+- SKILL.md says where `docs/` and `sdk/` are in an installed plugin (two directories above the skill's), so a builder doesn't search the disk for them.
+
 ## 0.7.4
 
 - **The skill reads less up front, so building a game takes less time per step.** 0.7.0 more than doubled what the skill asked a builder to read before writing code, and everything read stays in its context, slowing every later step. SKILL.md is now a 57 KB core (workflow, platform facts, UI and juice, physics, the done checklist). The 3D section, music/foley/rhythm and publishing/feedback moved unchanged into `3d.md`, `audio.md` and `publish.md`, which the skill reads when a game needs them. Before coding it asks for only SPEC §2, §3, §5.2, §5.7 and §9, and says to look SDK items up as needed instead of reading modules in full. Required reading before code goes from about 480 KB to about 165 KB for a 2D game (about 230 KB for 3D).

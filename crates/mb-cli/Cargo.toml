@@ -2,7 +2,7 @@
 name = "mb-cli"
 description = "The `mb` command: build, pack and validate Maimbrain games"
 edition.workspace = true
-version = "0.7.4"
+version = "0.7.5"
 publish.workspace = true
 
 [dependencies]

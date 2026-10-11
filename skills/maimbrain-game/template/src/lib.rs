@@ -1,8 +1,9 @@
 //! Template: copy this directory to games/<name>, replace NAME in Cargo.toml
 //! and manifest.toml, and keep the shape — pure rules in `sim`, what touches
 //! mean in `control`, a thin host layer here (round state, saving, sound,
-//! drawing), and in `bot` (tests only) a player that plays through `control`
-//! with touches, to tune difficulty.
+//! drawing), what each moment sounds like in `sound` (from the sim's cues),
+//! and in `bot` (tests only) a player that plays through `control` with
+//! touches, to tune difficulty and record a round's sound for mix_check.py.
 //!
 //! The title card, HUD and game-over card come from the SDK's UI kit
 //! (`maimbrain::ui`, docs/UI.md), the pops' juice from `maimbrain::juice`.
@@ -15,6 +16,7 @@
 mod bot;
 mod control;
 mod sim;
+mod sound;
 
 use maimbrain::juice::{Particles, Popups};
 use maimbrain::motion::Shake;
@@ -24,6 +26,7 @@ use maimbrain::{Game, Rng, export_game, gfx2d, input, store};
 
 use control::{Action, Control};
 use sim::Sim;
+use sound::Sound;
 
 /// The game's identity: a kit identity (`riso`, `crt`, `neon`, `storybook`,
 /// `saloon`, `swiss`, `brutalist`, `comic`, `gothic`, `bubblegum`, `terminal`,
@@ -55,6 +58,7 @@ struct Bubble {
     fx: Particles,
     popups: Popups,
     shake: Shake,
+    sound: Sound,
 }
 
 impl Bubble {
@@ -105,6 +109,7 @@ impl Game for Bubble {
             fx: Particles::new(rng.next_u32() as u64),
             popups: Popups::new(),
             shake: Shake::new(),
+            sound: Sound::new(),
             rng,
         }
     }
@@ -151,6 +156,11 @@ impl Game for Bubble {
                 }
             }
             Mode::Title | Mode::Over => {}
+        }
+        // The sim's cues (pops, misses, the end) become sound.
+        self.sound.update(dt);
+        for c in std::mem::take(&mut self.sim.cues) {
+            self.sound.cue(c);
         }
         self.title.update(dt);
         self.hud.update(dt);

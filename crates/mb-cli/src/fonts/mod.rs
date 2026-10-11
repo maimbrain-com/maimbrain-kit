@@ -431,6 +431,71 @@ pub fn add(game: &Path, font: &str, weight: Option<u32>, chars: Option<String>, 
     Ok(())
 }
 
+/// `mb font remove`: takes fonts out of a game: their fonts.toml entries,
+/// `assets/fonts/<name>.mbf` and `<name>-LICENSE.txt`. `all` removes every
+/// baked font (to start over from `mb new`'s identity with the game's own).
+pub fn remove(game: &Path, names: &[String], all: bool) -> Result<(), String> {
+    if !game.join("manifest.toml").is_file() {
+        return Err(format!("{} is not a game directory (no manifest.toml)", game.display()));
+    }
+    let mut fonts = read_fonts_toml(game)?;
+    let dir = game.join("assets").join("fonts");
+    let baked: Vec<String> = std::fs::read_dir(&dir)
+        .map(|d| d.filter_map(Result::ok).filter_map(|e| e.path().file_name()?.to_str()?.strip_suffix(".mbf").map(str::to_string)).collect())
+        .unwrap_or_default();
+    let mut targets: Vec<String> = if all { fonts.iter().map(|f| f.name.clone()).chain(baked.iter().cloned()).collect() } else { names.to_vec() };
+    targets.sort();
+    targets.dedup();
+    if targets.is_empty() {
+        println!("{} has no fonts to remove", game.display());
+        return Ok(());
+    }
+    // Check every name before deleting anything.
+    for n in &targets {
+        check_name(n)?;
+        if !fonts.iter().any(|f| &f.name == n) && !baked.contains(n) && !dir.join(format!("{n}-LICENSE.txt")).exists() {
+            let mut have: Vec<&str> = fonts.iter().map(|f| f.name.as_str()).chain(baked.iter().map(String::as_str)).collect();
+            have.sort();
+            have.dedup();
+            let have = if have.is_empty() { "none".to_string() } else { have.join(", ") };
+            return Err(format!("{} has no font {n:?} (its fonts: {have})", game.display()));
+        }
+    }
+    for n in &targets {
+        for f in [format!("{n}.mbf"), format!("{n}-LICENSE.txt")] {
+            let p = dir.join(&f);
+            if p.exists() {
+                std::fs::remove_file(&p).map_err(|e| format!("{}: {e}", p.display()))?;
+            }
+        }
+        fonts.retain(|f| &f.name != n);
+        println!("removed {n} (assets/fonts/{n}.mbf, its license and its fonts.toml entry)");
+    }
+    if fonts.is_empty() {
+        let p = game.join("fonts.toml");
+        if p.exists() {
+            std::fs::remove_file(&p).map_err(|e| format!("{}: {e}", p.display()))?;
+        }
+    } else {
+        write_fonts_toml(game, &fonts)?;
+    }
+    if dir.read_dir().is_ok_and(|mut d| d.next().is_none()) {
+        let _ = std::fs::remove_dir(&dir);
+    }
+    // Drawing with a removed font falls back to the built-in one it names;
+    // say where the game still asks for one.
+    let src = crate::rust_sources(&game.join("src"));
+    let used: Vec<&String> = targets.iter().filter(|n| src.contains(&format!("assets/fonts/{n}.mbf"))).collect();
+    if !used.is_empty() {
+        let used: Vec<&str> = used.iter().map(|s| s.as_str()).collect();
+        eprintln!("note: src/ still loads {} (Font::asset): it draws in the fallback font until you change it or `mb font add` one by that name", used.join(", "));
+    }
+    if src.contains(".load_fonts()") {
+        eprintln!("note: Theme::load_fonts() loads the theme's own fonts by name (Theme.fonts); any it can't find draw in the built-in fonts");
+    }
+    Ok(())
+}
+
 fn relative_to(p: &Path, game: &Path) -> Result<String, String> {
     let abs = std::fs::canonicalize(p).map_err(|e| format!("{}: {e}", p.display()))?;
     let g = std::fs::canonicalize(game).map_err(|e| format!("{}: {e}", game.display()))?;
@@ -553,6 +618,33 @@ pub fn preview(category: Option<&str>, query: Option<&str>, out: &Path) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `mb font remove` takes a font's files and entry out and leaves the rest;
+    /// `--all` empties the game of fonts; an unknown name changes nothing.
+    #[test]
+    fn remove_takes_fonts_out() {
+        let game = std::env::temp_dir().join(format!("mb-font-remove-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&game);
+        let dir = game.join("assets").join("fonts");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(game.join("manifest.toml"), "").unwrap();
+        let recipe = |name: &str| Recipe { name: name.into(), source: name.into(), weight: None, chars: "latin1".into(), em: None, bitmap: None, license: None };
+        write_fonts_toml(&game, &[recipe("rye"), recipe("space-mono")]).unwrap();
+        for n in ["rye", "space-mono", "stray"] {
+            std::fs::write(dir.join(format!("{n}.mbf")), b"x").unwrap();
+            std::fs::write(dir.join(format!("{n}-LICENSE.txt")), b"x").unwrap();
+        }
+        let err = remove(&game, &["nope".into()], false).unwrap_err();
+        assert!(err.contains("no font \"nope\"") && err.contains("rye, space-mono, stray"), "{err}");
+        assert!(dir.join("rye.mbf").exists(), "nothing removed on an unknown name");
+        remove(&game, &["rye".into()], false).unwrap();
+        assert!(!dir.join("rye.mbf").exists() && !dir.join("rye-LICENSE.txt").exists());
+        assert_eq!(read_fonts_toml(&game).unwrap(), vec![recipe("space-mono")]);
+        // A baked file without an entry (copied in by hand) goes too.
+        remove(&game, &[], true).unwrap();
+        assert!(!dir.exists() && !game.join("fonts.toml").exists());
+        std::fs::remove_dir_all(&game).unwrap();
+    }
 
     /// The shipped library parses, ids are unique, pairings resolve, and
     /// every font has an OFL or Apache license and a pinned file.

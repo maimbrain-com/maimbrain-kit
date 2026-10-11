@@ -155,7 +155,7 @@ pub fn sparkle(cx: f32, cy: f32, r: f32, rot: f32, color: u32) {
 }
 
 /// Points of an arc band (an annulus sector) from angle `a0` to `a1`
-/// (radians, 0 = up, clockwise), between radii `r - width` and `r`.
+/// (radians, 0 = up, clockwise: [`arc`]'s clock face), between radii `r - width` and `r`.
 pub fn arc_points(cx: f32, cy: f32, r: f32, width: f32, a0: f32, a1: f32) -> Vec<f32> {
     let segs = (((a1 - a0).abs() / TAU) * 64.0).ceil().clamp(2.0, 120.0) as usize;
     let ri = (r - width).max(0.0);
@@ -171,7 +171,13 @@ pub fn arc_points(cx: f32, cy: f32, r: f32, width: f32, a0: f32, a1: f32) -> Vec
     v
 }
 
-/// An arc band with round ends: progress rings, timers, gauges.
+/// An arc band with round ends: progress rings, timers, gauges. Angles are
+/// a clock face's, not `atan2`'s: radians from 0 = up (12 o'clock), growing
+/// clockwise, so `PI / 2` is right, `PI` down and `3 * PI / 2` (or `-PI / 2`)
+/// left. A smile is `arc(cx, cy, r, w, PI / 2 + 0.4, 3.0 * PI / 2 - 0.4, c)`
+/// (through the bottom), a frown `arc(cx, cy, r, w, -PI / 2 + 0.4, PI / 2 - 0.4, c)`
+/// (over the top). From a standard angle (0 = right, clockwise on screen, as
+/// `gfx2d::rotate` and `dy.atan2(dx)` measure), add `PI / 2`.
 pub fn arc(cx: f32, cy: f32, r: f32, width: f32, a0: f32, a1: f32, color: u32) {
     if (a1 - a0).abs() < 1e-4 {
         return;
@@ -185,6 +191,30 @@ pub fn arc(cx: f32, cy: f32, r: f32, width: f32, a0: f32, a1: f32, color: u32) {
     for a in [a0, a1] {
         disc(cx + rm * a.sin(), cy - rm * a.cos(), width * 0.5, color);
     }
+}
+
+/// A filled, anti-aliased ellipse with radii `rx` (across) and `ry` (down).
+/// Turn it with `gfx2d::push`/`translate`/`rotate` around it.
+pub fn ellipse(cx: f32, cy: f32, rx: f32, ry: f32, color: u32) {
+    let (rx, ry) = (rx.abs(), ry.abs());
+    if (rx - ry).abs() < 1e-3 {
+        disc(cx, cy, rx, color);
+        return;
+    }
+    poly(&ellipse_points(cx, cy, rx, ry), color);
+}
+
+/// The outline of an ellipse as points, enough of them that it stays smooth
+/// at its size (for [`poly`], [`polyline`] or your own shapes).
+pub fn ellipse_points(cx: f32, cy: f32, rx: f32, ry: f32) -> Vec<f32> {
+    // About one point per 4 units of the larger radius's circumference.
+    let segs = ((TAU * rx.abs().max(ry.abs())) / 4.0).ceil().clamp(16.0, 128.0) as usize;
+    let mut v = Vec::with_capacity(segs * 2);
+    for k in 0..segs {
+        let a = TAU * k as f32 / segs as f32;
+        v.extend([cx + rx * a.cos(), cy + ry * a.sin()]);
+    }
+    v
 }
 
 /// A vertical gradient filling the whole of `r` (backgrounds).

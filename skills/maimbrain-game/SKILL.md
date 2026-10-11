@@ -7,7 +7,7 @@ description: Design and build a Maimbrain game (a short Rust→wasm game for the
 
 A Maimbrain game lives in a vertical feed, between other games, in front of someone with a thumb on the glass and about one second of patience. It isn't installed, chosen or explained. Building a *valid* game is the easy part (`docs/SPEC.md` + `mb build`). Building one people stop swiping for is the job.
 
-**Read what this game needs, when it needs it.** The docs are long (SPEC.md alone is ~150 KB), and everything you read stays in your context for the rest of the session, slowing every later step. So don't `cat` whole docs or SDK modules: find the section (`grep -n '^#' docs/SPEC.md`) or the item (`grep -n 'pub fn' sdk/maimbrain/src/gfx3d/mod.rs`) and read that.
+**Read what this game needs, when it needs it.** The docs are long (SPEC.md alone is ~150 KB), and everything you read stays in your context for the rest of the session, slowing every later step. So don't `cat` whole docs or SDK modules: find the section (`grep -n '^#' docs/SPEC.md`) or the item (`grep -n 'pub fn' sdk/maimbrain/src/gfx3d/mod.rs`) and read that. Paths like `docs/SPEC.md` and `sdk/maimbrain/src/` are from the plugin's root, two directories above this skill's own (`<this skill's directory>/../../docs/SPEC.md`), or from the repo root in the Maimbrain repo: don't search the disk for them.
 
 Before writing code:
 1. **[engagement.md](engagement.md)**: what makes a game work *in this feed*. Its rules are requirements, not suggestions.
@@ -103,7 +103,7 @@ Tune the game's numbers against the bot, not your intuition. If every preset die
 - **"It's too easy" from the owner beats any bot number.** If the owner wins first time and says it's easy, it's easy, whatever the bot says (one game's bot said a good player wins 92% and a first-timer 0%, and the owner, playing for the first time, found it far too easy: its bot missed far more than a hand does). Make it harder, then recheck the bot against the owner's run.
 - **Targets aren't only win rates**: set and report accuracy and time-to-kill bands per preset and per fight too (e.g. a good player hits 70–85% and takes 20–40 s per boss), and check that an aim assist (`Scope` friction, magnetism) is in the bot's input path, as it is in the player's.
 
-Determinism (SPEC §3): all randomness from `Rng` seeded by `sys::rand_seed()`, time only from `dt`, no iteration over hash maps. Replays and friend challenges depend on it.
+Determinism (SPEC §3): all randomness from `Rng` seeded by `sys::rand_seed()` (`f32()`, `range(lo, hi)`, `below(n)` for an index, `pick(&items)`, `shuffle(&mut items)`), time only from `dt`, no iteration over hash maps. Replays and friend challenges depend on it.
 
 ### 3. Art and sound
 Two sources, usually mixed; [assets.md](assets.md) says which to use for what:

@@ -1,0 +1,31 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		26.1	36.4	47.4
+stat	first-timer	score	280	930	2110
+stat	first-timer	swaps/min	12.1	13.7	15.4
+stat	first-timer	best cascade	2	3	6
+ended	first-timer	asleep in L3	60.5
+ended	first-timer	asleep in L2	24.0
+ended	first-timer	asleep in L4	15.0
+ended	first-timer	asleep in L5	0.5
+seconds	decent		46.3	57.8	70.1
+stat	decent	score	1700	2960	4530
+stat	decent	swaps/min	20.8	22.1	23.6
+stat	decent	best cascade	3	4	6
+ended	decent	asleep in L4	52.5
+ended	decent	asleep in L5	34.5
+ended	decent	asleep in L3	7.5
+ended	decent	asleep in L6	5.0
+ended	decent	asleep in L2	0.5
+seconds	good		99.3	133.0	160.3
+stat	good	score	7240	11070	14790
+stat	good	swaps/min	34.2	36.0	38.0
+stat	good	best cascade	4	5	7
+ended	good	asleep in L10	25.0
+ended	good	asleep in L9	21.0
+ended	good	asleep in L8	19.0
+ended	good	asleep in L11	15.0
+ended	good	asleep in L7	8.5
+ended	good	asleep in L12	5.5
+ended	good	asleep in L6	4.0
+ended	good	asleep in L13	2.0

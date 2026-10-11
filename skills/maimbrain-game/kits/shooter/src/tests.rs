@@ -3,6 +3,8 @@
 //! `cargo test -p kit_shooter` runs the rules; the full report is
 //! `cargo test -p kit_shooter --profile bot -- --ignored --nocapture difficulty`.
 
+use maimbrain::bot::{Difficulty, Outcome};
+
 use crate::bot::{Bot, DECENT, FIRST_TIMER, GOOD, Skill};
 use crate::sim::*;
 
@@ -242,6 +244,15 @@ fn a_daily_seed_gives_everyone_the_same_waves() {
     assert_eq!(spawns(FIRST_TIMER), spawns(GOOD));
 }
 
+/// The platform's rules for a round (SKILL.md "Platform facts that bite"),
+/// on a fake host: a tap starts it, the score goes in before Over, a
+/// frantic tap doesn't restart, the best is kept, the session replays.
+/// (A thumb that never moves is shot down in under 20 s.)
+#[test]
+fn keeps_the_platform_rules() {
+    maimbrain::sys::test::Conformance::new().check::<crate::Shooter>();
+}
+
 // ---- Difficulty ---------------------------------------------------------
 
 pub struct Round {
@@ -298,42 +309,28 @@ fn a_first_timer_lasts_twenty_to_fortyfive_seconds() {
     assert!((18.0..=50.0).contains(&median), "first-timer median {median:.1}s: {secs:?}");
 }
 
-/// The full report (slow; run in release).
+/// The full report (slow; run in release). Targets (the skill): a
+/// first-timer's round lasts 20–45 s, a good player's 1–3 min. The game is
+/// endless, so "won" is beating the first boss.
 #[test]
 #[ignore]
 fn difficulty() {
-    for skill in [FIRST_TIMER, DECENT, GOOD] {
-        let n = 200;
-        let rounds: Vec<Round> = (0..n).map(|s| play_round(skill, 1000 + s, 600.0)).collect();
-        let mut secs: Vec<f32> = rounds.iter().map(|r| r.seconds).collect();
-        secs.sort_by(f32::total_cmp);
-        let mut scores: Vec<f32> = rounds.iter().map(|r| r.score as f32).collect();
-        scores.sort_by(f32::total_cmp);
-        let bosses = rounds.iter().filter(|r| r.bosses > 0).count();
-        let tally = |key: fn(&Round) -> &'static str| {
-            let mut t: Vec<(&str, usize)> = Vec::new();
-            for r in &rounds {
-                let k = key(r);
-                match t.iter_mut().find(|e| e.0 == k) {
-                    Some(e) => e.1 += 1,
-                    None => t.push((k, 1)),
-                }
-            }
-            t.sort_by(|a, b| b.1.cmp(&a.1));
-            t.iter().map(|(k, c)| format!("{k} {}%", c * 100 / n as usize)).collect::<Vec<_>>().join(", ")
-        };
-        println!(
-            "{:12} median {:5.1}s (p10 {:5.1}, p90 {:5.1})  score median {:6.0}  beat the boss {:3}%\n             died in: {}\n             killed by: {}",
-            skill.name,
-            pct(&secs, 0.5),
-            pct(&secs, 0.1),
-            pct(&secs, 0.9),
-            pct(&scores, 0.5),
-            bosses * 100 / n as usize,
-            tally(|r| r.phase),
-            tally(|r| r.cause),
-        );
-    }
+    let report = Difficulty::new(200)
+        .seeds_from(1000)
+        .preset(FIRST_TIMER.name, FIRST_TIMER)
+        .target(20.0, 45.0)
+        .preset(DECENT.name, DECENT)
+        .preset(GOOD.name, GOOD)
+        .target(60.0, 180.0)
+        .run(|skill, seed| {
+            let r = play_round(skill, seed, 600.0);
+            // What killed it, and in which part of the waves.
+            Outcome::new(r.seconds).cause(format!("{} in {}", r.cause, r.phase)).won(r.bosses > 0).stat("score", r.score as f32)
+        });
+    report.print();
+    // What changed since the last run (committed: the last tuning that was kept).
+    report.compare_with("bot-report.tsv");
+    report.assert_skill_matters();
     // One traced run, because medians swing on small changes.
     let mut sim = Sim::new(1001);
     let mut bot = Bot::new(FIRST_TIMER, 1001 ^ 0x9e37_79b9);

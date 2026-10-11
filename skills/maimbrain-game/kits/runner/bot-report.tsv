@@ -1,0 +1,27 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		8.8	34.5	63.0
+stat	first-timer	score	151	640	1265
+stat	first-timer	meters	68	286	560
+ended	first-timer	crate	66.5
+ended	first-timer	gull	15.5
+ended	first-timer	stack	10.0
+ended	first-timer	bee	6.5
+ended	first-timer	fell in pit	1.0
+ended	first-timer	log	0.5
+seconds	decent		35.1	96.4	124.0
+stat	decent	score	653	2013	2713
+stat	decent	meters	292	923	1259
+ended	decent	crate	46.0
+ended	decent	stack	19.0
+ended	decent	bee	15.0
+ended	decent	gull	13.5
+ended	decent	log	6.5
+seconds	good		107.2	175.9	325.1
+stat	good	score	2303	4189	8329
+stat	good	meters	1051	1926	3842
+ended	good	log	38.0
+ended	good	stack	25.5
+ended	good	crate	21.0
+ended	good	bee	11.5
+ended	good	gull	2.0

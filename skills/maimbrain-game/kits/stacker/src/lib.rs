@@ -9,8 +9,11 @@
 //! - `draw.rs`: the world (snacks, faces, bird, plate, ghost) from the art
 //! - `sprites.rs`: source rects in assets/sprites.png (made by `mb art atlas`)
 //! - `sound.rs`: sounds, music stems and haptics from the sim's cues
-//! - this file: rounds, input, cards, HUD and juice
+//! - this file: input, the DAILY and SCORES buttons, HUD and juice
 //!
+//! The round itself (the title card, the tap that starts play, the score,
+//! the best, the game-over card, the guard and the retry) is
+//! `maimbrain::rounds::Rounds`; `tests::keeps_the_platform_rules` checks it.
 //! Daily mode plays the same snacks and twists for everyone today.
 
 mod draw;
@@ -25,31 +28,20 @@ use maimbrain::input::{self, Event};
 use maimbrain::juice::{Particles, Popups, VignettePulse};
 use maimbrain::motion::{Ease, HitStop, Shake};
 use maimbrain::physics2d::vec2;
-use maimbrain::sys::{self, Round};
-use maimbrain::ui::{self, Button, ButtonKind, Hud, Icon, Layout, Rect, ResultsAction, ResultsCard, ResultsEvent, Tap, Theme, TitleCard, text, with_alpha};
+use maimbrain::rounds::{Input, Rounds, Stage};
+use maimbrain::ui::{self, Button, ButtonKind, Hud, Icon, Rect, ResultsEvent, Tap, Theme, TitleCard, text, with_alpha};
 use maimbrain::{Game, Rng, export_game, gfx2d, store};
 
 use sim::{Cue, LIVES, Sim, TwistKind};
 
 const BOARD: u32 = 0;
 const BOARD_DAILY: u32 = 1;
-/// Taps right after a round ends don't restart it (a frantic tap during the fall).
-const RETRY_GUARD: f32 = 0.35;
 /// The how-to hint comes back after this long without a tap.
 const HINT_IDLE: f32 = 3.0;
 /// The title card's own tower starts over after this long (or when it falls).
 const ATTRACT_ROUND: f32 = 40.0;
 /// Debug: the autopilot plays the rounds too (to reach late states for screenshots).
 const DEBUG_AUTOPLAY: bool = false;
-
-#[derive(Clone, Copy, PartialEq)]
-enum Mode {
-    /// The feed card: the bird stacks by itself, a little sloppily.
-    Title,
-    Play,
-    /// Seconds since the round ended.
-    Over(f32),
-}
 
 /// A big word in the middle of the screen for a moment ("WIND!", "NEW: JELLY!").
 struct Banner {
@@ -60,20 +52,17 @@ struct Banner {
 }
 
 struct Picnic {
-    mode: Mode,
+    /// Title card, round, game-over card, retry. (On the title card the
+    /// bird stacks by itself, a little sloppily.)
+    rounds: Rounds,
     sim: Sim,
+    /// Seeds the title card's own towers.
     rng: Rng,
-    daily: bool,
-    best: u64,
-    best_daily: u64,
     time: f32,
     /// Seconds since the player last dropped (for the hint).
     idle: f32,
-    layout: Layout,
     theme: Theme,
-    title: TitleCard,
     hud: Hud,
-    results: Option<ResultsCard>,
     daily_btn: Button,
     scores_btn: Button,
     fx: Particles,
@@ -88,24 +77,21 @@ struct Picnic {
 
 impl Game for Picnic {
     fn init() -> Self {
-        sys::round(Round::Idle);
         let mut rng = Rng::from_host();
-        let layout = Layout::new();
         let theme = look::theme();
+        // The score floats over the pile on the blanket. Daily rounds go to
+        // their own board, with their own best. The sim plays the collapse
+        // itself before it reports over, so no extra ending.
+        let rounds = Rounds::new(TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE).size(52.0)).board(BOARD).daily(BOARD_DAILY).heading(look::OVER_HEADING).label(look::SCORE_LABEL).floating().ending(0.0);
+        let layout = &rounds.layout;
         // DAILY (and SCORES after a round) sit low in the card area, clear of
         // the feed's overlays, at its edges so the tower stays in view.
         let row = [Rect::new(layout.card.x, layout.card.bottom() - 46.0, 112.0, 44.0), Rect::new(layout.card.right() - 112.0, layout.card.bottom() - 46.0, 112.0, 44.0)];
         let mut g = Picnic {
-            mode: Mode::Title,
             sim: Sim::new(rng.next_u32() as u64),
-            daily: false,
-            best: store::get_u64("best").unwrap_or(0),
-            best_daily: 0,
             time: 0.0,
             idle: 0.0,
-            title: TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE).size(52.0),
             hud: Hud::new(theme, 0),
-            results: None,
             daily_btn: Button::new(row[1], "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR),
             scores_btn: Button::new(row[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY),
             fx: Particles::new(rng.next_u32() as u64),
@@ -116,12 +102,10 @@ impl Game for Picnic {
             banner: None,
             art: draw::Art::new(),
             sound: sound::Sound::new(),
-            layout,
+            rounds,
             theme,
             rng,
         };
-        g.best_daily = store::get_u64(&g.daily_key()).unwrap_or(0);
-        g.title.set_best(g.current_best() as i64);
         g.hud.lives = Some((LIVES, LIVES));
         g
     }
@@ -131,14 +115,27 @@ impl Game for Picnic {
         self.time += dt;
         self.idle += dt;
         for e in input::poll() {
-            if !self.ui_event(&e) && e.is_press() {
-                self.tap();
+            // The kit's own buttons first; then the round flow, which says
+            // what the rest means.
+            if self.ui_event(&e) {
+                continue;
+            }
+            match self.rounds.input(&e) {
+                // The tap that starts the round is also its first drop.
+                Input::Start => self.start(),
+                Input::Play if e.is_press() => {
+                    if self.sim.drop_piece() {
+                        self.idle = 0.0;
+                    }
+                }
+                Input::Play | Input::Taken | Input::Extra => {}
             }
         }
-        if self.mode == Mode::Play && DEBUG_AUTOPLAY {
+        let phase = self.rounds.stage();
+        if phase == Stage::Playing && DEBUG_AUTOPLAY {
             self.autopilot();
         }
-        if self.mode == Mode::Title {
+        if phase == Stage::Title {
             self.autopilot();
             if self.sim.over || self.sim.t > ATTRACT_ROUND {
                 self.sim = Sim::new(self.rng.next_u32() as u64);
@@ -148,27 +145,28 @@ impl Game for Picnic {
         self.sim.step(self.hitstop.step(dt));
         let cues = std::mem::take(&mut self.sim.cues);
         self.juice(&cues);
-        self.sound.update(dt, &cues, self.mode != Mode::Title, &self.sim);
-        match &mut self.mode {
-            Mode::Play if self.sim.over => self.game_over(),
-            Mode::Over(t) => *t += dt,
-            _ => {}
+        self.sound.update(dt, &cues, phase != Stage::Title, &self.sim);
+        if phase == Stage::Playing && self.sim.over {
+            // The plate has tipped and the bird flown off (the sim's own
+            // ending): Rounds submits the score, saves the best, shows the
+            // card and reports Over, all in its `update` below.
+            let label = if self.rounds.is_daily() { look::DAILY_LABEL } else { look::SCORE_LABEL };
+            self.rounds.end(self.sim.score as i64).label(label);
+            self.daily_btn.reset();
+            self.scores_btn.reset();
         }
-        self.title.update(dt);
-        self.hud.lives = Some((self.sim.lives, LIVES));
-        self.hud.update(dt);
-        if let Some(card) = &mut self.results
-            && card.update(dt) == Some(ResultsEvent::NewBest)
-        {
+        if self.rounds.update(dt) == Some(ResultsEvent::NewBest) {
             self.sound.best();
         }
-        self.daily_btn.kind = if self.daily { ButtonKind::Primary } else { ButtonKind::Secondary };
+        self.hud.lives = Some((self.sim.lives, LIVES));
+        self.hud.update(dt);
+        self.daily_btn.kind = if self.rounds.is_daily() { ButtonKind::Primary } else { ButtonKind::Secondary };
         self.daily_btn.update(dt);
         self.scores_btn.update(dt);
         self.fx.update(dt);
         self.popups.update(dt);
         self.shake.update(dt);
-        self.hurt.level = if self.mode == Mode::Play && self.sim.lives == 1 { 0.22 + 0.08 * (self.time * 4.0).sin() } else { 0.0 };
+        self.hurt.level = if self.rounds.stage() == Stage::Playing && self.sim.lives == 1 { 0.22 + 0.08 * (self.time * 4.0).sin() } else { 0.0 };
         self.hurt.update(dt);
         if let Some(b) = &mut self.banner {
             b.t += dt;
@@ -179,12 +177,13 @@ impl Game for Picnic {
     }
 
     fn render(&self) {
-        let l = &self.layout;
+        let l = &self.rounds.layout;
+        let phase = self.rounds.stage();
         draw::sky(&self.art, &self.sim, self.time);
         gfx2d::push();
         self.shake.apply(l.screen.cx(), l.screen.cy());
         gfx2d::translate(0.0, -self.sim.cam_y);
-        draw::world(&self.art, &self.sim, self.time, !matches!(self.mode, Mode::Over(_)) && self.sim.ending.is_none());
+        draw::world(&self.art, &self.sim, self.time, phase != Stage::Over && self.sim.ending.is_none());
         if self.show_hint() {
             self.hint_ring();
         }
@@ -192,33 +191,28 @@ impl Game for Picnic {
         self.popups.draw();
         gfx2d::pop();
         self.hurt.draw(l.screen);
-        match self.mode {
-            Mode::Title => {
-                // The card sells (a name, a hook, the best); how to play waits for play.
-                self.title.draw(l);
-                self.daily_btn.draw(&self.theme);
+        if self.rounds.playing() {
+            self.hud.draw(l);
+            if self.rounds.is_daily() {
+                // Under the pause pill, clear of the score.
+                let z = l.pill_zone();
+                ui::pill("DAILY", z.x + 52.0, z.bottom() + 18.0, 22.0, with_alpha(self.theme.outline, 0.5), 0xffffffff, self.theme.body_font, Some(Icon::STAR));
             }
-            Mode::Play => {
-                self.hud.draw(l);
-                if self.daily {
-                    // Under the pause pill, clear of the score.
-                    let z = l.pill_zone();
-                    ui::pill("DAILY", z.x + 52.0, z.bottom() + 18.0, 22.0, with_alpha(self.theme.outline, 0.5), 0xffffffff, self.theme.body_font, Some(Icon::STAR));
-                }
-                self.draw_banner();
-                if self.show_hint() {
-                    let b = self.sim.bird();
-                    let a = 0.75 + 0.25 * (self.time * 6.0).sin();
-                    text(look::HINT).size(22.0).color(0xffffffff).outline(0.1, self.theme.outline).alpha(a).middle().draw(l.screen.cx(), b.y - self.sim.cam_y - 50.0);
-                }
+            self.draw_banner();
+            if self.show_hint() {
+                let b = self.sim.bird();
+                let a = 0.75 + 0.25 * (self.time * 6.0).sin();
+                text(look::HINT).size(22.0).color(0xffffffff).outline(0.1, self.theme.outline).alpha(a).middle().draw(l.screen.cx(), b.y - self.sim.cam_y - 50.0);
             }
-            Mode::Over(_) => {
-                if let Some(card) = &self.results {
-                    card.draw();
-                }
-                self.scores_btn.draw(&self.theme);
-                self.daily_btn.draw(&self.theme);
-            }
+        }
+        // The title card (it sells: a name, a hook, the best; how to play
+        // waits for play), or the game-over card. DAILY on both, SCORES after a round.
+        self.rounds.draw();
+        if phase == Stage::Over {
+            self.scores_btn.draw(&self.theme);
+        }
+        if !self.rounds.playing() {
+            self.daily_btn.draw(&self.theme);
         }
     }
 
@@ -228,48 +222,26 @@ impl Game for Picnic {
 }
 
 impl Picnic {
-    fn daily_key(&self) -> String {
-        format!("daily:{:016x}", sys::daily_seed())
-    }
-
-    fn current_best(&self) -> u64 {
-        if self.daily { self.best_daily } else { self.best }
-    }
-
+    /// A round starts (Rounds has reported Playing and picked its seed).
     fn start(&mut self) {
-        let seed = if self.daily { sys::daily_seed() } else { self.rng.next_u32() as u64 };
-        self.sim = Sim::new(seed);
-        self.hud.reset(self.current_best() as i64);
-        self.results = None;
+        self.sim = Sim::new(self.rounds.seed());
+        self.hud.reset(self.rounds.best());
         self.banner = None;
         self.popups.list.clear();
-        self.mode = Mode::Play;
         self.idle = 0.0;
-        sys::round(Round::Playing);
         self.sound.start();
         // The tap that starts the round is the first drop: the first snack
         // is a slice of toast over the middle of a still bird, so it lands.
         self.sim.drop_piece();
     }
 
-    fn tap(&mut self) {
-        match self.mode {
-            Mode::Title => self.start(),
-            Mode::Play => {
-                if self.sim.drop_piece() {
-                    self.idle = 0.0;
-                }
-            }
-            Mode::Over(t) if t > RETRY_GUARD => self.start(),
-            Mode::Over(_) => {}
-        }
-    }
-
-    /// Offers an event to the on-screen buttons; true if one took it.
+    /// Offers an event to the kit's own buttons (DAILY on the title and the
+    /// game-over card, SCORES on the card); true if one took it. On the card
+    /// they wait out its guard, like the rest of the screen.
     fn ui_event(&mut self, e: &Event) -> bool {
-        match self.mode {
-            Mode::Play => false,
-            Mode::Title => match self.daily_btn.handle(e) {
+        match self.rounds.stage() {
+            Stage::Playing | Stage::Ending => false,
+            Stage::Title => match self.daily_btn.handle(e) {
                 Some(Tap::Clicked) => {
                     self.toggle_daily();
                     true
@@ -277,9 +249,9 @@ impl Picnic {
                 Some(_) => true,
                 None => false,
             },
-            Mode::Over(t) => {
-                if t <= RETRY_GUARD {
-                    return true; // a frantic tap during the fall
+            Stage::Over => {
+                if !self.rounds.card_ready() {
+                    return false; // Rounds takes a frantic tap during the fall
                 }
                 if let Some(tap) = self.daily_btn.handle(e) {
                     if tap == Tap::Clicked {
@@ -290,58 +262,24 @@ impl Picnic {
                 if let Some(tap) = self.scores_btn.handle(e) {
                     if tap == Tap::Clicked {
                         self.sound.ui(false);
-                        store::show_scores(if self.daily { BOARD_DAILY } else { BOARD });
+                        store::show_scores(if self.rounds.is_daily() { BOARD_DAILY } else { BOARD });
                     }
                     return true;
                 }
-                let action = self.results.as_mut().and_then(|r| r.handle(e));
-                if action == Some(ResultsAction::Retry) {
-                    self.start();
-                    return true;
-                }
-                self.results.as_ref().is_some_and(|r| r.claims(e.x, e.y))
+                false
             }
         }
     }
 
+    /// Daily mode on or off; from the game-over card, back to the title.
     fn toggle_daily(&mut self) {
-        self.daily = !self.daily;
-        self.sound.ui(self.daily);
-        self.title.set_best(self.current_best() as i64);
-        if self.mode != Mode::Title {
-            self.mode = Mode::Title;
-            self.results = None;
+        let from_card = self.rounds.stage() == Stage::Over;
+        self.rounds.set_daily(!self.rounds.is_daily());
+        self.sound.ui(self.rounds.is_daily());
+        if from_card {
             self.sim = Sim::new(self.rng.next_u32() as u64);
             self.sound.stop_music();
-            sys::round(Round::Idle);
         }
-    }
-
-    fn game_over(&mut self) {
-        let score = self.sim.score as u64;
-        let prev = self.current_best();
-        // Submit before reporting Over: the platform saves the replay on Over.
-        if self.daily {
-            store::submit_score(BOARD_DAILY, score as i64);
-            if score > self.best_daily {
-                self.best_daily = score;
-                store::set_u64(&self.daily_key(), score);
-            }
-        } else {
-            store::submit_score(BOARD, score as i64);
-            if score > self.best {
-                self.best = score;
-                store::set_u64("best", score);
-            }
-        }
-        self.title.set_best(self.current_best() as i64);
-        let label = if self.daily { look::DAILY_LABEL } else { look::SCORE_LABEL };
-        let seed = self.rng.next_u32() as u64;
-        self.results = Some(ResultsCard::new(score as i64, prev as i64, self.theme, &self.layout, seed).heading(look::OVER_HEADING).label(label).floating());
-        self.daily_btn.reset();
-        self.scores_btn.reset();
-        self.mode = Mode::Over(0.0);
-        sys::round(Round::Over);
     }
 
     /// The title card's bird stacks by itself: mostly neat drops, every
@@ -361,7 +299,7 @@ impl Picnic {
 
     /// Until the player has dropped a few themselves, and whenever they stall.
     fn show_hint(&self) -> bool {
-        self.mode == Mode::Play && self.sim.ending.is_none() && self.sim.held.is_some_and(|h| h.age > 0.4) && (self.sim.drops < 3 || self.idle > HINT_IDLE)
+        self.rounds.stage() == Stage::Playing && self.sim.ending.is_none() && self.sim.held.is_some_and(|h| h.age > 0.4) && (self.sim.drops < 3 || self.idle > HINT_IDLE)
     }
 
     /// A ring pulsing out of the carried snack (in world space).
@@ -380,7 +318,7 @@ impl Picnic {
         let Some(b) = &self.banner else { return };
         let pop = Ease::BackOut.at((b.t / 0.25).min(1.0));
         let a = if b.t > 1.3 { 1.0 - (b.t - 1.3) / 0.3 } else { 1.0 };
-        let (cx, cy) = (self.layout.screen.cx(), self.layout.hud.y + 128.0);
+        let (cx, cy) = (self.rounds.layout.screen.cx(), self.rounds.layout.hud.y + 128.0);
         gfx2d::push();
         gfx2d::translate(cx, cy);
         gfx2d::scale(pop.max(0.01), pop.max(0.01));
@@ -394,7 +332,7 @@ impl Picnic {
 
     /// Particles, popups, shake and banners from the sim's cues.
     fn juice(&mut self, cues: &[Cue]) {
-        let playing = self.mode == Mode::Play;
+        let playing = self.rounds.playing();
         let th = self.theme;
         for &cue in cues {
             match cue {

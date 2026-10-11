@@ -1,0 +1,26 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		14.1	23.5	36.0
+stat	first-timer	taps	11	19	33
+stat	first-timer	% missed	26.3	36.7	52.6
+stat	first-timer	% touched down short	25	42.3	57.6
+stat	first-timer	% late	0	9.1	20
+ended	first-timer	missed with no time to retry	80.0
+ended	first-timer	finger couldn't catch it	17.0
+ended	first-timer	looked away	3.0
+seconds	casual		27.6	44.6	65.7
+stat	casual	taps	26	44	72
+stat	casual	% missed	30	36.8	44
+stat	casual	% touched down short	16.7	24.7	33.3
+stat	casual	% late	3.8	8.3	14.0
+ended	casual	missed with no time to retry	92.0
+ended	casual	finger couldn't catch it	6.5
+ended	casual	looked away	1.5
+seconds	good		42.8	76.3	99.5
+stat	good	taps	52	89	128
+stat	good	% missed	33.3	38.5	43.7
+stat	good	% touched down short	6.2	11.0	14.7
+stat	good	% late	1.4	4.2	7.3
+ended	good	missed with no time to retry	97.5
+ended	good	finger couldn't catch it	2.0
+ended	good	looked away	0.5

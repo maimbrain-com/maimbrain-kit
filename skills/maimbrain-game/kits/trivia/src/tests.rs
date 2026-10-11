@@ -4,6 +4,7 @@
 //! prints round lengths and how each skill preset loses.
 
 use maimbrain::Rng;
+use maimbrain::bot::{Difficulty, Outcome};
 
 use crate::questions::{MAX_ANSWER_CHARS, MAX_QUESTION_CHARS, RAW, parse};
 use crate::sim::*;
@@ -472,42 +473,55 @@ fn first_timer_rounds_last_20_to_45_seconds() {
     assert!((20.0..=45.0).contains(&median), "first-timer median {median:.1}s");
 }
 
+/// Round lengths per preset, endless and daily, and how rounds are lost.
+/// Targets (DESIGN.md, the skill): a first-timer's median round 20–45 s, a
+/// good player's 1–3 min.
 #[test]
 #[ignore]
 fn difficulty() {
+    let tiers = ["easy", "medium", "hard"];
     for daily in [false, true] {
-        println!("\n{} ({} rounds per preset)", if daily { "DAILY" } else { "ENDLESS" }, 200);
-        println!("{:12} {:>7} {:>12} {:>6} {:>6} {:>7} {:>8} {:>8}  lost to (tier of the last miss)", "preset", "median", "p10–p90", "qs", "right", "score", "streak", "timeouts");
-        for skill in [FIRST_TIMER, DECENT, GOOD] {
-            let runs: Vec<RoundStats> = (0..200).map(|seed| play_round(skill, seed * 7 + 1, daily, false)).collect();
-            let secs: Vec<f32> = runs.iter().map(|r| r.seconds).collect();
-            let qs: Vec<f32> = runs.iter().map(|r| r.questions as f32).collect();
-            let right: Vec<f32> = runs.iter().map(|r| r.right as f32).collect();
-            let score: Vec<f32> = runs.iter().map(|r| r.score as f32).collect();
-            let streak: Vec<f32> = runs.iter().map(|r| r.best_streak as f32).collect();
-            let to: u32 = runs.iter().map(|r| r.timeouts).sum();
-            let wr: u32 = runs.iter().map(|r| r.wrongs).sum();
-            let tiers = [1, 2, 3].map(|t| runs.iter().filter(|r| r.last_tier == t).count());
-            println!(
-                "{:12} {:>6.0}s {:>5.0}–{:<5.0}s {:>6.0} {:>6.0} {:>7.0} {:>8.0} {:>7.0}%  easy {} / medium {} / hard {}",
-                skill.name,
-                pct(&secs, 0.5),
-                pct(&secs, 0.1),
-                pct(&secs, 0.9),
-                pct(&qs, 0.5),
-                pct(&right, 0.5),
-                pct(&score, 0.5),
-                pct(&streak, 0.5),
-                100.0 * to as f32 / (to + wr).max(1) as f32,
-                tiers[0],
-                tiers[1],
-                tiers[2],
-            );
-        }
+        println!("\n{}", if daily { "DAILY" } else { "ENDLESS" });
+        let report = Difficulty::new(200)
+            .preset(FIRST_TIMER.name, FIRST_TIMER)
+            .target(20.0, 45.0)
+            .preset(DECENT.name, DECENT)
+            .preset(GOOD.name, GOOD)
+            .target(60.0, 180.0)
+            // Seeds 1, 8, 15…: what this report has always played.
+            .run(|skill, seed| {
+                let r = play_round(skill, seed * 7 + 1, daily, false);
+                Outcome::new(r.seconds)
+                    .cause(format!("last miss {}", tiers[(r.last_tier - 1) as usize]))
+                    .stat("questions", r.questions as f32)
+                    .stat("right", r.right as f32)
+                    .stat("score", r.score as f32)
+                    .stat("best streak", r.best_streak as f32)
+                    .ratio("misses timed out", r.timeouts as f32, (r.timeouts + r.wrongs) as f32)
+            });
+        report.print();
+        // What changed since the last run (committed: the last tuning that was kept).
+        report.compare_with(if daily { "bot-report-daily.tsv" } else { "bot-report.tsv" });
+        report.assert_skill_matters();
     }
     println!("\nOne traced first-timer round:");
     let r = play_round(FIRST_TIMER, 12, false, true);
     println!("  -> {:.1}s, {} points, {} of {} right", r.seconds, r.score, r.right, r.questions);
+}
+
+// ---- the platform's rules ---------------------------------------------------------
+
+/// The round flow on a fake host (SKILL.md "Platform facts that bite"): a
+/// tap starts it, the score goes in before Over, a frantic tap doesn't
+/// restart, the best is kept, the session replays. Idling loses too (three
+/// timeouts after the free warm-up), but scores nothing, so the player
+/// always taps the top answer: some are right, the third miss blows the bulb.
+#[test]
+fn keeps_the_platform_rules() {
+    let a = crate::Geom::new(&maimbrain::ui::Layout::new()).answers[0];
+    maimbrain::sys::test::Conformance::new()
+        .play(move |t| if t % 0.5 < 1.0 / 60.0 { maimbrain::input::synth::tap(a.cx(), a.cy(), 0.0) } else { Vec::new() })
+        .check::<crate::Trivia>();
 }
 
 // ---- Mix ------------------------------------------------------------------------

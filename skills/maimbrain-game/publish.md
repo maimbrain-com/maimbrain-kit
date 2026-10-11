@@ -12,7 +12,7 @@ Publishing has three steps, and the user plays the game on their own phone befor
 
 `mb publish --model "…" --submit` does steps 1 and 3 at once, for when the user wants to skip testing on the phone. `maimbrain.com/create` shows each upload's status and any reviewer notes. Ids must be in your namespace (`mb whoami` shows it: `com.maimbrain.<username>`, with `_` as `-`) and `creator` must be `@<username>` (`mb new` sets both). Each submitted version needs a higher `version` than the last one submitted; drafts don't count. A rejected version's number is the exception: the build that fixes it can keep it (and its notes carry over if the new upload brings none).
 
-**Updating a published game.** Every release is one of three kinds, and the kind is chosen when it's submitted (docs/UPDATES.md "Version levels"). The `version` you bump suggests one, so bump it sensibly:
+**Updating a published game.** What you change in it follows SKILL.md "Continuing a tuned game": add and fix freely, propose anything that changes feel, and let the owner play it in the draft before it's submitted. Every release is one of three kinds, and the kind is chosen when it's submitted (docs/UPDATES.md "Version levels"). The `version` you bump suggests one, so bump it sensibly:
 - **Fix:** bump the last number (1.2.0 → 1.2.1). Bug fixes and polish. Players get it without being told.
 - **Update:** bump the middle number (1.2.1 → 1.3.0). Something worth telling players about. Scores carry over.
 - **New season:** bump the first number (1.3.0 → 2.0.0), when the user wants fresh leaderboards. Every player's standing starts over; the old season's boards stay, archived, and their top 10 become champions.

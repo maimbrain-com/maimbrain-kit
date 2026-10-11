@@ -7,12 +7,13 @@ use std::f32::consts::FRAC_PI_2;
 
 use maimbrain::gfx2d;
 use maimbrain::motion::Ease;
+use maimbrain::rounds::Stage;
 use maimbrain::ui::{self, Icon, Rect, fade, shape, text, with_alpha};
 
 use crate::art::{self, Art};
 use crate::look::*;
 use crate::sim::{CAKE, CAKE_R, Creep, CreepKind, ENDING, HEARTS, PAD, PADS, PATH, ROAD_W, Shot, Sim, Tower, TowerKind, WAVE_GAP};
-use crate::{Keep, Mode, SLOT_R, Sel, Splat, picker_slots, upgrade_slot};
+use crate::{Keep, SLOT_R, Sel, Splat, picker_slots, upgrade_slot};
 
 /// A cheap deterministic hash in 0…1 (scenery placement; no RNG in render).
 fn hash(i: u32) -> f32 {
@@ -25,7 +26,7 @@ fn hash(i: u32) -> f32 {
 
 pub fn frame(g: &Keep) {
     let s = &g.sim;
-    let l = &g.layout;
+    let l = &g.rounds.layout;
     let a = &g.art;
     gfx2d::push();
     g.shake.apply(l.screen.cx(), l.screen.cy());
@@ -75,15 +76,11 @@ pub fn frame(g: &Keep) {
     g.popups.draw();
     g.hurt.draw(l.screen);
 
-    match g.mode {
-        Mode::Title => {}
-        Mode::Play => {
-            picker(g);
-            hud(g);
-            hint(g);
-            banner(g);
-        }
-        Mode::Over(_) => {}
+    if g.rounds.playing() {
+        picker(g);
+        hud(g);
+        hint(g);
+        banner(g);
     }
 }
 
@@ -251,7 +248,7 @@ fn cake(g: &Keep) {
     let a = &g.art;
     let (cx, cy) = CAKE;
     let end = s.ending.map_or(0.0, |e| (e / ENDING).clamp(0.0, 1.0));
-    let gone = s.over || matches!(g.mode, Mode::Over(_));
+    let gone = s.over || g.rounds.stage() == Stage::Over;
     // The plate's foot: where the sheet's bottom sits.
     let base = cy + 38.0;
     // The sheet's cell is wider than the cake (plate and margins).
@@ -378,7 +375,7 @@ fn picker(g: &Keep) {
 
 fn hud(g: &Keep) {
     let s = &g.sim;
-    g.hud.draw(&g.layout);
+    g.hud.draw(&g.rounds.layout);
     // Coins, top left (clear of the pause pill).
     let r = g.coin_pill();
     let k = g.coin_punch.scale();
@@ -459,7 +456,10 @@ fn banner(g: &Keep) {
 
 /// Under the results card: how far the round got.
 pub fn wave_reached(g: &Keep, panel: Rect) {
-    let Mode::Over(t) = g.mode else { return };
+    if g.rounds.stage() != Stage::Over {
+        return;
+    }
+    let t = g.rounds.age();
     let a = ((t - 0.9) / 0.3).clamp(0.0, 1.0);
     if a <= 0.0 {
         return;

@@ -80,6 +80,8 @@ pub struct Text<'a> {
     pub leading: f32,
     /// Shrink to fit this width (0 = never shrink): see [`Text::max_width`].
     pub max_width: f32,
+    /// Opacity of everything drawn (1 = as styled): see [`Text::alpha`].
+    pub alpha: f32,
 }
 
 /// Starts styling `s`: Inter Bold, 24 units, white, left/top.
@@ -99,6 +101,7 @@ pub fn text(s: &str) -> Text<'_> {
         wrap: 0.0,
         leading: 1.0,
         max_width: 0.0,
+        alpha: 1.0,
     }
 }
 
@@ -118,6 +121,10 @@ impl<'a> Text<'a> {
     pub fn align(mut self, a: Align) -> Self {
         self.align = a;
         self
+    }
+    /// Left-aligned at x (the default).
+    pub fn left(self) -> Self {
+        self.align(Align::Left)
     }
     pub fn center(self) -> Self {
         self.align(Align::Center)
@@ -185,14 +192,17 @@ impl<'a> Text<'a> {
         self.max_width = width;
         self
     }
-    /// Multiplies every color's alpha (fading the whole thing).
+    /// Fades the whole thing: the letters, outline, shadow and glow, at
+    /// draw time, so styles set before or after it all fade together.
+    /// Calls multiply (`.alpha(0.5).alpha(0.5)` is a quarter).
     pub fn alpha(mut self, a: f32) -> Self {
-        let f = |c: u32| super::color::fade(c, a);
-        self.color = f(self.color);
-        self.outline.1 = f(self.outline.1);
-        self.shadow.3 = f(self.shadow.3);
-        self.glow.1 = f(self.glow.1);
+        self.alpha *= a;
         self
+    }
+
+    /// A color with [`alpha`](Text::alpha) applied.
+    fn faded(&self, c: u32) -> u32 {
+        if self.alpha >= 1.0 { c } else { super::color::fade(c, self.alpha.max(0.0)) }
     }
 
     fn line_h(&self) -> f32 {
@@ -318,16 +328,18 @@ impl<'a> Text<'a> {
         let pixel_em = self.font.pixel_em();
         let (sdx, sdy, sblur, scol) = self.shadow;
         let (ow, ocol) = self.outline;
+        let (scol, ocol, color) = (self.faded(scol), self.faded(ocol), self.faded(self.color));
         if pixel_em > 0.0 {
             let px = self.size / pixel_em;
             let o = if ow > 0.0 && ocol & 0xff != 0 { (ow * pixel_em).round().max(1.0) * px } else { 0.0 };
             if scol & 0xff != 0 {
                 self.raw(line, x + sdx, y + sdy, scol, o, scol);
             }
-            self.raw(line, x, y, self.color, o, ocol);
+            self.raw(line, x, y, color, o, ocol);
             return;
         }
         let (gblur, gcol) = self.glow;
+        let gcol = self.faded(gcol);
         if gcol & 0xff != 0 {
             gfx2d::text_style(TextStyle { weight: self.weight + ow, soft: gblur.max(0.02), ..Default::default() });
             self.raw(line, x, y, gcol, 0.0, 0);
@@ -342,7 +354,7 @@ impl<'a> Text<'a> {
         } else if gcol & 0xff != 0 || scol & 0xff != 0 {
             gfx2d::text_style(TextStyle::default());
         }
-        self.raw(line, x, y, self.color, 0.0, 0);
+        self.raw(line, x, y, color, 0.0, 0);
         if styled || gcol & 0xff != 0 || scol & 0xff != 0 {
             gfx2d::text_style(TextStyle::default());
         }
@@ -427,6 +439,18 @@ mod tests {
         assert_eq!((t.align, t.valign), (Align::Right, VAlign::Middle));
         let t = text("9").right().middle();
         assert_eq!((t.align, t.valign), (Align::Center, VAlign::Middle));
+    }
+
+    #[test]
+    fn alpha_fades_styles_set_after_it_too() {
+        // The title card's tagline: alpha first, then the outline and shadow.
+        // They used to keep full strength, a dark smudge while the text faded in.
+        let t = text("hi").color(0xffffffff).alpha(0.5).outline(0.05, 0x000000ff).soft_shadow(0.0, 2.0, 0.08, 0x000000ff);
+        let half = crate::ui::color::fade(0x000000ff, 0.5);
+        assert_eq!((t.faded(t.outline.1), t.faded(t.shadow.3)), (half, half));
+        assert_eq!(t.faded(t.color), crate::ui::color::fade(0xffffffff, 0.5));
+        assert_eq!(text("hi").alpha(0.5).alpha(0.5).alpha, 0.25, "calls multiply");
+        assert_eq!(text("hi").right().left().align, Align::Left);
     }
 
     #[test]

@@ -6,7 +6,10 @@
 //! Layout: `sim` (rules, tested), `autopilot` (a building heuristic: the
 //! title card's attract mode and the test bot), `draw` (gfx2d), `sound`
 //! (sounds and haptics from the sim's cues), `art` (the generated clay
-//! sheets), `look` (words, theme, palette), this file (rounds, input, the build picker, juice).
+//! sheets), `look` (words, theme, palette), this file (input, the build picker, juice).
+//! The round itself (title card, a tap starting play, the score, the best,
+//! the game-over card, retrying) is `maimbrain::rounds::Rounds`;
+//! `tests::keeps_the_platform_rules` checks it.
 
 mod art;
 mod autopilot;
@@ -17,19 +20,18 @@ mod sound;
 #[cfg(test)]
 mod tests;
 
-use maimbrain::input::{self, Event};
+use maimbrain::input;
 use maimbrain::juice::{Particle, Particles, Popups, VignettePulse};
 use maimbrain::motion::{HitStop, Pulse, Punch, Shake};
-use maimbrain::sys::{self, Level, Round};
-use maimbrain::ui::{Hud, Layout, Rect, ResultsAction, ResultsCard, ResultsEvent, Theme, TitleCard};
-use maimbrain::{Game, Rng, export_game, store};
+use maimbrain::rounds::{Input, Rounds, Stage};
+use maimbrain::sys::{self, Level};
+use maimbrain::ui::{Hud, Rect, ResultsEvent, Theme, TitleCard};
+use maimbrain::{Game, Rng, export_game};
 
 use autopilot::{Action, Planner, Style};
 use sim::{CAKE, CreepKind, Cue, HEARTS, HINT_PAD, PADS, Sim, TowerKind};
 
 const BOARD: u32 = 0;
-/// Taps right after a round ends don't restart it (a frantic tap during the devouring).
-const RETRY_GUARD: f32 = 0.35;
 /// Hints come back after this long without a tap.
 const HINT_IDLE: f32 = 3.0;
 /// The picker's round buttons: radius, and distance from the pad.
@@ -40,15 +42,6 @@ const SLOT_OFFSET: f32 = 70.0;
 /// towers it builds (few enough that the cake falls now and then).
 const ATTRACT_THINK: f32 = 1.6;
 const ATTRACT_STYLE: Style = Style { max_towers: 5, pads_below: 280.0, upgrades: true, call_early: false };
-
-#[derive(Clone, Copy, PartialEq)]
-pub enum Mode {
-    /// The feed card: the game plays itself.
-    Title,
-    Play,
-    /// Seconds since the results card appeared.
-    Over(f32),
-}
 
 /// A popped jelly's burst (its sheet's pop frame), drawn for `LIFE` seconds.
 pub struct Splat {
@@ -74,10 +67,11 @@ pub enum Sel {
 }
 
 pub struct Keep {
-    pub mode: Mode,
+    /// Title (the game plays itself), round, game-over card.
+    pub rounds: Rounds,
     pub sim: Sim,
+    /// Seeds the title card's games.
     rng: Rng,
-    pub best: u32,
     pub time: f32,
     /// Seconds since the player last tapped.
     pub idle: f32,
@@ -88,11 +82,8 @@ pub struct Keep {
     pub denied: Option<(usize, f32)>,
     pub taught_build: bool,
     pub taught_upgrade: bool,
-    pub layout: Layout,
     pub theme: Theme,
-    title: TitleCard,
     pub hud: Hud,
-    results: Option<ResultsCard>,
     pub fx: Particles,
     pub popups: Popups,
     pub shake: Shake,
@@ -148,27 +139,25 @@ pub fn upgrade_slot(pad: usize) -> (f32, f32) {
 impl Keep {
     /// The next-wave button (top right, under the hearts).
     pub fn wave_button(&self) -> Rect {
-        Rect::new(236.0, self.layout.hud.y + 50.0, 114.0, 46.0)
+        Rect::new(236.0, self.rounds.layout.hud.y + 50.0, 114.0, 46.0)
     }
 
     /// The coin counter (top left, clear of the pause pill).
     pub fn coin_pill(&self) -> Rect {
-        Rect::new(12.0, self.layout.pill_zone().bottom() + 6.0, 88.0, 30.0)
+        Rect::new(12.0, self.rounds.layout.pill_zone().bottom() + 6.0, 88.0, 30.0)
     }
 
+    /// A round starts (on `Rounds`' seed).
     fn start(&mut self) {
-        self.sim = Sim::new(self.rng.next_u32() as u64);
-        self.mode = Mode::Play;
+        self.sim = Sim::new(self.rounds.seed());
         self.idle = 0.0;
         self.sel = Sel::None;
         self.banner = None;
-        self.results = None;
         self.fx.clear();
         self.splats.clear();
         self.popups.list.clear();
-        self.hud.reset(self.best as i64);
+        self.hud.reset(self.rounds.best());
         self.hud.lives = Some((HEARTS, HEARTS));
-        sys::round(Round::Playing);
         self.sound.start();
     }
 
@@ -247,27 +236,6 @@ impl Keep {
         }
     }
 
-    fn press(&mut self, e: &Event) {
-        match self.mode {
-            Mode::Title => {
-                // The tap that enters play is also the first move (SPEC §5.2):
-                // on a pad, it opens the picker.
-                self.start();
-                self.tap(e.x, e.y);
-            }
-            Mode::Play => self.tap(e.x, e.y),
-            Mode::Over(t) if t > RETRY_GUARD => {
-                let card = self.results.as_mut();
-                let claimed = card.as_ref().is_some_and(|c| c.claims(e.x, e.y));
-                if !claimed {
-                    self.start();
-                    self.tap(e.x, e.y);
-                }
-            }
-            Mode::Over(_) => {}
-        }
-    }
-
     /// The title card's autopilot (deterministic: it reads only the sim).
     fn attract(&mut self, dt: f32) {
         self.attract_t += dt;
@@ -291,7 +259,7 @@ impl Keep {
 
     /// Juice for this frame's cues (sound and haptics are in `sound`).
     fn juice(&mut self, cues: &[Cue]) {
-        let playing = self.mode != Mode::Title;
+        let playing = self.rounds.stage() != Stage::Title;
         for &cue in cues {
             match cue {
                 Cue::Built { pad, kind } => {
@@ -400,25 +368,9 @@ impl Keep {
         }
     }
 
-    fn game_over(&mut self) {
-        let score = self.sim.score;
-        // Submit before reporting Over: the platform saves the replay on Over.
-        store::submit_score(BOARD, score as i64);
-        let prev = self.best;
-        if score > self.best {
-            self.best = score;
-            store::set_u64("best", score as u64);
-        }
-        self.title.set_best(self.best as i64);
-        let seed = self.rng.next_u32() as u64;
-        self.results = Some(ResultsCard::new(score as i64, prev as i64, self.theme, &self.layout, seed).heading(look::OVER_HEADING).label(look::SCORE_LABEL));
-        self.mode = Mode::Over(0.0);
-        sys::round(Round::Over);
-    }
-
     /// Hint target: (x, y, text) for the animated finger, or None.
     pub fn hint(&self) -> Option<(f32, f32, &'static str)> {
-        if self.mode != Mode::Play || !self.sim.playing() {
+        if !self.rounds.playing() || !self.sim.playing() {
             return None;
         }
         let stalled = self.idle > HINT_IDLE;
@@ -453,19 +405,20 @@ impl Keep {
 
 impl Game for Keep {
     fn init() -> Self {
-        sys::round(Round::Idle);
         let mut rng = Rng::from_host();
         let sim = attract_sim(rng.next_u32() as u64);
-        let best = store::get_u64("best").unwrap_or(0) as u32;
         let theme = look::theme();
-        let mut hud = Hud::new(theme, best as i64);
+        // A feed card: a hook and the best, never instructions. The sim plays
+        // the devouring itself, so the card comes as soon as it's over.
+        let title = TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE);
+        let rounds = Rounds::new(title).board(BOARD).heading(look::OVER_HEADING).label(look::SCORE_LABEL).ending(0.0);
+        let mut hud = Hud::new(theme, rounds.best());
         hud.size = 44.0;
         hud.lives = Some((HEARTS, HEARTS));
         let planner = Planner::new(&sim);
         Keep {
-            mode: Mode::Title,
+            rounds,
             sim,
-            best,
             time: 0.0,
             idle: 0.0,
             sel: Sel::None,
@@ -473,12 +426,8 @@ impl Game for Keep {
             denied: None,
             taught_build: false,
             taught_upgrade: false,
-            layout: Layout::new(),
             theme,
-            // A feed card: a hook and the best, never instructions.
-            title: TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE).best(best as i64),
             hud,
-            results: None,
             fx: Particles::new(rng.next_u32() as u64),
             popups: Popups::new(),
             shake: Shake::new(),
@@ -502,25 +451,29 @@ impl Game for Keep {
         self.idle += dt;
         self.sel_t += dt;
         for e in input::poll() {
-            if let (Mode::Over(t), Some(card)) = (self.mode, &mut self.results) {
-                if t > RETRY_GUARD && card.handle(&e) == Some(ResultsAction::Retry) {
+            match self.rounds.input(&e) {
+                // The tap that enters play (or retries) is also the first move
+                // (SPEC §5.2): on a pad, it opens the picker. The card's retry
+                // button starts a round on its release, which isn't a move.
+                Input::Start => {
                     self.start();
-                    continue;
+                    if e.is_press() {
+                        self.tap(e.x, e.y);
+                    }
                 }
-            }
-            if e.is_press() {
-                self.press(&e);
+                Input::Play if e.is_press() => self.tap(e.x, e.y),
+                _ => {}
             }
         }
-        if self.mode == Mode::Title {
+        if self.rounds.stage() == Stage::Title {
             self.attract(dt);
         }
         let sim_dt = self.hitstop.step(dt);
-        if !matches!(self.mode, Mode::Over(_)) {
+        if self.rounds.stage() != Stage::Over {
             self.sim.step(sim_dt);
         }
         let cues = std::mem::take(&mut self.sim.cues);
-        let playing = self.mode != Mode::Title;
+        let playing = self.rounds.stage() != Stage::Title;
         self.sound.cues(&cues, playing);
         self.juice(&cues);
         // A tower selected for upgrade that just got built over, etc.
@@ -529,11 +482,10 @@ impl Game for Keep {
         {
             self.sel = Sel::None;
         }
-        if self.mode == Mode::Play && self.sim.over {
-            self.game_over();
-        }
-        if let Mode::Over(t) = &mut self.mode {
-            *t += dt;
+        if self.rounds.stage() == Stage::Playing && self.sim.over {
+            // The sim has played the devouring (still Playing): Rounds submits
+            // the score, keeps the best, shows the card and reports Over.
+            self.rounds.end(self.sim.score as i64);
         }
         if let Some(d) = &mut self.denied {
             d.1 += dt;
@@ -547,15 +499,13 @@ impl Game for Keep {
                 self.banner = None;
             }
         }
-        self.title.update(dt);
-        self.hud.update(dt);
-        if let Some(card) = &mut self.results {
-            match card.update(dt) {
-                Some(ResultsEvent::NewBest) => self.sound.new_best(),
-                Some(ResultsEvent::Tick) => self.sound.tick(),
-                _ => {}
-            }
+        // The card's moments: its score ticking up, a new best.
+        match self.rounds.update(dt) {
+            Some(ResultsEvent::NewBest) => self.sound.new_best(),
+            Some(ResultsEvent::Tick) => self.sound.tick(),
+            _ => {}
         }
+        self.hud.update(dt);
         self.fx.update(dt);
         self.splats.retain_mut(|s| {
             s.age += dt;
@@ -564,23 +514,21 @@ impl Game for Keep {
         self.popups.update(dt);
         self.shake.update(dt);
         self.hurt.update(dt);
-        self.hurt.level = if self.mode == Mode::Play && self.sim.hearts == 1 && self.sim.playing() { 0.3 } else { 0.0 };
+        self.hurt.level = if self.rounds.playing() && self.sim.hearts == 1 && self.sim.playing() { 0.3 } else { 0.0 };
         self.coin_punch.update(dt);
         self.wince.update(dt);
         // The music turns urgent with danger, and for as long as a king is on the road.
         let king = self.sim.creeps.iter().any(|c| c.kind == CreepKind::King);
-        let danger = if self.mode == Mode::Play { self.sim.danger().max(if king { 1.0 } else { 0.0 }) } else { 0.0 };
+        let danger = if self.rounds.playing() { self.sim.danger().max(if king { 1.0 } else { 0.0 }) } else { 0.0 };
         self.sound.update(dt, danger);
     }
 
     fn render(&self) {
         draw::frame(self);
-        if let (Mode::Over(_), Some(card)) = (self.mode, &self.results) {
-            card.draw();
+        // The title card, or the game-over card with the wave reached under it.
+        self.rounds.draw();
+        if let Some(card) = &self.rounds.results {
             draw::wave_reached(self, card.panel_rect());
-        }
-        if self.mode == Mode::Title {
-            self.title.draw(&self.layout);
         }
     }
 
@@ -589,7 +537,7 @@ impl Game for Keep {
     }
 
     fn resume(&mut self) {
-        if self.mode == Mode::Play && self.sim.playing() {
+        if self.rounds.playing() && self.sim.playing() {
             self.sound.resume_music();
         }
     }

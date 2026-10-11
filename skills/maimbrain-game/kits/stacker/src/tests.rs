@@ -5,7 +5,11 @@
 //!
 //! The second prints round lengths, scores and how each skill preset loses.
 
+use std::collections::BTreeMap;
+use std::sync::Mutex;
+
 use maimbrain::Rng;
+use maimbrain::bot::{Difficulty, Outcome};
 use maimbrain::physics2d::vec2;
 
 use crate::sim::{Cue, ENDING, Kind, LIVES, PLATE_TOP, Sim, State, TOWER_TOP_ON_SCREEN, Twist, TwistKind, UNLOCKS};
@@ -136,6 +140,15 @@ pub struct RoundStats {
     pub losses: Vec<(Kind, bool, f32, bool)>,
     pub max_awake: usize,
     pub max_bodies: usize,
+}
+
+/// Every heart one preset lost: (kind, during a twist, seconds, a tumble);
+/// and the most bodies awake, and in the world, in any of its rounds.
+#[derive(Default)]
+struct Hearts {
+    lost: Vec<(Kind, bool, f32, bool)>,
+    max_awake: usize,
+    max_bodies: usize,
 }
 
 pub fn play_round(skill: Skill, seed: u64, max_seconds: f32) -> RoundStats {
@@ -346,6 +359,16 @@ fn the_same_taps_replay_the_same_round() {
     assert_eq!(run(), run());
 }
 
+/// The platform's rules for a round (SKILL.md "Platform facts that bite"),
+/// on a fake host: a tap starts it, the score goes in before Over, a
+/// frantic tap doesn't restart, the best is kept, the session replays.
+/// Nobody tapping never loses a heart, so the round is lost by tapping
+/// every 0.8 s whatever the bird is doing.
+#[test]
+fn keeps_the_platform_rules() {
+    maimbrain::sys::test::Conformance::new().tap_every(0.8).check::<crate::Picnic>();
+}
+
 /// A first-timer's round lasts 20–45 s (engagement.md). A handful of seeds
 /// here (the full report is `difficulty`, below).
 #[test]
@@ -357,51 +380,47 @@ fn a_first_timer_lasts_long_enough() {
     assert!((18.0..55.0).contains(&median), "first-timer median {median:.1}s: {secs:?}");
 }
 
-/// Difficulty report (slow; run in release).
+/// Difficulty report (slow; run in release). Targets (DESIGN.md, the
+/// skill): a first-timer's round lasts 20–45 s, a good player's 1–3 min.
 #[test]
 #[ignore]
 fn difficulty() {
-    for skill in [FIRST_TIMER, DECENT, GOOD] {
-        let n = 200usize;
-        let rounds: Vec<RoundStats> = (0..n).map(|s| play_round(skill, 1000 + s as u64, 600.0)).collect();
-        let mut secs: Vec<f32> = rounds.iter().map(|r| r.seconds).collect();
-        let mut scores: Vec<u32> = rounds.iter().map(|r| r.score).collect();
-        let mut heights: Vec<f32> = rounds.iter().map(|r| r.height).collect();
-        secs.sort_by(f32::total_cmp);
-        scores.sort();
-        heights.sort_by(f32::total_cmp);
-        let q = |p: usize| p * n / 100;
-        println!(
-            "{:12} median {:5.1}s (p10 {:5.1} – p90 {:5.1})  snacks {} ({}–{})  tower {:.1} m  awake max {}  bodies max {}",
-            skill.name,
-            secs[n / 2],
-            secs[q(10)],
-            secs[q(90)],
-            scores[n / 2],
-            scores[q(10)],
-            scores[q(90)],
-            heights[n / 2] / 100.0,
-            rounds.iter().map(|r| r.max_awake).max().unwrap(),
-            rounds.iter().map(|r| r.max_bodies).max().unwrap(),
-        );
-        // How the hearts go: which snacks fall, and how many during a twist.
-        let all: Vec<&(Kind, bool, f32, bool)> = rounds.iter().flat_map(|r| r.losses.iter()).collect();
-        let mut by_kind = String::new();
-        for k in [Kind::Box, Kind::Cube, Kind::Plank, Kind::Wedge, Kind::Bun, Kind::Ball] {
-            let c = all.iter().filter(|l| l.0 == k).count();
-            by_kind += &format!(" {k:?} {}%", c * 100 / all.len().max(1));
-        }
-        let twist = all.iter().filter(|l| l.1).count() * 100 / all.len().max(1);
-        let tumbles = all.iter().filter(|l| l.3).count() * 100 / all.len().max(1);
-        let first = rounds.iter().filter_map(|r| r.losses.first().map(|l| l.2)).collect::<Vec<f32>>();
-        let mut first = first.clone();
-        first.sort_by(f32::total_cmp);
-        println!(
-            "{:12} hearts lost:{by_kind}; {tumbles}% tumbles (rest misses); {twist}% during a twist; first heart median {:.1}s",
-            "",
-            first.get(first.len() / 2).copied().unwrap_or(0.0)
-        );
+    // Every heart lost, per preset, for the breakdown under the table (the
+    // report itself is per round), and the physics' busiest moments.
+    let hearts: Mutex<BTreeMap<&str, Hearts>> = Mutex::default();
+    let report = Difficulty::new(200)
+        .seeds_from(1000)
+        .preset("first-timer", FIRST_TIMER)
+        .target(20.0, 45.0)
+        .preset("decent", DECENT)
+        .preset("good", GOOD)
+        .target(60.0, 180.0)
+        .run(|skill, seed| {
+            let r = play_round(skill, seed, 600.0);
+            let mut all = hearts.lock().unwrap();
+            let h = all.entry(skill.name).or_default();
+            h.lost.extend(&r.losses);
+            h.max_awake = h.max_awake.max(r.max_awake);
+            h.max_bodies = h.max_bodies.max(r.max_bodies);
+            let o = Outcome::new(r.seconds).stat("snacks", r.score as f32).stat("tower m", r.height / 100.0);
+            match r.losses.first() {
+                Some(first) => o.stat("first heart s", first.2),
+                None => o,
+            }
+        });
+    report.print();
+    // What changed since the last run (committed: the last tuning that was kept).
+    report.compare_with("bot-report.tsv");
+    // How the hearts go: which snacks fall, and how many during a twist.
+    let hearts = hearts.into_inner().unwrap();
+    for p in &report.presets {
+        let (name, h) = (&p.name, &hearts[p.name.as_str()]);
+        let pc = |n: usize| n * 100 / h.lost.len().max(1);
+        let by_kind: Vec<String> = [Kind::Box, Kind::Cube, Kind::Plank, Kind::Wedge, Kind::Bun, Kind::Ball].iter().map(|&k| format!("{k:?} {}%", pc(h.lost.iter().filter(|l| l.0 == k).count()))).collect();
+        let (twist, tumbles) = (pc(h.lost.iter().filter(|l| l.1).count()), pc(h.lost.iter().filter(|l| l.3).count()));
+        println!("{name:12} hearts lost: {}; {tumbles}% tumbles (rest misses); {twist}% during a twist; awake max {}, bodies max {}", by_kind.join(" "), h.max_awake, h.max_bodies);
     }
+    report.assert_skill_matters();
     // One traced round, because medians swing.
     let mut sim = Sim::new(1234);
     let mut bot = Bot::new(DECENT, 77);

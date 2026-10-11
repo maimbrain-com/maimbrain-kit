@@ -1,5 +1,31 @@
 # Creator kit changelog
 
+## 0.7.7
+
+The round, its rules and the bot's report move out of every game and into the SDK, and the skill stops "improving" games their owners have already tuned.
+
+- **`maimbrain::rounds::Rounds` is the round every game plays,** kept the platform's way. It covers:
+  - the title card until a press, which starts the round and is also its first move;
+  - the ending playing out while still `Playing` (`.ending(secs)`, 0.7 s by default);
+  - submitting the score before `Over`, saving the best, and building the game-over card;
+  - one retry guard, a daily mode with its own board and best, and a SCORES button.
+
+  A game says when its round ends and with what score: `rounds.end(score)`, or `rounds.end(score).heading("PIT!")` for one round's own heading. `card_shown()` marks the frame the card went up, `card_ready()` when it takes taps (for DAILY or SCORES buttons of your own), and `draw_card()` draws only the card for a game with its own title. Games had written this themselves, about 100 lines in the template and 150–180 in each kit, with their retry guards drifting between 0.35 and 0.6 s. The templates and kits now use it. The best is still saved under `"best"`, so an updated game keeps its players' bests.
+- **`sys::test::Conformance` checks a game keeps the platform's rules,** natively, in `cargo test`. It plays a session on a fake host: it waits on the title, taps, lets the round end, taps during the card's guard, taps to retry, then starts a new session. It names any rule broken: a round started without a press, `Playing` late, the score after `Over`, a retry inside the guard, a best not saved or read back, or a session that doesn't replay. The templates and kits have the test (`keeps_the_platform_rules`); add it to a game made earlier:
+  ```rust
+  #[test]
+  fn keeps_the_platform_rules() {
+      maimbrain::sys::test::Conformance::new().check::<super::MyGame>();
+  }
+  ```
+- **`sys::test::Host` runs a game as the platform does, for your own tests.** It queues touches, delivers each one in the frame that reaches its time, and reads back the round states, scores, saves and logs the game asked for. Without a `Host`, native stubs behave as before.
+- **`maimbrain::bot::Difficulty` writes the bot's difficulty report.** Give it presets, targets and a function that plays one round. It plays the seeded rounds in parallel, then prints each preset's round length (p10, p50, p90), how rounds ended, win rates, the game's own numbers (`stat`), shares of rounds (`flag`) and ratios of totals (`ratio`). `report.assert_skill_matters()` fails when better players don't do better. It replaces the percentile code every kit had copied, two of them with a sort that panicked on NaN.
+
+- **`report.compare_with("bot-report.tsv")` shows what an edit did to the whole game.** It prints what changed since the last run's report, for every preset and every way rounds end, then saves the new one. Rounds are seeded, so it changes only when the game does. The templates and kits call it and commit the file. It catches the kind of side effect that let a longer jump grace in one place quadruple the falls at a swinging platform elsewhere, unnoticed until the owner played it. A game made earlier adds the call after `report.print()`.
+- **SKILL.md has a "Continuing a tuned game" section.** On a game that's published or that its owner has approved, the owner's tested feel is the spec, ahead of the skill's targets. Sound, story, bug fixes and new content go ahead. Anything that changes feel (camera, scale, speeds, physics, the course, difficulty) is proposed with before-and-after numbers and shots, then tried in a draft on the phone first. The review's top items and the hero-size rule are advisory there. After an edit to a course, physics or timing, the bot's report is compared across the whole game. This came from a builder whose agent zoomed a tuned game's camera to meet the hero-size rule, and made a jump frame-tight while tuning to the bot. Both changes were reverted.
+- **Title cards' taglines no longer smudge as they fade in.** `ui::text(..).alpha(a)` faded only the outline, shadow and glow set before it, and the title card sets them after, so each tagline's dark outline showed at full strength for its first half second. `alpha` now applies when the text is drawn, to everything; calls multiply.
+- **`ui::text(..).left()`**, next to `center()` and `right()`.
+
 ## 0.7.6
 
 Quicker steps in the loop a game is made in, measured on an M1 Pro with nothing else running.

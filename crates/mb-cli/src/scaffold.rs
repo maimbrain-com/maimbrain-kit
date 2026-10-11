@@ -30,6 +30,7 @@ const TEMPLATE_2D: Template = Template {
         ("src/bot.rs", template!("MB_TEMPLATE_DIR", "src/bot.rs")),
         ("src/sound.rs", template!("MB_TEMPLATE_DIR", "src/sound.rs")),
         ("tools/sounds.py", template!("MB_TEMPLATE_DIR", "tools/sounds.py")),
+        ("bot-report.tsv", template!("MB_TEMPLATE_DIR", "bot-report.tsv")),
     ],
     assets: &[
         ("assets/pop.ogg", include_bytes!(concat!(env!("MB_TEMPLATE_DIR"), "/assets/pop.ogg"))),
@@ -48,6 +49,7 @@ const TEMPLATE_3D: Template = Template {
         ("src/sim.rs", template!("MB_TEMPLATE_3D_DIR", "src/sim.rs")),
         ("src/scene.rs", template!("MB_TEMPLATE_3D_DIR", "src/scene.rs")),
         ("src/bot.rs", template!("MB_TEMPLATE_3D_DIR", "src/bot.rs")),
+        ("bot-report.tsv", template!("MB_TEMPLATE_3D_DIR", "bot-report.tsv")),
     ],
     assets: &[],
     icon: include_bytes!(concat!(env!("MB_TEMPLATE_3D_DIR"), "/icon.png")),

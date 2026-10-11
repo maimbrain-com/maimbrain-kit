@@ -6,10 +6,13 @@
 //! Layout: `sim` (the rules, pure and tested, with a bot in `tests`), `look`
 //! (names, words, colors, sprites: reskin here), `cast` (the atlas's source
 //! rects, written by `mb art atlas`), `draw` (poppets, board, meter, effects), `sound` (sounds, music, haptics from the sim's cues), this file
-//! (rounds, input, juice).
+//! (input, buttons, juice). The round itself (title card, a tap starting
+//! play, the score, the best, the game-over card, retrying) is
+//! `maimbrain::rounds::Rounds`; `tests::keeps_the_platform_rules` checks it.
 //!
 //! Daily mode deals the same board (and the same refills, given the same
-//! swaps) to everyone today (`sys::daily_seed`), on its own leaderboard.
+//! swaps) to everyone today (`sys::daily_seed`), on its own leaderboard and
+//! best (`Rounds::daily`).
 
 mod cast;
 mod draw;
@@ -24,15 +27,13 @@ use look::*;
 use maimbrain::input::{self, Event, Kind as Ev};
 use maimbrain::juice::{Flash, Particles, Popups};
 use maimbrain::motion::{Ease, HitStop, Shake};
-use maimbrain::sys::{self, Round};
-use maimbrain::ui::{self, Button, ButtonKind, Hud, Icon, Layout, Rect, ResultsAction, ResultsCard, ResultsEvent, Tap, Theme, TitleCard, fade, text};
-use maimbrain::{Game, Rng, export_game, store};
+use maimbrain::rounds::{self, Input, Rounds};
+use maimbrain::ui::{self, Button, ButtonKind, Hud, Icon, Layout, Rect, ResultsEvent, Tap, Theme, TitleCard, fade, text};
+use maimbrain::{Game, Rng, export_game, store, sys};
 use sim::{BlastKind, COLS, Cell, Cue, Kind, News, Phase, Piece, ROWS, Sim, Special};
 
 const BOARD_ENDLESS: u32 = 0;
 const BOARD_DAILY: u32 = 1;
-/// Taps right after a round ends don't restart it (a frantic tap during the fall asleep).
-const RETRY_GUARD: f32 = 0.35;
 /// The swipe hint comes back after this long without a touch.
 const HINT_IDLE: f32 = 3.0;
 /// A drag this far (logical units) is a swipe.
@@ -41,15 +42,6 @@ const SWIPE_MIN: f32 = 14.0;
 const DEMO_WAIT: f32 = 2.4;
 /// Debug: in play, make the hinted move after this many seconds (0 = off).
 const DEBUG_AUTOPLAY: f32 = 0.0;
-
-#[derive(Clone, Copy, PartialEq)]
-enum Mode {
-    /// The feed card: the board plays itself.
-    Title,
-    Play,
-    /// Seconds since the round ended.
-    Over(f32),
-}
 
 struct Touch {
     cell: Cell,
@@ -74,22 +66,18 @@ struct LaterFx {
 }
 
 struct Poppets {
-    mode: Mode,
-    daily: bool,
+    /// Title (the board plays itself), round, game-over card; daily mode.
+    rounds: Rounds,
     sim: Sim,
+    /// Seeds the title card's demo boards.
     rng: Rng,
-    best: u64,
-    best_daily: u64,
     time: f32,
     play_t: f32,
     idle: f32,
     /// The player has made a match (the swipe hint stops showing on its own).
     taught: bool,
-    layout: Layout,
     theme: Theme,
-    title: TitleCard,
     hud: Hud,
-    results: Option<ResultsCard>,
     daily_btn: Button,
     scores_btn: Button,
     fx: Particles,
@@ -113,24 +101,15 @@ struct Poppets {
 }
 
 impl Poppets {
-    fn current_best(&self) -> u64 {
-        if self.daily { self.best_daily } else { self.best }
+    /// The title card's demo board: today's in daily mode.
+    fn demo_seed(&mut self) -> u64 {
+        if self.rounds.is_daily() { sys::daily_seed() } else { self.rng.next_u32() as u64 }
     }
 
-    fn daily_key() -> String {
-        format!("daily:{:016x}", sys::daily_seed())
-    }
-
-    fn seed(&mut self) -> u64 {
-        if self.daily { sys::daily_seed() } else { self.rng.next_u32() as u64 }
-    }
-
+    /// A round starts (`Rounds` picked its seed: today's in daily mode).
     fn start(&mut self) {
-        let seed = self.seed();
-        self.sim = Sim::new(seed, false);
-        self.mode = Mode::Play;
-        self.hud.reset(self.current_best() as i64);
-        self.results = None;
+        self.sim = Sim::new(self.rounds.seed(), false);
+        self.hud.reset(self.rounds.best());
         self.play_t = 0.0;
         self.idle = 0.0;
         self.selected = None;
@@ -140,57 +119,35 @@ impl Poppets {
         self.popups.list.clear();
         self.meter_shown = 1.0;
         self.sleep = 0.0;
-        sys::round(Round::Playing);
         self.sfx.start();
     }
 
+    /// The board is asleep (the sim played the falling asleep, still
+    /// `Playing`): `Rounds` submits the score, keeps the best and shows the card.
     fn game_over(&mut self) {
-        let score = self.sim.score as u64;
-        let prev = self.current_best();
-        // Submit before reporting Over: the platform saves the replay on Over.
-        if self.daily {
-            store::submit_score(BOARD_DAILY, score as i64);
-            if score > self.best_daily {
-                self.best_daily = score;
-                store::set_u64(&Self::daily_key(), score);
-            }
-        } else {
-            store::submit_score(BOARD_ENDLESS, score as i64);
-            if score > self.best {
-                self.best = score;
-                store::set_u64("best", score);
-            }
-        }
-        self.title.set_best(self.current_best() as i64);
-        let label = if self.daily { DAILY_LABEL } else { SCORE_LABEL };
-        let seed = self.rng.next_u32() as u64;
-        self.results = Some(ResultsCard::new(score as i64, prev as i64, self.theme, &self.layout, seed).heading(HEADING).label(label));
+        let label = if self.rounds.is_daily() { DAILY_LABEL } else { SCORE_LABEL };
+        self.rounds.end(self.sim.score as i64).label(label);
         self.daily_btn.reset();
         self.scores_btn.reset();
         self.selected = None;
         self.touch = None;
-        self.mode = Mode::Over(0.0);
-        sys::round(Round::Over);
     }
 
+    /// Daily on or off: back to the title (from the card too), with that
+    /// mode's best and a demo board.
     fn toggle_daily(&mut self) {
-        self.daily = !self.daily;
+        self.rounds.set_daily(!self.rounds.is_daily());
         self.sfx.ui();
-        self.daily_btn.kind = if self.daily { ButtonKind::Primary } else { ButtonKind::Secondary };
-        let seed = self.seed();
+        self.daily_btn.kind = if self.rounds.is_daily() { ButtonKind::Primary } else { ButtonKind::Secondary };
+        let seed = self.demo_seed();
         self.sim = Sim::new(seed, true);
-        self.results = None;
-        self.title.set_best(self.current_best() as i64);
-        self.title.restart();
-        self.mode = Mode::Title;
-        sys::round(Round::Idle);
     }
 
-    /// Offers an event to the card buttons; true if one took it.
+    /// Offers an event to DAILY and SCORES (on the title, and on the card
+    /// once its guard is over); true if one took it.
     fn ui_event(&mut self, e: &Event) -> bool {
-        match self.mode {
-            Mode::Play => false,
-            Mode::Title => match self.daily_btn.handle(e) {
+        match self.rounds.stage() {
+            rounds::Stage::Title => match self.daily_btn.handle(e) {
                 Some(Tap::Clicked) => {
                     self.toggle_daily();
                     true
@@ -198,10 +155,7 @@ impl Poppets {
                 Some(_) => true,
                 None => false,
             },
-            Mode::Over(t) => {
-                if t < RETRY_GUARD {
-                    return false;
-                }
+            rounds::Stage::Over if self.rounds.card_ready() => {
                 if let Some(tap) = self.daily_btn.handle(e) {
                     if tap == Tap::Clicked {
                         self.toggle_daily();
@@ -211,17 +165,13 @@ impl Poppets {
                 if let Some(tap) = self.scores_btn.handle(e) {
                     if tap == Tap::Clicked {
                         self.sfx.ui();
-                        store::show_scores(if self.daily { BOARD_DAILY } else { BOARD_ENDLESS });
+                        store::show_scores(if self.rounds.is_daily() { BOARD_DAILY } else { BOARD_ENDLESS });
                     }
                     return true;
                 }
-                let action = self.results.as_mut().and_then(|r| r.handle(e));
-                if action == Some(ResultsAction::Retry) {
-                    self.start();
-                    return true;
-                }
-                self.results.as_ref().is_some_and(|r| r.claims(e.x, e.y))
+                false
             }
+            _ => false,
         }
     }
 
@@ -230,16 +180,8 @@ impl Poppets {
         (fx >= 0.0 && fy >= 0.0 && (fx as usize) < COLS && (fy as usize) < ROWS).then_some((fx as usize, fy as usize))
     }
 
+    /// A press in play.
     fn press(&mut self, x: f32, y: f32) {
-        match self.mode {
-            // The tap that enters play (or retries) starts the round at once; it
-            // doesn't pick up a poppet (the board under it is a new one), so the
-            // swipe hint shows straight away.
-            Mode::Title => return self.start(),
-            Mode::Over(t) if t > RETRY_GUARD => return self.start(),
-            Mode::Over(_) => return,
-            Mode::Play => {}
-        }
         self.idle = 0.0;
         if matches!(self.sim.phase, Phase::Asleep { .. }) {
             return;
@@ -301,7 +243,7 @@ impl Poppets {
 
     /// Juice for the sim's cues; sound only in play.
     fn react(&mut self, cues: &[Cue]) {
-        let playing = self.mode == Mode::Play;
+        let playing = self.rounds.playing();
         self.sfx.cues(cues, playing);
         let center = cell_center(COLS as f32 / 2.0 - 0.5, ROWS as f32 / 2.0 - 0.5);
         for &cue in cues {
@@ -462,7 +404,7 @@ impl Poppets {
     }
 
     fn mood(&self, c: usize, r: usize, p: &Piece) -> Mood {
-        if let Mode::Over(_) = self.mode {
+        if self.rounds.stage() == rounds::Stage::Over {
             return Mood::Asleep;
         }
         match self.sim.phase {
@@ -499,7 +441,7 @@ impl Poppets {
 
     fn draw_board(&self) {
         let radius = CELL * 0.43;
-        let intro = if self.mode == Mode::Play { self.play_t } else { 10.0 };
+        let intro = if self.rounds.playing() { self.play_t } else { 10.0 };
         let mut top: Vec<(usize, usize)> = Vec::new();
         for (c, r) in sim::Board::cells() {
             let Some(p) = self.sim.board.get((c, r)) else { continue };
@@ -574,28 +516,24 @@ impl Poppets {
 
 impl Game for Poppets {
     fn init() -> Self {
-        sys::round(Round::Idle);
         let layout = Layout::new();
         let theme = look::theme();
         let mut rng = Rng::from_host();
-        let best = store::get_u64("best").unwrap_or(0);
-        let best_daily = store::get_u64(&Self::daily_key()).unwrap_or(0);
+        // Endless on board 0; daily on board 1 with its own best. The sim
+        // plays the falling asleep itself, so the card comes as soon as it's over.
+        let title = TitleCard::new(TITLE, theme).tagline(TAGLINE).size(56.0).at(layout.safe.y + 62.0);
+        let rounds = Rounds::new(title).board(BOARD_ENDLESS).daily(BOARD_DAILY).heading(HEADING).ending(0.0);
         // DAILY and SCORES sit low in the card area, clear of the feed's overlays.
         let row = Rect::new(layout.card.x, layout.card.bottom() - 46.0, layout.card.w, 44.0).columns(2, 12.0);
         let sim = Sim::new(rng.next_u32() as u64, true);
         Poppets {
-            mode: Mode::Title,
-            daily: false,
             sim,
-            best,
-            best_daily,
             time: 0.0,
             play_t: 0.0,
             idle: 0.0,
             taught: false,
-            title: TitleCard::new(TITLE, theme).tagline(TAGLINE).size(56.0).at(layout.safe.y + 62.0).best(best as i64),
-            hud: Hud::new(theme, best as i64),
-            results: None,
+            hud: Hud::new(theme, rounds.best()),
+            rounds,
             daily_btn: Button::new(row[1], "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR),
             scores_btn: Button::new(row[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY),
             fx: Particles::new(rng.next_u32() as u64),
@@ -614,7 +552,6 @@ impl Game for Poppets {
             sleep: 0.0,
             meter_shown: 1.0,
             meter_flash: 0.0,
-            layout,
             theme,
             rng,
         }
@@ -628,17 +565,24 @@ impl Game for Poppets {
             if self.ui_event(&e) {
                 continue;
             }
-            match e.kind() {
-                Ev::TouchDown | Ev::MouseDown => self.press(e.x, e.y),
-                Ev::TouchMove | Ev::MouseMove => self.drag(e.x, e.y),
-                Ev::TouchUp | Ev::MouseUp | Ev::TouchCancel => self.touch = None,
-                _ => {}
+            match self.rounds.input(&e) {
+                // The tap that enters play (or retries) starts the round at once; it
+                // doesn't pick up a poppet (the board under it is a new one), so the
+                // swipe hint shows straight away.
+                Input::Start => self.start(),
+                Input::Play => match e.kind() {
+                    Ev::TouchDown | Ev::MouseDown => self.press(e.x, e.y),
+                    Ev::TouchMove | Ev::MouseMove => self.drag(e.x, e.y),
+                    Ev::TouchUp | Ev::MouseUp | Ev::TouchCancel => self.touch = None,
+                    _ => {}
+                },
+                Input::Taken | Input::Extra => {}
             }
         }
         let sdt = self.hitstop.step(dt);
-        match self.mode {
-            Mode::Title => self.autopilot(sdt),
-            Mode::Play => {
+        match self.rounds.stage() {
+            rounds::Stage::Title => self.autopilot(sdt),
+            rounds::Stage::Playing => {
                 self.play_t += dt;
                 if DEBUG_AUTOPLAY > 0.0 && self.sim.ready() && self.idle > DEBUG_AUTOPLAY
                     && let Some(m) = self.sim.hint
@@ -646,26 +590,26 @@ impl Game for Poppets {
                     self.swap(m.0, m.1);
                 }
             }
-            Mode::Over(t) => self.mode = Mode::Over(t + dt),
+            rounds::Stage::Ending | rounds::Stage::Over => {}
         }
         self.sim.step(sdt);
         let cues = std::mem::take(&mut self.sim.cues);
         self.react(&cues);
-        if self.mode == Mode::Play && self.sim.over {
+        if self.rounds.stage() == rounds::Stage::Playing && self.sim.over {
             self.game_over();
         }
 
         // What the faces and the sky show.
-        let target = match self.mode {
-            Mode::Title => {
+        let target = match self.rounds.stage() {
+            rounds::Stage::Title => {
                 let k = (self.demo_wait / DEMO_WAIT).clamp(0.0, 1.0);
                 if self.sim.ready() { 0.85 * k * k } else { 0.0 }
             }
-            Mode::Play => match self.sim.phase {
+            rounds::Stage::Playing | rounds::Stage::Ending => match self.sim.phase {
                 Phase::Asleep { t } => (t / 0.8).min(1.0),
                 _ => self.sim.drowsiness(),
             },
-            Mode::Over(_) => 1.0,
+            rounds::Stage::Over => 1.0,
         };
         let rate = if target < self.sleep { 6.0 } else { 2.5 };
         self.sleep += (target - self.sleep) * (1.0 - (-dt * rate).exp());
@@ -677,7 +621,7 @@ impl Game for Poppets {
         self.meter_flash = (self.meter_flash - dt * 3.0).max(0.0);
         // The drone and the music box winding down follow how sleepy they are.
         self.sfx.tension(self.sim.drowsiness() * 1.4);
-        let drowsy = self.mode == Mode::Play && self.sim.energy < sim::DROWSY && !matches!(self.sim.phase, Phase::Asleep { .. });
+        let drowsy = self.rounds.playing() && self.sim.energy < sim::DROWSY && !matches!(self.sim.phase, Phase::Asleep { .. });
         self.sfx.update(dt, drowsy);
 
         let mut i = 0;
@@ -705,13 +649,11 @@ impl Game for Poppets {
                 self.banner = None;
             }
         }
-        self.title.update(dt);
-        self.hud.update(dt);
-        if let Some(card) = &mut self.results
-            && card.update(dt) == Some(ResultsEvent::NewBest)
-        {
+        // The card goes up the frame the board is asleep; its NEW BEST gets a fanfare.
+        if self.rounds.update(dt) == Some(ResultsEvent::NewBest) {
             self.sfx.best();
         }
+        self.hud.update(dt);
         self.daily_btn.update(dt);
         self.scores_btn.update(dt);
         self.fx.update(dt);
@@ -721,7 +663,7 @@ impl Game for Poppets {
     }
 
     fn render(&self) {
-        let l = &self.layout;
+        let l = &self.rounds.layout;
         maimbrain::gfx2d::push();
         self.shake.apply(l.screen.cx(), l.screen.cy());
         draw::sky(&self.shapes.art, self.sleep, self.time);
@@ -730,42 +672,39 @@ impl Game for Poppets {
         self.fx.draw();
         maimbrain::gfx2d::pop();
         self.popups.draw();
-        let asleep = matches!(self.sim.phase, Phase::Asleep { .. }) || matches!(self.mode, Mode::Over(_));
+        let asleep = matches!(self.sim.phase, Phase::Asleep { .. }) || self.rounds.stage() == rounds::Stage::Over;
         if asleep {
             draw::zzz(self.time, self.sleep);
         }
-        match self.mode {
-            Mode::Title => {
-                self.title.draw(l);
-                self.daily_btn.draw(&self.theme);
+        if self.rounds.playing() {
+            self.hud.draw(l);
+            draw::meter(180.0, l.hud.y + 112.0, 220.0, self.sim.energy, self.meter_shown, self.meter_flash, self.time);
+            ui::pill(&format!("LV {}", self.sim.level), l.hud.right() - 40.0, l.hud.y + 28.0, 26.0, ui::with_alpha(INK, 0.55), 0xffffffff, self.theme.body_font, None);
+            if self.rounds.is_daily() {
+                ui::pill("DAILY", l.hud.right() - 40.0, l.hud.y + 60.0, 22.0, ui::with_alpha(INK, 0.55), GOLD, self.theme.body_font, Some(Icon::STAR));
             }
-            Mode::Play => {
-                self.hud.draw(l);
-                draw::meter(180.0, l.hud.y + 112.0, 220.0, self.sim.energy, self.meter_shown, self.meter_flash, self.time);
-                ui::pill(&format!("LV {}", self.sim.level), l.hud.right() - 40.0, l.hud.y + 28.0, 26.0, ui::with_alpha(INK, 0.55), 0xffffffff, self.theme.body_font, None);
-                if self.daily {
-                    ui::pill("DAILY", l.hud.right() - 40.0, l.hud.y + 60.0, 22.0, ui::with_alpha(INK, 0.55), GOLD, self.theme.body_font, Some(Icon::STAR));
+            let hint = self.sim.ready() && self.touch.is_none() && self.selected.is_none() && ((!self.taught && self.play_t > 0.5) || self.idle > HINT_IDLE);
+            if let (true, Some(m)) = (hint, self.sim.hint) {
+                let strength = if self.taught { ((self.idle - HINT_IDLE) / 0.4).clamp(0.0, 1.0) } else { 1.0 };
+                let a = cell_center(m.0.0 as f32, m.0.1 as f32);
+                let b = cell_center(m.1.0 as f32, m.1.1 as f32);
+                draw::swipe_hint(a, b, self.time, strength);
+                if !self.taught {
+                    let bob = (self.time * 4.0).sin() * 3.0;
+                    text(HINT).size(20.0).color(0xffffffff).outline(0.12, INK).middle().draw(180.0, BOARD_Y - 26.0 + bob);
                 }
-                let hint = self.sim.ready() && self.touch.is_none() && self.selected.is_none() && ((!self.taught && self.play_t > 0.5) || self.idle > HINT_IDLE);
-                if let (true, Some(m)) = (hint, self.sim.hint) {
-                    let strength = if self.taught { ((self.idle - HINT_IDLE) / 0.4).clamp(0.0, 1.0) } else { 1.0 };
-                    let a = cell_center(m.0.0 as f32, m.0.1 as f32);
-                    let b = cell_center(m.1.0 as f32, m.1.1 as f32);
-                    draw::swipe_hint(a, b, self.time, strength);
-                    if !self.taught {
-                        let bob = (self.time * 4.0).sin() * 3.0;
-                        text(HINT).size(20.0).color(0xffffffff).outline(0.12, INK).middle().draw(180.0, BOARD_Y - 26.0 + bob);
-                    }
-                }
-                self.draw_banner();
             }
-            Mode::Over(_) => {
-                if let Some(card) = &self.results {
-                    card.draw();
-                }
+            self.draw_banner();
+        }
+        // The title card or the game-over card, then the kit's own buttons on them.
+        self.rounds.draw();
+        match self.rounds.stage() {
+            rounds::Stage::Title => self.daily_btn.draw(&self.theme),
+            rounds::Stage::Over => {
                 self.scores_btn.draw(&self.theme);
                 self.daily_btn.draw(&self.theme);
             }
+            rounds::Stage::Playing | rounds::Stage::Ending => {}
         }
         self.flash.draw(l.screen);
     }

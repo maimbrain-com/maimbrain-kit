@@ -210,10 +210,26 @@ pub fn screen() -> Screen {
 /// Debug parameters work the same way: `set_param("zone", "3")` and
 /// [`param`](super::param) returns it on this thread until `clear_params()`
 /// or `reset()`.
+///
+/// To test the game as the platform runs it (input, the round state, scores,
+/// saved data), run it under a [`Host`], or let [`Conformance`] check the
+/// platform's rules with one:
+///
+/// ```ignore
+/// #[test]
+/// fn keeps_the_platform_rules() {
+///     maimbrain::sys::test::Conformance::new().check::<MyGame>();
+/// }
+/// ```
 #[cfg(not(target_arch = "wasm32"))]
 pub mod test {
     use std::cell::{Cell, RefCell};
     use std::collections::BTreeMap;
+
+    mod conformance;
+    pub(crate) mod host;
+    pub use conformance::{Conformance, Finding};
+    pub use host::{Call, Host};
 
     thread_local! {
         static NOW: Cell<f64> = const { Cell::new(0.0) };

@@ -12,7 +12,7 @@ A Maimbrain game lives in a vertical feed, between other games, in front of some
 Before writing code:
 1. **[engagement.md](engagement.md)**: what makes a game work *in this feed*. Its rules are requirements, not suggestions.
 2. **`docs/SPEC.md` §2, §3, §5.2 "Feed navigation", §9.1 "Creating and building a game", §9.3 "Previewing", §9.7 "Checking determinism" and §9.8 "Tests on the host" only**: the manifest, determinism, browse vs play and the card overlay areas, and how to build, preview, check and test. `grep -n '^#' docs/SPEC.md` (from the plugin root) gives each section's line. §5.7 (sensors) is for a game that reads one; look up §9.4–§9.6 (`mb shot`, `mb measure`, the preview console) when you use them (each command's `--help` has its flags). The rest is reference.
-3. **[kits/](kits/)**: if the brief is a familiar genre (runner, stacker, shooter, match-3, racer, tower defense, trivia), start from that genre's kit instead of the template: see [Start from a kit](#start-from-a-kit). Otherwise, **[template/](template/)**: a tiny complete game (tap the bubble) to start from; **[template-3d/](template-3d/)** is the 3D one (catch the drone; see [3d.md](3d.md)). `mb new games/<name>` creates a game from the 2D template, `mb new --3d games/<name>` from the 3D one. Signed in (`mb login`), the id and creator come from your account; signed out it still works, with a placeholder id and creator (or pass `--id dev.you.name --creator @you`), which build and preview fine but must become your namespace before `mb publish`. You can also copy a template to `games/<name>/` by hand and replace `NAME` in `Cargo.toml` and `manifest.toml` (and `icon.png` with your own). Keep its shape: pure rules in `src/sim.rs` with tests, and a thin host layer in `src/lib.rs` that handles tap to start, round reporting, score-before-Over, the retry guard and saving the best score. The template or kit you start from is the best API reference: it already calls most of what a game of its kind needs.
+3. **[kits/](kits/)**: if the brief is a familiar genre (runner, stacker, shooter, match-3, racer, tower defense, trivia), start from that genre's kit instead of the template: see [Start from a kit](#start-from-a-kit). Otherwise, **[template/](template/)**: a tiny complete game (tap the bubble) to start from; **[template-3d/](template-3d/)** is the 3D one (catch the drone; see [3d.md](3d.md)). `mb new games/<name>` creates a game from the 2D template, `mb new --3d games/<name>` from the 3D one. Signed in (`mb login`), the id and creator come from your account; signed out it still works, with a placeholder id and creator (or pass `--id dev.you.name --creator @you`), which build and preview fine but must become your namespace before `mb publish`. You can also copy a template to `games/<name>/` by hand and replace `NAME` in `Cargo.toml` and `manifest.toml` (and `icon.png` with your own). Keep its shape: pure rules in `src/sim.rs` with tests, and a thin host layer in `src/lib.rs` whose round (tap to start, round reporting, the failure playing out, score before Over, the best, the game-over card, the retry guard) is `maimbrain::rounds::Rounds` (see [The round](#the-round)), with a test that checks it keeps the platform's rules. The template or kit you start from is the best API reference: it already calls most of what a game of its kind needs.
 4. **[identity.md](identity.md)**: the art-direction step. Pick and write down the game's own look (reference, palette, a font pairing from the library, shape language, motion, one signature idea) before building, so it doesn't come out looking like every other Maimbrain game (docs/IDENTITY.md has the measurements).
 
 Then, as the game needs them:
@@ -25,7 +25,7 @@ Then, as the game needs them:
 
 ## Start from a kit
 
-The kits are small, complete, polished games, one per common genre, that already do everything this skill asks: a live title card, the UI kit's HUD and results card, juice, sound and music, a difficulty curve tuned with a bot, rounds, score submission, the retry guard, the best score, a daily mode where it fits, pure rules in `src/sim.rs` with tests, and the tuning knobs at the top of that file. Starting from one puts you at "good" on the first build; your job becomes making it *yours*.
+The kits are small, complete, polished games, one per common genre, that already do everything this skill asks: a live title card, the UI kit's HUD and results card, juice, sound and music, a difficulty curve tuned with a bot, the round flow (`Rounds`: score submission, the retry guard, the best score, a daily mode where it fits), pure rules in `src/sim.rs` with tests, and the tuning knobs at the top of that file. Starting from one puts you at "good" on the first build; your job becomes making it *yours*.
 
 ```sh
 mb kits                                  # the list, with what each plays like
@@ -54,11 +54,21 @@ Don't force a kit onto a brief it doesn't fit: games built on a sensor (tilt, mi
 2. **A twist on the verb or a rule.** One change to *how it plays*, not just how it looks: a runner that flips gravity instead of jumping, a stacker whose platform tilts, a match-3 where matches push the board up, a racer that drifts, trivia where you pick the wrong answer. Each kit's DESIGN.md lists ideas and the code to touch.
 3. **One new thing.** A mechanic, enemy, power-up or event the kit doesn't have, introduced 15–30 s in, so the second half of a round surprises.
 
-Also change the fail moment and the game-over card's aftermath (they're the most-shared screens), and keep what the kit gets right: the sim/test/bot split, the round and score hooks, the retry guard, determinism (`mb.verify()` must still match).
+Also change the fail moment and the game-over card's aftermath (they're the most-shared screens), and keep what the kit gets right: the sim/test/bot split, `Rounds` and its `keeps_the_platform_rules` test, determinism (`mb.verify()` must still match).
+
+## Continuing a tuned game
+
+A game that's been published, or that the owner has played on their phone and approved, is tuned: its framing, scale, speeds, physics, course and difficulty are their choices. **The owner's tested feel is the spec**, ahead of every target in this skill (the bot's bands, the hero's size, the review's ranking), which are for building a game, not for second-guessing one.
+- Start from what's known: `mb feedback <game dir>` (what the owner and testers noted; [publish.md](publish.md#feedback-and-test-builds)), DESIGN.md and its tuning constants, and the committed `bot-report.tsv` (the last difficulty that was kept).
+- **Go ahead** with what adds to the game and leaves the rest as it played: sound and music, story lines, bug fixes, new content (a zone, an enemy, a mode).
+- **Propose, don't make,** anything that changes feel: the camera or framing, scale, speeds, physics constants, timings, the course or level layout, difficulty. Write it up with the numbers before and after and a shot of each, change it only once the owner agrees, and have them play it in a draft on their phone (`mb publish`) before it goes anywhere else.
+- **Targets are advisory here.** A hero under a third of the width or a bot round outside its band is a note for the owner, not a fix.
+- **After any edit to a course, physics or timing, check the whole game, not the spot you changed.** Run the bot's `difficulty` test and read what changed against the last report (`report.compare_with("bot-report.tsv")` prints it: every preset, every way rounds end; a fix in one place can quadruple the falls somewhere else). And work out the arithmetic of anything you made tighter: a 0.22 s strip of floor after a drop that takes 0.23 s is a frame-perfect jump.
+- In `REVIEW.md`, the bug fixes are yours to do; the rest are proposals.
 
 ## Workflow
 
-**Continuing a game that's been published (a draft or live)?** Run `mb feedback <game dir>` first, before changing anything: it's what the user and their testers noted about it (see [Feedback and test builds](publish.md#feedback-and-test-builds)).
+**Continuing a game that's been published or approved?** Read [Continuing a tuned game](#continuing-a-tuned-game) first, and run `mb feedback <game dir>` before changing anything.
 
 ### 1. Design on one page first
 Write `games/<name>/DESIGN.md` before any code, answering:
@@ -87,7 +97,7 @@ Split the crate: pure simulation modules (state, rules, physics, difficulty) tha
 
 Drive the game only through the input events a player produces (touches, with their times), through the same code `lib.rs` uses. The templates keep that code in `src/control.rs`: pure, no host calls, it turns raw events into game actions (taps, swipes, holds, with their thresholds) and applies them to the sim. `lib.rs` feeds it `input::poll()`; the bot's `play` feeds it the bot's touches, frame by frame. Put every input rule there, never a second copy in the bot's harness: a bot that maps touches itself, or sets sim state, measures a different game. Make touches with `maimbrain::input::synth`: `tap(x, y, t)`, `hold(x, y, t, secs)`, `stroke(&points, t0, secs, synth::PANEL_HZ)` (down, a move every 1/120 s at an even speed, up), `flick(from, to, t0, secs, seed)` for a swipe as a thumb makes it (speed rising and falling, lifting while still moving, a slightly bowed path, a little noise; use it wherever the bot swipes, so swipe thresholds are tuned against real-looking input), and a `synth::Queue` that hands them out as the host would (`queue.due(frame_end)`), so a swipe spans the frames it really does.
 
-Give it three presets (from `synth::Skill`'s first-timer, casual and good) and report each one's round length (p10, p50, p90) over ~200 seeded runs:
+Give it three presets (from `synth::Skill`'s first-timer, casual and good) and report each one's round length (p10, p50, p90) over ~200 seeded runs. Don't write the report: `maimbrain::bot::Difficulty` plays the rounds (in parallel, seeded) and prints the spread, how rounds ended, win rates and your game's numbers (`Outcome::new(secs).cause(..).stat("score", ..)`), with `.target(lo, hi)` per preset and `report.assert_skill_matters()`; the templates' `difficulty` test is the pattern. Targets:
 - **first-timer**: slow, noisy, no anticipation; should die in 20–45 s
 - **casual**
 - **good**: should last 1–3 min
@@ -96,7 +106,7 @@ For a game with a fixed end (boss fights, levels, a run to win) report, per pres
 
 Model the specific skills your game demands too (holding still to aim, easing off near a limit, leading a moving target the way hits are actually judged). Report *how and where* each preset dies (deaths by cause) and how it misses (missed or misread inputs), not just when, and print one traced run, because medians swing a lot on small changes.
 
-Tune the game's numbers against the bot, not your intuition. If every preset dies at about the same time, the ramp is too steep at the end: a fixed step per point soon outruns any player, so skill barely matters. The templates ramp with the square root of the score (fast at first, ever more slowly after; `src/sim.rs`), which puts their presets inside the targets. If a brief's per-level timings conflict with these targets, follow the targets and say so in DESIGN.md.
+Tune the game's numbers against the bot, not your intuition. If every preset dies at about the same time, the ramp is too steep at the end: a fixed step per point soon outruns any player, so skill barely matters. The templates ramp with the square root of the score (fast at first, ever more slowly after; `src/sim.rs`), which puts their presets inside the targets. If a brief's per-level timings conflict with these targets, follow the targets and say so in DESIGN.md. End the test with `report.compare_with("bot-report.tsv")` (the templates and kits do) and commit the file: each run prints what changed since the last, for every preset and every way rounds end, so an edit's effect on the whole game shows, and the diff shows it too.
 
 **Difficulty sanity check.** A bot's numbers are only as good as its model, and the owner's hands are the real thing. Before trusting a report:
 - **Calibrate against a real run when you can.** Have the owner (or yourself, in `mb serve`) play a round with the real input, then save the replay from the preview console: `mb.save("human.json", JSON.stringify(mb.snapshot().log))`. Log the game's own stats at round end (`sys::log`: shots, hits, time per kill, damage taken), replay the log (`mb.restart(JSON.stringify({ replay: JSON.parse(await mb.load("human.json")), hold: true }))` reads them back on the same seed), and run the bot on that seed. If the human's accuracy or time to kill is clearly better than the bot preset you think matches them, the bot is too weak: fix the bot (its aim error, its reaction, how it uses the game's aim help) before the game.
@@ -117,7 +127,7 @@ Two sources, usually mixed; [assets.md](assets.md) says which to use for what:
 
 Sound files: games play mono Ogg Vorbis (a bundle can't carry WAV or MP3). `mb ogg in.wav assets/x.ogg [-q 0–10]` encodes any WAV, MP3 or Ogg, and `mb ogg x.ogg x.wav` decodes; it's built into mb on every OS, so don't install oggenc or ffmpeg or write an encoder. Sound you synthesize yourself: write a WAV, then `mb ogg` it (or use sfx.py's `save_ogg`, which also sets the loudness).
 
-Put your own generator script in `games/<name>/tools/` and commit it (the art stays remixable). Draw anything that changes color with mood or state (skin, a liquid) in light greys and tint it at draw time: `rgba_tint` multiplies, so one sprite set gives smooth pink → red → purple transitions. Your scripts import the copies beside them in `tools/` (`import pixel`: Python puts a script's own directory on its path), so the game's tools work without the skill; commit them with the game. They're snapshots: when this skill's `scripts/` has a fix you want, copy that file over the game's (`cp <this skill's directory>/scripts/sfx.py games/<name>/tools/`; in the Maimbrain repo that's `.claude/skills/maimbrain-game/scripts`, from the plugin the installed skill's directory), and copy them in the same way for a game made before `mb new` did this. Make things big: the main character ≥ 1/3 of the screen width, anything the player must track ≥ ~40 units, and an art pixel ≥ 2–3 units. Small sprites that look fine in a desktop screenshot are unreadable on a phone. Store pixel art at `scale=4` (crisp under the platform's linear filtering) and draw each art pixel as a whole number of logical units.
+Put your own generator script in `games/<name>/tools/` and commit it (the art stays remixable). Draw anything that changes color with mood or state (skin, a liquid) in light greys and tint it at draw time: `rgba_tint` multiplies, so one sprite set gives smooth pink → red → purple transitions. Your scripts import the copies beside them in `tools/` (`import pixel`: Python puts a script's own directory on its path), so the game's tools work without the skill; commit them with the game. They're snapshots: when this skill's `scripts/` has a fix you want, copy that file over the game's (`cp <this skill's directory>/scripts/sfx.py games/<name>/tools/`; in the Maimbrain repo that's `.claude/skills/maimbrain-game/scripts`, from the plugin the installed skill's directory), and copy them in the same way for a game made before `mb new` did this. Make things big (in a new game; in a [tuned one](#continuing-a-tuned-game), the owner's framing stands): the main character ≥ 1/3 of the screen width, anything the player must track ≥ ~40 units, and an art pixel ≥ 2–3 units. Small sprites that look fine in a desktop screenshot are unreadable on a phone. Store pixel art at `scale=4` (crisp under the platform's linear filtering) and draw each art pixel as a whole number of logical units.
 
 **The icon** (`icon.png`, 256×256, opaque) is the game's face in the feed, the studio and every share link, so make one even when all the art is drawn in code: a close-up of your character or hook, not text. `mb art icon <game dir> "…"` generates it in the style guide's look; without a key, draw it as pixel art with `pixel.py` (a 64×64 canvas at `scale=4`: one subject, big and crisp, no soft glows; the racer kit's `tools/gen_icon.py` shows the canvas calls). `mb new` starts every game with a placeholder: `mb build` warns while it's there (or while a kit's icon is), and `mb publish` refuses it.
 
@@ -140,7 +150,7 @@ Write down what you couldn't verify without a phone (feel of tilt, haptics, audi
 
 - **Feed cards are untouchable.** In browse, the title or game-over screen *is* the card, running live but receiving no touches and no sensor readings. A tap enters play and is also delivered to your game, so a tap anywhere on the title must start the round. Never start a round from a sensor reading, a timer or a swipe. Because a card can't respond, it must never show playing instructions: no "BLOW", "TILT", "SHAKE" or "TAP", and no phone icons or arrows. Cards sell, play teaches (engagement.md §1).
 - **Card overlays.** On a card, the platform draws the title and creator over the bottom ~70 pt and like/comment/report buttons down the right ~56 pt, plus a pause pill top-left in play (inside the top inset). A replay card's "Beat …" banner takes the bottom ~230 pt, or the top ~110 pt with `replay_banner = "top"` in the manifest (for runners and racers, below). Keep buttons and key text out of these areas: use `sys::screen()` insets (the device's safe areas; they don't include the card overlays), then stay inside the middle.
-- **Report rounds** with `sys::round`: `Idle` on the title, `Playing` the moment a round starts, `Over` when it ends. `Over` sends the player back to browse after ~1.2 s, with your game-over screen as the card, so submit the score *before* reporting `Over` and make the game-over screen great.
+- **The round** is the platform's: `Idle` on the title, `Playing` from the press that starts a round (that press is also its first move), `Over` when the game-over card appears, and `Over` sends the player back to browse after ~1.2 s with that card as the feed card. So the failure plays out while still `Playing`, the score is submitted *before* `Over`, taps are ignored for ~0.35 s after it, then any tap retries. `Rounds` does all of this (see [The round](#the-round)); make the game-over screen great. If you hand-roll a round instead, those are the rules, and the `Conformance` test checks them either way.
 - **Sound is off for many players** (ringer switch). Everything must read without audio. Sound and haptics confirm what the eye already saw.
 - **Haptics** only play in play mode and are capped at ~30/s; never use them as the only signal.
 - **Assets load asynchronously**, including `startup_assets`. The first frame must draw something good even with nothing loaded (shapes, gradients, text), then swap in sprites when `Asset::state()` is ready.
@@ -179,8 +189,6 @@ Write down what you couldn't verify without a phone (feel of tilt, haptics, audi
   - A vigorous shake is ~1.5–3 g.
   - Show the build-up continuously (a gauge, a wobble, a bulge) and scale haptics with it.
   - Shakes blur the screen, so make the key state readable at a glance.
-- **Failure order**: when the player fails, play the freeze and fail animation while still `Playing`, and report `Over` (after submitting the score) when the game-over screen appears. Reporting `Over` at the moment of failure would send the player back to browse ~1.2 s later, mid-animation.
-- **After a round ends**: ignore taps for ~0.35 s after reporting `Over`, so a frantic tap during the failure doesn't instantly restart, then let any tap retry.
 - The helpers every game needs (outlined text, easing, springs, a particle pool, screen shake, buttons, a title and a game-over card) are in the SDK's kit: see [UI and juice](#ui-and-juice). Don't hand-roll them.
 - **Text and fonts**: use the game's own fonts (identity.md). `mb font add <game> <library id>` bakes one of 96 library fonts (OFL/Apache) into `assets/fonts/<id>.mbf`; draw with `Font::asset("assets/fonts/<id>.mbf", fallback)` anywhere a font goes (`gfx2d::text`, `ui::text`, a `Theme`, 3D text). Needs `stdlib = { mb2d = 2 }`. Fonts are subset to `--chars` (Latin-1 by default: accented letters, curly quotes, dashes), so text outside it draws as `?`; `mb build` warns, naming the characters and where they are. Distance-field fonts are crisp at any size and take the host's outlines and glows. Bitmap (pixel) fonts are crisp at multiples of `font.pixel_em()` (`theme.fit(font, size)` rounds for you). Use ≥ 16 units for anything the player must read. The built-in Inter (0/1) and 5×7 pixel font (2) are fallbacks; both cover Latin-1, and the pixel font adds `× ÷ · ° • … ← ↑ → ↓ ♥ ★` (SPEC §5.3).
 
@@ -191,33 +199,41 @@ Hand-rolled title screens, score labels and game-over text are where games look 
 - `maimbrain::motion`: `Ease` (the full easings.net set), `Tween`, `Spring` (critical / bouncy / wobbly), `Seq`, `stagger`, `Shake`, `Punch`, `Counter` (rolling numbers), `HitStop`, `Pulse`.
 - `maimbrain::juice`: `Particles` (confetti, cannons, sparkles, stars, puffs, sparks, rings, `celebrate`), `Popups` ("+100"), `Combo`, `Flash`, `VignettePulse`.
 
-The templates already use it: copy their shape, not their look. Rules: update every kit object in `update(dt)` and draw it in `render` (it never reads a clock, so it replays); seed `Particles` from your game's `Rng`; restyle by changing the `Theme` and its `style`, not by forking widgets; keep cards' buttons inside `layout.card`. When no layout fits the game's world, draw your own card (a receipt, a rosette, a chalkboard) with the kit's text and shapes: that is often the most memorable thing in a game. Build the `ResultsCard` `.state_only()` and draw from its state (`shown_score()`, `best()`, `new_best_shown()`, `stamp()`, `gap_to_best()`; docs/UI.md "Your own card"), so the roll-up, the new-best moment and the retry rule stay the platform's.
+The templates already use it: copy their shape, not their look. Rules: update every kit object in `update(dt)` and draw it in `render` (it never reads a clock, so it replays); seed `Particles` from your game's `Rng`; restyle by changing the `Theme` and its `style`, not by forking widgets; keep cards' buttons inside `layout.card`. When no layout fits the game's world, draw your own card (a receipt, a rosette, a chalkboard) with the kit's text and shapes: that is often the most memorable thing in a game. Make `Rounds` `.state_only()` and draw from `rounds.results`'s state (`shown_score()`, `best()`, `new_best_shown()`, `stamp()`, `gap_to_best()`; docs/UI.md "Your own card"), so the roll-up, the new-best moment and the retry rule stay the platform's.
 
-**Title screen in 10 lines**
+### The round
+
+`maimbrain::rounds::Rounds` is the round every game plays, the platform's way: the title card until a press, the round, its ending playing out (still `Playing`), then the score submitted, the best saved (`"best"`), the game-over card and `Over`, and after the card's guard any tap (or its retry button) plays again. The game says when the round ends and with what score:
 ```rust
 // init
-let layout = Layout::new();
 let theme = Theme::from_identity(IDENTITY).load_fonts();   // identity.md
-let title = TitleCard::new("BUBBLE", theme).tagline("don't let it pop").best(best as i64);
-// update
-self.title.update(dt);
-// render, over your live scene (the card sells; any tap starts the round)
-self.title.draw(&self.layout);
-```
-
-**Results card** (on game over, after `store::submit_score`, before `sys::round(Round::Over)`):
-```rust
-self.results = Some(ResultsCard::new(score, prev_best, self.theme, &self.layout, self.rng.next_u32() as u64)
-    .heading("SPLAT!").label("POINTS"));          // .floating() for no panel; .extra(button) for SCORES
-// update: feed it events first; its buttons, or any other tap after its guard, retry
-if let Some(card) = &mut self.results {
-    let retry = card.input(&e) == Some(ResultsAction::Retry);    // per event
-    if card.update(dt) == Some(ResultsEvent::NewBest) { /* fanfare, haptic */ }
+let rounds = Rounds::new(TitleCard::new("BUBBLE", theme).tagline("don't let it pop"))
+    .heading("POP!").label("SCORE");       // the card's voice; "SPLAT!" is the one everyone copies
+// update: every event goes through it first
+for e in input::poll() {
+    match self.rounds.input(&e) {
+        Input::Start => { self.sim = Sim::new(self.rounds.seed()); self.act(&e) }  // the press is the first move
+        Input::Play => self.act(&e),
+        Input::Taken | Input::Extra => {}
+    }
 }
-// render
-if let Some(card) = &self.results { card.draw() }
+if self.rounds.stage() == Stage::Playing {
+    self.sim.step(dt);
+    if self.sim.over { self.rounds.end(self.sim.score as i64); }   // the fail juice fires here
+}
+if self.rounds.update(dt) == Some(ResultsEvent::NewBest) { /* fanfare, haptic */ }
+// render: the scene, your HUD while `rounds.playing()`, then the title or game-over card
+self.rounds.draw();
 ```
-It rolls the score up, then shows BEST (and "3 MORE TO BEAT IT" when close) or celebrates a new best, in the theme's results layout (a panel with a ribbon, a receipt, a scoreboard, a stamp, an editorial page). Write the heading in the game's own voice; "SPLAT!" is the example everyone copies.
+Options: `.ending(secs)` (default 0.7; 0 when the sim plays its own death before reporting over), `.board(n)` / `.no_board()`, `.daily(board)` with `set_daily(on)` (today's seed, its own board and best), `.lower_is_better()`, `.floating()`, `.state_only()` (draw your own card from `rounds.results`), one of `.scores_button()` or `.extra(button)` (`Input::Extra`), and a heading for one round: `rounds.end(score).heading("PIT!")` (its `is_new_best()` picks the verdict sound). `card_shown()` is true in the frame the card went up, `card_ready()` once it takes taps (gate buttons of your own on it), and `draw_card()` draws only the card, for a game that draws its own title. The card rolls the score up, then shows BEST (and "3 MORE TO BEAT IT" when close) or celebrates a new best, in the theme's results layout (a panel with a ribbon, a receipt, a scoreboard, a stamp, an editorial page).
+
+**Check it**: the templates and kits have this test; keep it, and add it to a game that hasn't. It plays a session on a fake host (wait on the title, tap, lose, tap through the card) and names any rule broken; `.play(|t| touches)` scripts a way to lose for a game that idling doesn't end. `maimbrain::sys::test::Host` runs a game the same way for your own tests (queue touches, read back the round states, scores and saves).
+```rust
+#[test]
+fn keeps_the_platform_rules() {
+    maimbrain::sys::test::Conformance::new().check::<super::MyGame>();
+}
+```
 
 **Combo meter**
 ```rust
@@ -268,9 +284,9 @@ The SDK has deterministic rigid-body physics (Rapier inside your wasm): `maimbra
 
 ## Before you call it done
 
-**Review it like a stranger first.** Your tools flag what they measure (mix, smoothness, budgets, replays); they can't tell you the hero looks like a placeholder, the world never changes or nobody knows why they're running. So before you call it done, and again whenever you continue an existing game: take a fresh `mb shot --sheet` of the title card, the first 10 s, a turn or set piece, 60 s and 150 s in, and the game-over card (shoot set pieces with `--at mark:<label>` where the game `sys::mark`s them; reach late moments with debug parameters rather than edited constants: read `sys::param_as::<usize>("zone")`, `sys::param("autopilot")` in `init` to choose where a session starts, and shoot with `--param zone=3 --param autopilot=1`; they're never set on a device, so the feed always starts from the beginning), read them against the brief, the hero bar (3D section), [identity.md](identity.md) and every [engagement](engagement.md) section (especially §9 Personality and §10 A reason to keep going), and write `REVIEW.md`: the 5 changes that would most improve the game for a player, ranked, each with evidence (a screenshot, a measurement, a file:line). Be demanding: assume a stranger swipes past in one second. Then do the top items before polishing anything else, and keep the review next to DESIGN.md.
+**Review it like a stranger first.** Your tools flag what they measure (mix, smoothness, budgets, replays); they can't tell you the hero looks like a placeholder, the world never changes or nobody knows why they're running. So before you call it done, and again whenever you continue an existing game: take a fresh `mb shot --sheet` of the title card, the first 10 s, a turn or set piece, 60 s and 150 s in, and the game-over card (shoot set pieces with `--at mark:<label>` where the game `sys::mark`s them; reach late moments with debug parameters rather than edited constants: read `sys::param_as::<usize>("zone")`, `sys::param("autopilot")` in `init` to choose where a session starts, and shoot with `--param zone=3 --param autopilot=1`; they're never set on a device, so the feed always starts from the beginning), read them against the brief, the hero bar (3D section), [identity.md](identity.md) and every [engagement](engagement.md) section (especially §9 Personality and §10 A reason to keep going), and write `REVIEW.md`: the 5 changes that would most improve the game for a player, ranked, each with evidence (a screenshot, a measurement, a file:line). Be demanding: assume a stranger swipes past in one second. Then do the top items before polishing anything else (on a [tuned game](#continuing-a-tuned-game), do the bug fixes and propose the rest), and keep the review next to DESIGN.md.
 
-- [ ] `mb build` validates with no warnings; `cargo test -p <name>` passes; the bot (with `synth::Skill` numbers) says the difficulty curve is right, its accuracy and time-to-kill are in their bands, and it agrees with a real run or the owner's verdict ("Difficulty sanity check").
+- [ ] `mb build` validates with no warnings; `cargo test -p <name>` passes, `keeps_the_platform_rules` included; the bot (with `synth::Skill` numbers) says the difficulty curve is right, its accuracy and time-to-kill are in their bands, and it agrees with a real run or the owner's verdict ("Difficulty sanity check").
 - [ ] `await mb.verify()` after a played round returns `match: true` (the run replays exactly).
 - [ ] Every item in the [engagement checklist](engagement.md#checklist).
 - [ ] 3D: the player's node is `mark_subject`ed and `mb shot … --readability` at a few moments (including the darkest scene) gives no warnings.

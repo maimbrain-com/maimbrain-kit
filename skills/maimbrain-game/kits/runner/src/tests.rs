@@ -3,9 +3,11 @@
 //!     cargo test -p kit_runner
 //!     cargo test -p kit_runner --profile bot -- --ignored --nocapture difficulty
 //!
-//! The second prints each skill preset's round lengths, and how and where it dies.
+//! The second prints each skill preset's round lengths, and how and where it
+//! dies (`maimbrain::bot::Difficulty`).
 
 use maimbrain::Rng;
+use maimbrain::bot::{Difficulty, Outcome};
 
 use crate::sim::*;
 
@@ -351,39 +353,27 @@ fn first_timers_last_20_to_45_seconds() {
 #[test]
 #[ignore]
 fn difficulty() {
-    let n = 200;
-    for skill in [FIRST_TIMER, DECENT, GOOD] {
-        let mut secs = Vec::new();
-        let mut scores = Vec::new();
-        let mut causes = [0u32; 8];
-        let mut where_: Vec<f32> = Vec::new();
-        for seed in 0..n {
-            let r = play_round(skill, 1000 + seed, 600.0);
-            secs.push(r.seconds);
-            scores.push(r.score as f32);
-            where_.push(r.meters as f32);
-            match r.cause {
-                Some(Cause::Bonk(k)) => causes[Kind::ORDER.iter().position(|o| *o == k).unwrap()] += 1,
-                Some(Cause::Pit) => causes[7] += 1,
-                None => {}
-            }
-        }
-        let mut s2 = secs.clone();
-        s2.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        let p = |q: f32| s2[((n as f32 - 1.0) * q) as usize];
-        println!(
-            "{:12} median {:5.1}s  p10 {:5.1}  p90 {:5.1}   score median {:5.0}   meters median {:5.0}",
-            skill.name,
-            median(&mut secs),
-            p(0.1),
-            p(0.9),
-            median(&mut scores),
-            median(&mut where_)
-        );
-        let names = ["crate", "pit(bonk)", "stack", "gull", "bee", "skimmer", "log", "fell in pit"];
-        let deaths: Vec<String> = names.iter().zip(causes).filter(|(_, c)| *c > 0).map(|(n, c)| format!("{n} {c}")).collect();
-        println!("{:12} deaths: {}", "", deaths.join(", "));
-    }
+    let report = Difficulty::new(200)
+        .seeds_from(1000)
+        .preset(FIRST_TIMER.name, FIRST_TIMER)
+        .target(20.0, 45.0)
+        .preset(DECENT.name, DECENT)
+        .preset(GOOD.name, GOOD)
+        .target(60.0, 180.0)
+        .run(|skill, seed| {
+            let r = play_round(skill, seed, 600.0);
+            let names = ["crate", "pit(bonk)", "stack", "gull", "bee", "skimmer", "log"];
+            let cause = match r.cause {
+                Some(Cause::Bonk(k)) => names[Kind::ORDER.iter().position(|o| *o == k).unwrap()],
+                Some(Cause::Pit) => "fell in pit",
+                None => "",
+            };
+            Outcome::new(r.seconds).cause(cause).stat("score", r.score as f32).stat("meters", r.meters as f32)
+        });
+    report.print();
+    // What changed since the last run (committed: the last tuning that was kept).
+    report.compare_with("bot-report.tsv");
+    report.assert_skill_matters();
     // One traced run, since medians swing on small changes.
     let mut sim = Sim::new(1234);
     let mut bot = Bot::new(FIRST_TIMER, 77);
@@ -415,6 +405,15 @@ fn difficulty() {
             println!("  {:5.1}s  {} m, score {}", sim.t, sim.meters(), sim.score());
         }
     }
+}
+
+/// The platform's rules for a round (SKILL.md "Platform facts that bite"),
+/// on a fake host: a tap starts it, the score goes in before Over, a
+/// frantic tap doesn't restart, the best is kept, the session replays.
+/// Nobody plays, so the bun runs into the first crate.
+#[test]
+fn keeps_the_platform_rules() {
+    maimbrain::sys::test::Conformance::new().check::<crate::Runner>();
 }
 
 /// What `sound.rs` plays over a bot-played round, as an event log for the

@@ -1,0 +1,34 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		64.8	76.3	100.7
+stat	first-timer	popped	32	50	98
+stat	first-timer	wave	6	7	10
+stat	first-timer	towers	4	4	5
+stat	first-timer	upgrades	0	1	4
+ended	first-timer	ZIPPER	42.5
+ended	first-timer	HELMET	37.0
+ended	first-timer	GUMMY	16.0
+ended	first-timer	KING	3.0
+ended	first-timer	MINI	1.5
+seconds	decent		72.7	138.5	154.1
+stat	decent	popped	50	170	228
+stat	decent	wave	7	14	15
+stat	decent	towers	4	7	9
+stat	decent	upgrades	2	10	13
+ended	decent	ZIPPER	37.0
+ended	decent	KING	28.0
+ended	decent	HELMET	22.5
+ended	decent	MINI	7.5
+ended	decent	GUMMY	4.5
+ended	decent	SPLITTER	0.5
+seconds	good		136.9	149.8	192.7
+stat	good	popped	164	224	290
+stat	good	wave	14	15	19
+stat	good	towers	7	8	11
+stat	good	upgrades	11	14	19
+ended	good	ZIPPER	55.5
+ended	good	KING	29.0
+ended	good	MINI	7.5
+ended	good	HELMET	4.5
+ended	good	SPLITTER	3.0
+ended	good	GUMMY	0.5

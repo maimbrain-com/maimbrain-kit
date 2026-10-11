@@ -11,8 +11,8 @@ use serde_json::{Value, json};
 
 /// Answers every upload with `upload` (a valid draft by default; sent for
 /// review, as the level asked for, when it was uploaded with `submit=true`
-/// and nothing kept it a draft), lists one draft of the game for `mb submit`
-/// and answers its submit with `submit`.
+/// and nothing kept it a draft), lists it as the game's one draft for `mb
+/// submit` and answers its submit with `submit`.
 /// Remembers the URLs of the uploads and submits it was sent.
 struct FakeServer {
     url: String,
@@ -56,7 +56,7 @@ impl FakeServer {
                     up_log.lock().unwrap().push(url);
                     (202, v)
                 } else if method == "GET" && url == "/api/v1/me/games" {
-                    (200, json!([draft()]))
+                    (200, json!([upload.clone()]))
                 } else {
                     (404, json!({ "error": "not found" }))
                 };
@@ -181,6 +181,49 @@ fn a_draft_that_changes_how_a_board_ranks_fits_only_a_new_season() {
     assert!(e.contains("Submit it with --season."), "{e}");
     assert!(!e.contains("Suggested:"), "{e}");
     assert!(e.contains("submit it for review:  mb submit wobble.mbx --season"), "{e}");
+}
+
+/// A draft whose score check found 7 of the season's top 20 scores change.
+fn scores_changed() -> Value {
+    let mut v = draft();
+    v["score_check"] = json!({ "state": "done", "season": 1, "runs": 20, "changed": 7, "unchecked": 0, "format": "integer",
+                               "changes": [{ "player": { "username": "riley", "display_name": "Riley" }, "was": 1240, "now": 980 }] });
+    v
+}
+
+#[test]
+fn says_whether_the_seasons_best_scores_carry_over() {
+    let s = FakeServer::with(scores_changed(), (200, json!({ "id": 7, "version": "0.2.0", "state": "pending", "level": "update" })));
+    let d = setup("scores", &s.url);
+    let o = mb(&d, &["publish", "wobble.mbx", "--model", "none"]);
+    assert!(o.status.success(), "{}", stderr(&o));
+    let e = stderr(&o);
+    assert!(e.contains("Scores: your changes affect 7 of the top 20 scores (Riley's 1,240 would now be 980).\n"), "{e}");
+    assert!(e.contains("Keep Season 1's scores (mb submit wobble.mbx --update or --fix), or start Season 2 (--season)."), "{e}");
+
+    // Submitting says it again; having chosen, there's nothing to choose.
+    let o = mb(&d, &["submit", "wobble", "--update"]);
+    assert!(o.status.success(), "{}", stderr(&o));
+    let e = stderr(&o);
+    assert!(e.contains("Scores: your changes affect 7 of the top 20 scores"), "{e}");
+    assert!(!e.contains("Keep Season 1's scores"), "{e}");
+
+    let mut v = scores_changed();
+    v["score_check"]["changed"] = json!(0);
+    v["score_check"]["unchecked"] = json!(2);
+    let s = FakeServer::with(v, (200, json!({})));
+    let d = setup("scores-same", &s.url);
+    let e = stderr(&mb(&d, &["publish", "wobble.mbx", "--model", "none"]));
+    assert!(e.contains("Scores: your top 18 scores carry over unchanged (2 couldn't be checked).\n"), "{e}");
+
+    let mut v = scores_changed();
+    v["score_check"]["format"] = json!("milliseconds");
+    v["score_check"]["changes"][0]["was"] = json!(83_410);
+    v["score_check"]["changes"][0]["now"] = json!(null);
+    let s = FakeServer::with(v, (200, json!({})));
+    let d = setup("scores-time", &s.url);
+    let e = stderr(&mb(&d, &["publish", "wobble.mbx", "--model", "none"]));
+    assert!(e.contains("(Riley's 1:23.410 no longer finishes)."), "{e}");
 }
 
 #[test]

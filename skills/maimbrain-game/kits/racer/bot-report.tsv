@@ -1,0 +1,24 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		12.7	38.8	97.4
+stat	first-timer	score	288	1176	4024
+stat	first-timer	near misses/min	0	2.9	6.8
+share	first-timer	over in under 10 s	5.5
+ended	first-timer	car	74.5
+ended	first-timer	truck	21.5
+ended	first-timer	cones	4.0
+seconds	decent		15.5	59.9	168.8
+stat	decent	score	405	2031	9254
+stat	decent	near misses/min	0	2.2	7.9
+share	decent	over in under 10 s	3.5
+ended	decent	car	66.5
+ended	decent	truck	26.0
+ended	decent	cones	7.5
+seconds	good		35.8	109.8	334.1
+stat	good	score	951	5007	22956
+stat	good	near misses/min	0	4.6	10.0
+share	good	over in under 10 s	0.5
+ended	good	car	61.0
+ended	good	truck	25.5
+ended	good	cones	10.5
+ended	good	none	3.0

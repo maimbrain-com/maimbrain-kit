@@ -7,10 +7,12 @@
 //! success, and handle 1 for mb3d's constructors), so game logic can be
 //! tested natively (SPEC §9). The clock and debug parameters are the
 //! exceptions: `mb_time`, `mb_time_lost` and `mb_param` read per-thread
-//! state that tests set (`sys::test`).
+//! state that tests set (`sys::test`). So, while a test runs one, does
+//! `sys::test::Host`: input, the round state, scores, saved data, seeds and
+//! logs go to it instead (without one they're the stubs above).
 
 macro_rules! imports {
-    ($( pub fn $name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty $(= $stub:expr)?)?; )*) => {
+    ($( pub fn $name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty)? $(= $stub:expr)?; )*) => {
         #[cfg(target_arch = "wasm32")]
         #[link(wasm_import_module = "mb")]
         unsafe extern "C" {
@@ -21,7 +23,7 @@ macro_rules! imports {
             #[cfg(not(target_arch = "wasm32"))]
             #[allow(unused_variables, unreachable_code, clippy::missing_safety_doc, clippy::too_many_arguments)]
             pub unsafe fn $name($($arg: $ty),*) $(-> $ret)? {
-                $($( return $stub; )?)?
+                $( return $stub; )?
                 Default::default()
             }
         )*
@@ -30,14 +32,14 @@ macro_rules! imports {
 
 imports! {
     // 5.1 sys
-    pub fn mb_log(level: u32, ptr: *const u8, len: u32);
+    pub fn mb_log(level: u32, ptr: *const u8, len: u32) = unsafe { crate::sys::test::host::log(level, ptr, len) };
     pub fn mb_mark(ptr: *const u8, len: u32);
     pub fn mb_param(name: *const u8, name_len: u32, out: *mut u8, cap: u32) -> i32 = unsafe { crate::sys::test::param_raw(name, name_len, out, cap) };
     pub fn mb_time() -> f64 = crate::sys::test::time();
     pub fn mb_time_lost() -> f32 = crate::sys::test::time_lost();
-    pub fn mb_rand_seed() -> u64;
-    pub fn mb_daily_seed() -> u64;
-    pub fn mb_round(state: u32);
+    pub fn mb_rand_seed() -> u64 = crate::sys::test::host::rand_seed();
+    pub fn mb_daily_seed() -> u64 = crate::sys::test::host::daily_seed();
+    pub fn mb_round(state: u32) = crate::sys::test::host::round(state);
     pub fn mb_player_id(ptr: *mut u8) -> i32;
     pub fn mb_locale(ptr: *mut u8, cap: u32) -> i32;
     pub fn mb_screen(out: *mut u8);
@@ -46,7 +48,7 @@ imports! {
     pub fn mb_asset_read(h: u32, ptr: *mut u8, cap: u32) -> i32;
 
     // 5.2 input
-    pub fn mb_input_poll(buf: *mut u8, cap: u32) -> i32;
+    pub fn mb_input_poll(buf: *mut u8, cap: u32) -> i32 = unsafe { crate::sys::test::host::input_poll(buf, cap) };
 
     // 5.3 mb2d
     pub fn mb2d_image(asset: u32) -> i32;
@@ -160,10 +162,10 @@ imports! {
     pub fn mb_haptic(kind: u32);
 
     // 5.8 store / score
-    pub fn mb_store_get(key: *const u8, key_len: u32, buf: *mut u8, cap: u32) -> i32 = -1;
-    pub fn mb_store_set(key: *const u8, key_len: u32, val: *const u8, val_len: u32) -> i32;
-    pub fn mb_score_submit(board: u32, value: i64) -> i32;
-    pub fn mb_score_show(board: u32);
+    pub fn mb_store_get(key: *const u8, key_len: u32, buf: *mut u8, cap: u32) -> i32 = unsafe { crate::sys::test::host::store_get(key, key_len, buf, cap) };
+    pub fn mb_store_set(key: *const u8, key_len: u32, val: *const u8, val_len: u32) -> i32 = unsafe { crate::sys::test::host::store_set(key, key_len, val, val_len) };
+    pub fn mb_score_submit(board: u32, value: i64) -> i32 = crate::sys::test::host::score_submit(board, value);
+    pub fn mb_score_show(board: u32) = crate::sys::test::host::score_show(board);
 
     // 5.9 links
     pub fn mb_link_open(ptr: *const u8, len: u32) -> i32;

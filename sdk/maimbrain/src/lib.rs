@@ -29,6 +29,8 @@
 //! docs/PHYSICS.md.
 
 pub mod audio;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod bot;
 pub mod foley;
 pub mod gfx2d;
 pub mod gfx3d;
@@ -40,6 +42,7 @@ pub mod music;
 pub mod physics2d;
 #[cfg(feature = "physics3d")]
 pub mod physics3d;
+pub mod rounds;
 pub mod sensors;
 pub mod store;
 pub mod sys;

@@ -1,8 +1,10 @@
 //! Rule tests and a bot that plays like a person, to tune difficulty.
 //! `cargo test -p kit_tower_defense --profile bot -- --ignored --nocapture difficulty`
-//! prints round lengths and how each skill preset dies.
+//! prints round lengths and how each skill preset dies (`maimbrain::bot::Difficulty`;
+//! "ended" counts which jelly took the last bite).
 
 use maimbrain::Rng;
+use maimbrain::bot::{Difficulty, Outcome};
 
 use crate::autopilot::{Action, Planner, Style};
 use crate::sim::*;
@@ -375,52 +377,32 @@ fn first_timer_round_length_is_in_range() {
     assert!((40.0..=90.0).contains(&med), "first-timer median {med:.1}s");
 }
 
-/// Difficulty report (slow; run in release). Targets: a first-timer's round
-/// lasts ~45–75 s (TD rounds run longer than the feed's 20–45 s, see
-/// DESIGN.md), a good player's 2–3 minutes.
+/// Difficulty report (slow; run in release). Targets (DESIGN.md): a
+/// first-timer's round lasts ~60–80 s (TD rounds run longer than the feed's
+/// 20–45 s), a good player's 2–3 minutes.
 #[test]
 #[ignore]
 fn difficulty() {
-    for skill in [FIRST_TIMER, DECENT, GOOD] {
-        let n = 200;
-        let mut secs = Vec::new();
-        let mut scores = Vec::new();
-        let mut waves = Vec::new();
-        let mut killers = [0u32; 6];
-        let mut ups = 0u32;
-        let mut towers = 0usize;
-        for seed in 0..n {
-            let r = play_round(skill, 1000 + seed, 900.0);
-            secs.push(r.seconds);
-            scores.push(r.score as f32);
-            waves.push(r.wave as f32);
-            if let Some(k) = r.killer {
-                killers[k as usize] += 1;
-            }
-            ups += r.upgrades;
-            towers += r.towers;
-        }
-        let (m, p10, p90) = median(&mut secs);
-        let (sm, s10, s90) = median(&mut scores);
-        let (wm, w10, w90) = median(&mut waves);
-        println!(
-            "{:12} median {:5.1}s (p10 {:5.1} p90 {:5.1})  popped {:.0} ({:.0}-{:.0})  wave {:.0} ({:.0}-{:.0})  towers {:.1} upgrades {:.1}",
-            skill.name,
-            m,
-            p10,
-            p90,
-            sm,
-            s10,
-            s90,
-            wm,
-            w10,
-            w90,
-            towers as f32 / n as f32,
-            ups as f32 / n as f32
-        );
-        let names: Vec<String> = killers.iter().enumerate().filter(|k| *k.1 > 0).map(|(i, k)| format!("{} {}", CREEPS[i].name, k)).collect();
-        println!("{:12} last bite by: {}", "", names.join(", "));
-    }
+    let report = Difficulty::new(200)
+        .seeds_from(1000)
+        .preset(FIRST_TIMER.name, FIRST_TIMER)
+        .target(60.0, 80.0)
+        .preset(DECENT.name, DECENT)
+        .preset(GOOD.name, GOOD)
+        .target(120.0, 180.0)
+        .run(|skill, seed| {
+            let r = play_round(skill, seed, 900.0);
+            Outcome::new(r.seconds)
+                .cause(r.killer.map_or("no last bite", |k| CREEPS[k as usize].name))
+                .stat("popped", r.score as f32)
+                .stat("wave", r.wave as f32)
+                .stat("towers", r.towers as f32)
+                .stat("upgrades", r.upgrades as f32)
+        });
+    report.print();
+    // What changed since the last run (committed: the last tuning that was kept).
+    report.compare_with("bot-report.tsv");
+    report.assert_skill_matters();
     // One traced round, because medians swing.
     let mut sim = Sim::new(1234);
     let mut bot = Bot::new(DECENT, 77);
@@ -481,4 +463,20 @@ fn mix_log() {
     if let Ok(path) = std::env::var("MB_MIX_LOG") {
         std::fs::write(path, log).unwrap();
     }
+}
+
+// ---- Platform ---------------------------------------------------------------------
+
+/// The platform's rules for a round (SKILL.md "Platform facts that bite"),
+/// on a fake host: a tap starts it, the score goes in before Over, a frantic
+/// tap doesn't restart, the best is kept, the session replays. The tap that
+/// starts the round opens the picker on the pad under it; one POP there
+/// scores a few jellies (so there's a best to save), then the cake falls.
+#[test]
+fn keeps_the_platform_rules() {
+    let pad = Sim::pad_at(180.0, 320.0).expect("the start tap lands on a pad");
+    let (x, y) = crate::picker_slots(pad)[TowerKind::Pop as usize];
+    maimbrain::sys::test::Conformance::new()
+        .play(move |t| if (0.5..0.5 + DT as f64).contains(&t) { maimbrain::input::synth::tap(x, y, 0.0) } else { Vec::new() })
+        .check::<crate::Keep>();
 }

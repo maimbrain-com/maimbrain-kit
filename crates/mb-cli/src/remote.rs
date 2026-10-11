@@ -219,14 +219,25 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
     }
     let status_url = body["status_url"].as_str().unwrap_or_default().to_string();
     let mut v = body;
-    let deadline = Instant::now() + Duration::from_secs(120);
-    while v["state"] == "validating" && Instant::now() < deadline {
+    let refresh = || -> Result<Value, String> {
         std::thread::sleep(Duration::from_secs(2));
         let (s, b) = json_of(agent().get(&status_url).header("Authorization", format!("Bearer {}", c.token)).call())?;
         if s != 200 {
             return Err(format!("checking status: {}", error_text(s, &b)));
         }
-        v = b;
+        Ok(b)
+    };
+    let deadline = Instant::now() + Duration::from_secs(120);
+    while v["state"] == "validating" && Instant::now() < deadline {
+        v = refresh()?;
+    }
+    // The score check (docs/UPDATES.md "The score check") re-runs the season's best runs on it.
+    if matches!(v["state"].as_str(), Some("draft" | "pending")) && v["score_check"]["state"] == "running" {
+        eprintln!("  Scores: checking how your top {} runs score on this build…", v["score_check"]["runs"]);
+        let deadline = Instant::now() + Duration::from_secs(90);
+        while v["score_check"]["state"] == "running" && Instant::now() < deadline {
+            v = refresh()?;
+        }
     }
     let name = format!("{} {}", v["game_id"].as_str().unwrap_or("?"), v["version"].as_str().unwrap_or(""));
     // With --submit, why the server kept it a draft instead (the board rule
@@ -236,6 +247,7 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
     let season_only = !season_reasons(&v).is_empty();
     if matches!(v["state"].as_str(), Some("draft" | "pending")) {
         release_summary(&v, source);
+        score_summary(&v, source, v["state"] == "draft");
         for w in warnings.iter().filter(|w| !w.starts_with("Not sent for review: ")) {
             eprintln!("  Warning: {w}");
         }
@@ -369,6 +381,57 @@ fn release_summary(v: &Value, source: &str) {
     }
 }
 
+/// What the score check found (the version's `score_check`): whether the
+/// season's best runs score the same on this build, as evidence for the
+/// release choice; with `choose`, how to act on it when they don't.
+fn score_summary(v: &Value, source: &str, choose: bool) {
+    let check = &v["score_check"];
+    let n = |k: &str| check[k].as_u64().unwrap_or(0);
+    let (runs, changed, unchecked) = (n("runs"), n("changed"), n("unchecked"));
+    match check["state"].as_str() {
+        Some("running") => eprintln!("  Scores: still checking your top {runs} runs; mb submit shows what it finds."),
+        Some("failed") => eprintln!("  Scores: the check of your top runs didn't finish."),
+        Some("done") if changed == 0 && unchecked == runs => eprintln!("  Scores: none of your top {runs} runs could be checked."),
+        Some("done") if changed == 0 => {
+            let skipped = if unchecked > 0 { format!(" ({unchecked} couldn't be checked)") } else { String::new() };
+            eprintln!("  Scores: your top {} scores carry over unchanged{skipped}.", runs - unchecked);
+        }
+        Some("done") => {
+            let ms = check["format"] == "milliseconds";
+            let example = check["changes"].get(0).map(|c| {
+                let name = c["player"]["display_name"].as_str().or(c["player"]["username"].as_str()).unwrap_or("someone");
+                let was = score_text(c["was"].as_i64().unwrap_or(0), ms);
+                match c["now"].as_i64() {
+                    Some(now) => format!(" ({name}'s {was} would now be {})", score_text(now, ms)),
+                    None => format!(" ({name}'s {was} no longer finishes)"),
+                }
+            });
+            eprintln!("  Scores: your changes affect {changed} of the top {runs} scores{}.", example.unwrap_or_default());
+            if choose {
+                let season = check["season"].as_u64().unwrap_or(1);
+                eprintln!("  Keep Season {season}'s scores (mb submit {source} --update or --fix), or start Season {} (--season).", season + 1);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// A score as players see it: 1,240, or 1:23.410 on a board in milliseconds.
+fn score_text(v: i64, milliseconds: bool) -> String {
+    if milliseconds {
+        return format!("{}:{:02}.{:03}", v / 60_000, (v / 1000) % 60, v % 1000);
+    }
+    let digits = v.unsigned_abs().to_string();
+    let mut out = String::new();
+    for (i, d) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(d);
+    }
+    if v < 0 { format!("-{out}") } else { out }
+}
+
 /// The game `mb submit` was given, and what it expects the draft to be.
 pub struct SubmitTarget {
     /// A game id, or the last part of one (`frogger`).
@@ -459,6 +522,7 @@ pub fn submit(t: &SubmitTarget, level: Option<&str>) -> Result<(), String> {
     {
         return Err(format!("{} isn't your draft of {id} {version}; run mb publish {} to upload it first", t.source, t.source));
     }
+    score_summary(draft, &t.source, level.is_none());
     let mut request = agent().post(format!("{}/api/v1/games/versions/{}/submit", c.server, draft["id"]));
     if let Some(l) = level {
         request = request.query("level", l);

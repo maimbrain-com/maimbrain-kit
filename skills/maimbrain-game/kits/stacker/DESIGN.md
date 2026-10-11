@@ -25,8 +25,8 @@ The stacker starter kit (`maimbrain = { features = ["physics2d"] }`). A delivery
 | `src/draw.rs` | The art on screen: sky, hills, meadow, plate, snacks (`snack()`), faces (`face()`, `mood()`), the bird, the landing ghost, wind. |
 | `src/sprites.rs` | Source rects in `assets/sprites.png`, written by `mb art atlas` (don't edit). |
 | `src/sound.rs` | Cues → sounds (varied, voice-capped, landings climb the pentatonic in G), the music and its tension layer, haptics. Check the mix with `MB_MIX_LOG=/tmp/st.log cargo test -p kit_stacker mix_log` and the skill's `scripts/mix_check.py assets /tmp/st.log`. |
-| `src/lib.rs` | Title → Play → Over, input, round reporting, best/daily, cards, HUD, juice. |
-| `src/tests.rs` | Rule tests and the bot. |
+| `src/lib.rs` | Input, the DAILY and SCORES buttons, HUD, juice. The round flow (title card, the tap that starts play, score before Over, best and daily best, the floating SPLAT! card, retry guard) is `maimbrain::rounds::Rounds`, with no extra ending: the sim's collapse is the ending. |
+| `src/tests.rs` | Rule tests, the platform's round rules on a fake host (`keeps_the_platform_rules`: it taps every 0.8 s to lose, since an idle bird never drops), and the bot. |
 | `art/style.toml` | The style guide every `mb art` call uses (style, palette, music and effect words). |
 | `art/sprites/` | The generated pictures before packing (PNGs git-ignored; their `.gen.json` sidecars kept), `art/ref/` the style references. |
 | `tools/regen.sh` | Every `mb art`/`mb music`/`mb sfx` command with its prompt; regenerates, packs and checks all assets. |
@@ -82,7 +82,7 @@ For each, add a `Cue` for its moment and give it a sound, a haptic and a popup i
 
 ## Difficulty (bot)
 
-`cargo test -p kit_stacker --profile bot -- --ignored --nocapture difficulty` (200 seeded rounds per preset). The bot plays like a person: it watches the landing ghost and taps when it's over the top snack, but acts on what it saw a reaction delay ago; it misjudges the ghost by a fresh random bias each snack (more for a kind it's never seen: overshoot), gets more careful (a narrower window) for three drops after losing a heart, and the better presets anticipate their own delay (lead), steer a leaning tower back toward the middle, and wait out twists and the previous snack settling.
+`cargo test -p kit_stacker --profile bot -- --ignored --nocapture difficulty` (200 seeded rounds per preset, through `maimbrain::bot::Difficulty`: round length p10/p50/p90 against the targets, snacks, tower height and first heart lost; under it, how the hearts went and the physics' peaks; it fails if a better preset doesn't last longer). The bot plays like a person: it watches the landing ghost and taps when it's over the top snack, but acts on what it saw a reaction delay ago; it misjudges the ghost by a fresh random bias each snack (more for a kind it's never seen: overshoot), gets more careful (a narrower window) for three drops after losing a heart, and the better presets anticipate their own delay (lead), steer a leaning tower back toward the middle, and wait out twists and the previous snack settling.
 
 | Preset | Delay | Misjudge | Lead | Median round | p10–p90 | Snacks (median) | Tower |
 |---|---|---|---|---|---|---|---|

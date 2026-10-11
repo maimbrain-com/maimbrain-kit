@@ -5,10 +5,13 @@
 //! jumps, and the sky goes day → dusk → night with distance. Daily mode runs
 //! the same course for everyone today.
 //!
-//! This file is the thin host layer: input, rounds, saving, juice, drawing
-//! order. The rules are in `sim.rs` (tuning knobs at the top), everything
-//! you'd reskin is in `look.rs`, sounds and haptics in `sound.rs`.
-//! `cargo test -p kit_runner` runs the rules and a bot.
+//! This file is the thin host layer: input, juice, drawing order. The round
+//! itself (the title card, a tap starting play, the score, the best, the
+//! game-over card, retrying, daily mode's seed, board and best) is
+//! `maimbrain::rounds::Rounds`. The rules are in `sim.rs` (tuning knobs at
+//! the top), everything you'd reskin is in `look.rs`, sounds and haptics in
+//! `sound.rs`. `cargo test -p kit_runner` runs the rules, a bot and the
+//! platform's rules for a round (`keeps_the_platform_rules`).
 
 mod look;
 mod sim;
@@ -24,8 +27,9 @@ use maimbrain::input::{self, Event, Kind as Ev};
 use maimbrain::juice::{Flash, Particles, Popups};
 use maimbrain::motion::{Ease, HitStop, Punch, Shake};
 use maimbrain::sensors::{self, Haptic};
-use maimbrain::sys::{self, Level, Round};
-use maimbrain::ui::{self, Button, ButtonKind, Countdown, Hud, Icon, Layout, Rect, ResultsAction, ResultsCard, ResultsEvent, Tap, Theme, TitleCard, text};
+use maimbrain::rounds::{Input, Rounds, Stage};
+use maimbrain::sys::{self, Level};
+use maimbrain::ui::{self, Button, ButtonKind, Countdown, Hud, Icon, Rect, ResultsEvent, Tap, Theme, TitleCard, text};
 use maimbrain::{Game, Rng, export_game, store};
 
 use look::{Art, Face, GROUND_Y, Pose, W};
@@ -34,8 +38,6 @@ use sound::Sound;
 
 const BOARD: u32 = 0;
 const BOARD_DAILY: u32 = 1;
-/// Taps right after a round ends don't restart it (a frantic tap during the tumble).
-const RETRY_GUARD: f32 = 0.35;
 /// The tap hint comes back after this long without a tap (s).
 const HINT_IDLE: f32 = 3.5;
 /// A CLOSE! call slows time to this for this long (s): savour the escape.
@@ -44,13 +46,6 @@ const SLOWMO_TIME: f32 = 0.3;
 /// Debug: an autopilot plays the round until this many seconds (0 = off).
 /// Handy for screenshots of later obstacle families. Keep it 0.
 const DEBUG_AUTOPLAY_UNTIL: f32 = 0.0;
-
-#[derive(Clone, Copy, PartialEq)]
-enum Mode {
-    Title,
-    Play,
-    Over(f32),
-}
 
 /// A dust puff (alpha-blended, unlike the kit's additive dots).
 struct Puff {
@@ -64,27 +59,21 @@ struct Puff {
 }
 
 struct Runner {
-    mode: Mode,
-    daily: bool,
+    rounds: Rounds,
     /// The round (on the game-over card: its aftermath).
     sim: Sim,
     /// The title card's run, playing itself.
     attract: Sim,
     pilot: Autopilot,
     rng: Rng,
-    best: u64,
-    best_daily: u64,
     time: f32,
     play_t: f32,
     idle: f32,
     /// The player has jumped on purpose (after the tap that started the round).
     taught: bool,
     fingers: u32,
-    layout: Layout,
     theme: Theme,
-    title: TitleCard,
     hud: Hud,
-    results: Option<ResultsCard>,
     daily_btn: Button,
     scores_btn: Button,
     /// Where DAILY sits on the title card (centred) and on the results card (beside SCORES).
@@ -117,15 +106,7 @@ fn tap_haptic() {
 
 impl Runner {
     fn shown(&self) -> &Sim {
-        if self.mode == Mode::Title { &self.attract } else { &self.sim }
-    }
-
-    fn current_best(&self) -> u64 {
-        if self.daily { self.best_daily } else { self.best }
-    }
-
-    fn daily_key() -> String {
-        format!("daily:{:016x}", sys::daily_seed())
+        if self.rounds.stage() == Stage::Title { &self.attract } else { &self.sim }
     }
 
     fn new_attract(&mut self) {
@@ -140,16 +121,14 @@ impl Runner {
         self.attract.cues.clear();
     }
 
+    /// A round starts (`Rounds` has reported Playing).
     fn start(&mut self) {
         if DEBUG_AUTOPLAY_UNTIL > 0.0 {
             self.pilot = Autopilot::new(7, 0.02);
         }
-        // Daily mode: the same course for everyone today.
-        let seed = if self.daily { sys::daily_seed() } else { self.rng.next_u32() as u64 };
-        self.sim = Sim::new(seed);
-        self.hud.reset(self.current_best() as i64);
-        self.results = None;
-        self.mode = Mode::Play;
+        // Daily mode: `seed()` is today's, the same course for everyone.
+        self.sim = Sim::new(self.rounds.seed());
+        self.hud.reset(self.rounds.best());
         self.play_t = 0.0;
         self.idle = 0.0;
         self.taught = DEBUG_AUTOPLAY_UNTIL > 0.0;
@@ -160,30 +139,25 @@ impl Runner {
         self.popups.list.clear();
         self.puffs.clear();
         self.sound.start();
-        sys::round(Round::Playing);
+    }
+
+    /// A touch for the round (a press comes here only as a move: the one that
+    /// starts a round, then presses in play).
+    fn touch(&mut self, e: &Event) {
+        match e.kind() {
+            Ev::TouchDown | Ev::MouseDown => self.down(),
+            Ev::TouchUp | Ev::MouseUp | Ev::TouchCancel => self.up(),
+            _ => {}
+        }
     }
 
     fn down(&mut self) {
         self.fingers += 1;
-        match self.mode {
-            // The tap that enters play is also the first jump (SPEC §5.2).
-            Mode::Title => {
-                self.start();
-                self.sim.press();
-            }
-            Mode::Play => {
-                if self.play_t > 0.4 {
-                    self.taught = true;
-                }
-                self.idle = 0.0;
-                self.sim.press();
-            }
-            Mode::Over(t) if t > RETRY_GUARD => {
-                self.start();
-                self.sim.press();
-            }
-            Mode::Over(_) => {}
+        if self.play_t > 0.4 {
+            self.taught = true;
         }
+        self.idle = 0.0;
+        self.sim.press();
     }
 
     fn up(&mut self) {
@@ -193,11 +167,12 @@ impl Runner {
         }
     }
 
-    /// Offers an event to the card buttons; true if one took it.
+    /// Offers an event to the kit's own buttons (DAILY, SCORES); true if one
+    /// took it. They come before `Rounds`, which has the rest of the cards' input.
     fn ui_event(&mut self, e: &Event) -> bool {
-        match self.mode {
-            Mode::Play => false,
-            Mode::Title => match self.daily_btn.handle(e) {
+        match self.rounds.stage() {
+            Stage::Playing | Stage::Ending => false,
+            Stage::Title => match self.daily_btn.handle(e) {
                 Some(Tap::Clicked) => {
                     self.toggle_daily();
                     true
@@ -205,8 +180,10 @@ impl Runner {
                 Some(_) => true,
                 None => false,
             },
-            Mode::Over(t) => {
-                if t < RETRY_GUARD {
+            Stage::Over => {
+                // Like the card's own button, nothing during its guard against
+                // a frantic tap (`Rounds` takes those).
+                if !self.rounds.card_ready() {
                     return false;
                 }
                 if let Some(tap) = self.daily_btn.handle(e) {
@@ -218,67 +195,41 @@ impl Runner {
                 if let Some(tap) = self.scores_btn.handle(e) {
                     if tap == Tap::Clicked {
                         self.sound.ui(false);
-                        store::show_scores(if self.daily { BOARD_DAILY } else { BOARD });
+                        store::show_scores(if self.rounds.is_daily() { BOARD_DAILY } else { BOARD });
                     }
                     return true;
                 }
-                let action = self.results.as_mut().and_then(|r| r.handle(e));
-                if action == Some(ResultsAction::Retry) {
-                    self.start();
-                    return true;
-                }
-                self.results.as_ref().is_some_and(|r| r.claims(e.x, e.y))
+                false
             }
         }
     }
 
+    /// Daily on or off; from the game-over card, back to the title card
+    /// (`Rounds` switches the seed, the board and the best).
     fn toggle_daily(&mut self) {
-        self.daily = !self.daily;
-        self.sound.ui(self.daily);
-        self.daily_btn.kind = if self.daily { ButtonKind::Primary } else { ButtonKind::Secondary };
-        self.title.set_best(self.current_best() as i64);
-        if self.mode != Mode::Title {
-            self.mode = Mode::Title;
-            self.daily_btn.rect = self.daily_title;
-            self.results = None;
-            self.title.restart();
-            sys::round(Round::Idle);
-        }
+        let on = !self.rounds.is_daily();
+        self.rounds.set_daily(on);
+        self.sound.ui(on);
+        self.daily_btn.kind = if on { ButtonKind::Primary } else { ButtonKind::Secondary };
+        self.daily_btn.rect = self.daily_title;
     }
 
-    /// The tumble is over: score first, then the card, then Over.
+    /// The tumble is over (the sim plays it, so `Rounds` has no ending of
+    /// its own): this round's score and heading. `Rounds` then submits the
+    /// score, saves the best, shows the card and reports Over, this frame.
     fn finish(&mut self) {
-        let score = self.sim.score() as u64;
-        let cause = match self.sim.dying.as_ref().map(|d| d.cause) {
-            Some(Cause::Pit) => "a pit",
-            _ => "a bonk",
-        };
-        sys::log(Level::Info, &format!("runner: over at {:.1}s, {} m, score {score} ({cause}, daily: {})", self.sim.t, self.sim.meters(), self.daily));
-        store::submit_score(if self.daily { BOARD_DAILY } else { BOARD }, score as i64);
-        let prev = self.current_best();
-        if score > prev {
-            if self.daily {
-                self.best_daily = score;
-                store::set_u64(&Runner::daily_key(), score);
-            } else {
-                self.best = score;
-                store::set_u64("best", score);
-            }
-        }
-        self.title.set_best(self.current_best() as i64);
-        let heading = match self.sim.dying.as_ref().map(|d| d.cause) {
-            Some(Cause::Pit) => look::HEADING_PIT,
-            _ => look::HEADING_BONK,
-        };
-        let label = if self.daily { look::DAILY_LABEL } else { look::SCORE_LABEL };
-        let seed = self.rng.next_u32() as u64;
-        self.results = Some(ResultsCard::new(score as i64, prev as i64, self.theme, &self.layout, seed).heading(heading).label(label).floating());
+        let score = self.sim.score() as i64;
+        let pit = matches!(self.sim.dying.as_ref().map(|d| d.cause), Some(Cause::Pit));
+        let daily = self.rounds.is_daily();
+        sys::log(Level::Info, &format!("runner: over at {:.1}s, {} m, score {score} ({}, daily: {daily})", self.sim.t, self.sim.meters(), if pit { "a pit" } else { "a bonk" }));
+        let prev = self.rounds.best();
+        let heading = if pit { look::HEADING_PIT } else { look::HEADING_BONK };
+        let label = if daily { look::DAILY_LABEL } else { look::SCORE_LABEL };
+        self.rounds.end(score).heading(heading).label(label);
         self.daily_btn.reset();
         self.daily_btn.rect = self.daily_over;
         self.scores_btn.reset();
         self.sound.over(score > prev && prev > 0);
-        self.mode = Mode::Over(0.0);
-        sys::round(Round::Over);
     }
 
     fn puff(&mut self, x: f32, y: f32, n: usize, spread: f32, speed: f32) {
@@ -337,7 +288,7 @@ impl Runner {
             }
             Cue::NewKind(k) if playing => self.banner = Some((k, 0.0)),
             Cue::Milestone(m) if playing => {
-                self.popups.spawn(W / 2.0, self.layout.hud.y + 170.0, &format!("{m} m"), 0xffffffff, 22.0);
+                self.popups.spawn(W / 2.0, self.rounds.layout.hud.y + 170.0, &format!("{m} m"), 0xffffffff, 22.0);
                 self.fx.confetti(HERO_X, hero_y - 40.0, 26, &self.theme.confetti);
             }
             Cue::Hit { x, y, .. } => {
@@ -541,54 +492,49 @@ impl Runner {
 
     fn draw_hud(&self) {
         let th = &self.theme;
-        self.hud.draw(&self.layout);
+        let l = &self.rounds.layout;
+        self.hud.draw(l);
         let s = format!("{}", self.sim.coins_got);
         let w = ui::pill_width(&s, 30.0, th.body_font, true);
-        let (cx, cy) = (self.layout.hud.right() - 14.0 - w / 2.0, self.layout.hud.y + 26.0);
+        let (cx, cy) = (l.hud.right() - 14.0 - w / 2.0, l.hud.y + 26.0);
         gfx2d::push();
         gfx2d::translate(cx, cy);
         let k = self.coin_punch.scale();
         gfx2d::scale(k, k);
         ui::pill(&s, 0.0, 0.0, 30.0, ui::with_alpha(th.outline, 0.55), th.gold, th.body_font, Some(Icon::COIN));
         gfx2d::pop();
-        if self.daily {
-            let x = self.layout.pill_zone().right() + 34.0;
-            ui::pill("DAILY", x, self.layout.hud.y + 26.0, 24.0, ui::with_alpha(th.outline, 0.5), 0xffffffff, th.body_font, Some(Icon::STAR));
+        if self.rounds.is_daily() {
+            let x = l.pill_zone().right() + 34.0;
+            ui::pill("DAILY", x, l.hud.y + 26.0, 24.0, ui::with_alpha(th.outline, 0.5), 0xffffffff, th.body_font, Some(Icon::STAR));
         }
     }
 }
 
 impl Game for Runner {
     fn init() -> Self {
-        sys::round(Round::Idle);
-        let layout = Layout::new();
         let theme = look::theme();
+        // The title is a feed card, an ad: a name, a hook and a brag, never
+        // instructions (it can't take input). How to play comes after the tap.
+        // The game-over card floats over the aftermath; its heading names how
+        // the round was lost (`finish`).
+        let rounds = Rounds::new(TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE)).board(BOARD).daily(BOARD_DAILY).floating().ending(0.0);
+        let layout = rounds.layout;
         let mut rng = Rng::from_host();
-        let best = store::get_u64("best").unwrap_or(0);
-        let best_daily = store::get_u64(&Runner::daily_key()).unwrap_or(0);
         // DAILY and SCORES sit low in the card area, clear of the feed's overlays.
         let row = Rect::new(layout.card.x, layout.card.bottom() - 46.0, layout.card.w, 44.0).columns(2, 12.0);
         let seed = rng.next_u32() as u64;
         let mut g = Runner {
-            mode: Mode::Title,
-            daily: false,
             sim: Sim::new(seed),
             attract: Sim::new(seed),
             pilot: Autopilot::new(seed, 0.05),
-            best,
-            best_daily,
             time: 0.0,
             play_t: 0.0,
             idle: 0.0,
             taught: false,
             fingers: 0,
-            layout,
             theme,
-            // The title is a feed card, an ad: a name, a hook and a brag, never
-            // instructions (it can't take input). How to play comes after the tap.
-            title: TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE).best(best as i64),
-            hud: Hud::new(theme, best as i64),
-            results: None,
+            hud: Hud::new(theme, rounds.best()),
+            rounds,
             daily_title: Rect::centered(layout.card.cx(), row[1].cy(), row[1].w, row[1].h),
             daily_over: row[1],
             daily_btn: Button::new(Rect::centered(layout.card.cx(), row[1].cy(), row[1].w, row[1].h), "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR).with_haptic(tap_haptic),
@@ -619,15 +565,20 @@ impl Game for Runner {
             if self.ui_event(&e) {
                 continue;
             }
-            match e.kind() {
-                Ev::TouchDown | Ev::MouseDown => self.down(),
-                Ev::TouchUp | Ev::MouseUp | Ev::TouchCancel => self.up(),
-                _ => {}
+            match self.rounds.input(&e) {
+                // The tap that enters play is also the first jump (SPEC §5.2).
+                // (From the card's retry button it's the release: no jump.)
+                Input::Start => {
+                    self.start();
+                    self.touch(&e);
+                }
+                Input::Play => self.touch(&e),
+                Input::Taken | Input::Extra => {}
             }
         }
         let mut intensity = 0.0;
-        match self.mode {
-            Mode::Title => {
+        match self.rounds.stage() {
+            Stage::Title => {
                 self.pilot.drive(&mut self.attract);
                 self.attract.step(dt);
                 let (d, h, v) = (self.attract.dist, self.attract.hero.h, self.attract.speed);
@@ -638,7 +589,7 @@ impl Game for Runner {
                     self.new_attract();
                 }
             }
-            Mode::Play => {
+            Stage::Playing => {
                 if self.countdown.active() {
                     self.countdown.update(dt);
                 } else {
@@ -669,7 +620,7 @@ impl Game for Runner {
                     }
                 }
             }
-            Mode::Over(t) => self.mode = Mode::Over(t + dt),
+            Stage::Ending | Stage::Over => {}
         }
         self.sound.update(dt, intensity);
         if let Some((_, age)) = &mut self.banner {
@@ -679,13 +630,11 @@ impl Game for Runner {
             }
         }
         self.faster_t += dt;
-        self.title.update(dt);
-        self.hud.update(dt);
-        if let Some(card) = &mut self.results
-            && card.update(dt) == Some(ResultsEvent::NewBest)
-        {
+        // The cards' animations (and, the frame a round ends, the card itself).
+        if self.rounds.update(dt) == Some(ResultsEvent::NewBest) {
             self.fx.celebrate(W / 2.0, 200.0, &self.theme);
         }
+        self.hud.update(dt);
         self.daily_btn.update(dt);
         self.scores_btn.update(dt);
         self.fx.update(dt);
@@ -703,29 +652,27 @@ impl Game for Runner {
     }
 
     fn render(&self) {
-        let l = &self.layout;
+        let l = &self.rounds.layout;
         gfx2d::push();
         self.shake.apply(l.screen.cx(), l.screen.cy());
         self.draw_world(self.shown());
         gfx2d::pop();
         self.flash.draw(l.screen);
         self.popups.draw();
-        match self.mode {
-            Mode::Title => {
-                self.title.draw(l);
+        match self.rounds.stage() {
+            Stage::Title => {
+                self.rounds.draw();
                 self.daily_btn.draw(&self.theme);
             }
-            Mode::Play => {
+            Stage::Playing | Stage::Ending => {
                 self.draw_hud();
                 self.draw_hints();
                 self.countdown.draw(l, &self.theme);
             }
-            Mode::Over(t) => {
-                if let Some(card) = &self.results {
-                    card.draw();
-                }
+            Stage::Over => {
+                self.rounds.draw();
                 // How far it got, by the aftermath.
-                let a = ((t - 0.8) / 0.3).clamp(0.0, 1.0);
+                let a = ((self.rounds.age() - 0.8) / 0.3).clamp(0.0, 1.0);
                 if a > 0.0 {
                     let th = &self.theme;
                     ui::pill(&format!("{} m", self.sim.meters()), W / 2.0, GROUND_Y + 40.0, 30.0, ui::with_alpha(th.outline, 0.6 * a), ui::fade(0xffffffff, a), th.body_font, Some(Icon::FLAG));
@@ -738,7 +685,7 @@ impl Game for Runner {
 
     fn resume(&mut self) {
         // Back from a pause mid-run: a run-up before the obstacles move again.
-        if self.mode == Mode::Play && self.sim.alive() {
+        if self.rounds.stage() == Stage::Playing && self.sim.alive() {
             self.countdown.start(2);
             self.sim.release();
             self.fingers = 0;

@@ -5,10 +5,14 @@
 //!
 //! Shape (as in the 3D template): the rules and the camera in `sim` (tested,
 //! with a bot in `tests`), the scene in `scene`, sound in `sound`, names and
-//! colors in `look`, and this thin host layer: rounds, input, saving, juice
-//! and the HUD (the SDK's UI kit, drawn with mb2d over the 3D image).
+//! colors in `look`, and this thin host layer: input, juice and the HUD (the
+//! SDK's UI kit, drawn with mb2d over the 3D image). The round itself (the
+//! title card, a tap starting play, the score, the best, the game-over card,
+//! retrying) is `maimbrain::rounds::Rounds`; `tests::keeps_the_platform_rules`
+//! checks the platform's rules for it.
 //!
-//! Daily mode plays the same road for everyone today (`sys::daily_seed`).
+//! Daily mode plays the same road for everyone today (`sys::daily_seed`), on
+//! its own board and best (`Rounds::daily`).
 
 mod feel;
 mod look;
@@ -20,11 +24,12 @@ mod tests;
 
 use maimbrain::gfx2d::{self, Font};
 use maimbrain::gfx3d::{self, vec3};
-use maimbrain::input::{self, Event, Kind as Input};
+use maimbrain::input::{self, Event, Kind as Ev};
 use maimbrain::juice::{Flash, Particles};
 use maimbrain::motion::{Ease, HitStop};
-use maimbrain::sys::{self, Round};
-use maimbrain::ui::{self, Button, ButtonKind, Countdown, Hud, Icon, Layout, Rect, ResultsAction, ResultsCard, ResultsEvent, Tap, Theme, TitleCard, shape, text, with_alpha};
+use maimbrain::rounds::{Input, Rounds, Stage};
+use maimbrain::sys;
+use maimbrain::ui::{self, Button, ButtonKind, Countdown, Hud, Icon, Layout, Rect, ResultsEvent, Tap, Theme, TitleCard, shape, text, with_alpha};
 use maimbrain::{Game, Rng, export_game, store};
 
 use scene::Scene;
@@ -33,8 +38,6 @@ use sound::Audio;
 
 const BOARD: u32 = 0;
 const BOARD_DAILY: u32 = 1;
-/// Taps right after a round ends don't restart it (a frantic tap during the crash).
-const RETRY_GUARD: f32 = 0.35;
 /// Pixels of sideways drag that make a swipe.
 const SWIPE: f32 = 34.0;
 /// Seconds without a press before the hint comes back.
@@ -46,14 +49,6 @@ const DEBUG_AUTOPILOT: f32 = 0.0;
 /// 16 m/s "is" 115 km/h, not 58). Display only.
 const SPEEDO: f32 = 2.0;
 
-#[derive(Clone, Copy, PartialEq)]
-enum Mode {
-    Title,
-    Play,
-    /// Seconds since the results card appeared.
-    Over(f32),
-}
-
 /// A big announcement across the screen ("TRUCKS!", "SPEED UP!").
 struct Banner {
     text: String,
@@ -63,13 +58,11 @@ struct Banner {
 }
 
 struct Racer {
-    mode: Mode,
+    rounds: Rounds,
+    /// The round (on the title card: the attract run; on the game-over card: the wreck).
     sim: Sim,
     scene: Scene,
     rng: Rng,
-    daily: bool,
-    best: u32,
-    best_daily: u32,
     /// Seconds since init (idle animation; a function of dt only).
     time: f32,
     /// 1 on the title (attract camera), easing to 0 in play.
@@ -77,11 +70,8 @@ struct Racer {
     /// The current touch: where it went down, and whether it already swiped.
     touch: Option<(f32, bool)>,
     trucks_seen: u32,
-    layout: Layout,
     theme: Theme,
-    title: TitleCard,
     hud: Hud,
-    results: Option<ResultsCard>,
     daily_btn: Button,
     scores_btn: Button,
     fx: Particles,
@@ -94,75 +84,65 @@ struct Racer {
 }
 
 impl Racer {
-    fn new_sim(&mut self) -> Sim {
-        let seed = if self.daily { sys::daily_seed() } else { self.rng.next_u32() as u64 };
+    /// A road for the title card's attract run (daily mode: today's).
+    fn attract_sim(&mut self) -> Sim {
+        let seed = if self.rounds.is_daily() { sys::daily_seed() } else { self.rng.next_u32() as u64 };
         Sim::new(seed)
     }
 
-    fn current_best(&self) -> u32 {
-        if self.daily { self.best_daily } else { self.best }
-    }
-
-    fn daily_key() -> String {
-        format!("daily:{:016x}", sys::daily_seed())
-    }
-
+    /// A round starts (`Rounds` has reported Playing).
     fn start(&mut self) {
-        self.sim = self.new_sim();
-        self.hud.reset(self.current_best() as i64);
-        self.results = None;
+        // Daily mode: `seed()` is today's, the same road for everyone.
+        self.sim = Sim::new(self.rounds.seed());
+        self.hud.reset(self.rounds.best());
         self.banner = None;
         self.fx.clear();
         self.trucks_seen = 0;
-        self.mode = Mode::Play;
         self.audio.start();
-        sys::round(Round::Playing);
     }
 
-    fn back_to_title(&mut self) {
-        self.mode = Mode::Title;
-        self.daily_btn.rect = daily_alone(&self.layout);
-        self.results = None;
-        self.sim = self.new_sim();
-        self.title.set_best(self.current_best() as i64);
-        self.title.restart();
-        sys::round(Round::Idle);
-    }
-
+    /// Daily on or off, back on the title card (`Rounds` switches the seed,
+    /// the board and the best, and leaves the game-over card for the title).
     fn toggle_daily(&mut self) {
-        self.daily = !self.daily;
+        let on = !self.rounds.is_daily();
+        self.rounds.set_daily(on);
         self.audio.ui();
-        self.daily_btn.kind = if self.daily { ButtonKind::Primary } else { ButtonKind::Secondary };
-        self.daily_btn.label = if self.daily { "DAILY ON".into() } else { "DAILY".into() };
-        self.back_to_title();
+        self.daily_btn.kind = if on { ButtonKind::Primary } else { ButtonKind::Secondary };
+        self.daily_btn.label = if on { "DAILY ON".into() } else { "DAILY".into() };
+        self.daily_btn.rect = daily_alone(&self.rounds.layout);
+        self.sim = self.attract_sim();
     }
 
-    /// The round is over (the crash has played out): score first, then Over.
+    /// The round is over (the sim has played the crash out, so `Rounds` has
+    /// no ending of its own): `Rounds` submits the score, saves the best,
+    /// shows the card and reports Over, this frame.
     fn finish(&mut self) {
-        let score = self.sim.score();
-        let prev = self.current_best();
-        if self.daily {
-            store::submit_score(BOARD_DAILY, score as i64);
-            if score > self.best_daily {
-                self.best_daily = score;
-                store::set_u64(&Racer::daily_key(), score as u64);
-            }
-        } else {
-            store::submit_score(BOARD, score as i64);
-            if score > self.best {
-                self.best = score;
-                store::set_u64("best", score as u64);
-            }
-        }
-        self.title.set_best(self.current_best() as i64);
-        let label = if self.daily { look::DAILY_LABEL } else { look::SCORE_LABEL };
-        let seed = self.rng.next_u32() as u64;
-        self.results = Some(ResultsCard::new(score as i64, prev as i64, self.theme, &self.layout, seed).heading(look::HEADING).label(label).floating());
+        let label = if self.rounds.is_daily() { look::DAILY_LABEL } else { look::SCORE_LABEL };
+        self.rounds.end(self.sim.score() as i64).label(label);
         self.daily_btn.reset();
         self.scores_btn.reset();
-        self.daily_btn.rect = card_row(&self.layout)[1];
-        self.mode = Mode::Over(0.0);
-        sys::round(Round::Over);
+        self.daily_btn.rect = card_row(&self.rounds.layout)[1];
+    }
+
+    /// A touch for the round (a press comes here only as a move: the one that
+    /// starts a round, then presses in play).
+    fn touch(&mut self, e: &Event) {
+        match e.kind() {
+            Ev::TouchDown | Ev::MouseDown => {
+                self.sim.press(if e.x < W / 2.0 { -1 } else { 1 });
+                self.touch = Some((e.x, false));
+            }
+            Ev::TouchMove | Ev::MouseMove => {
+                if let (Stage::Playing, Some((x0, false))) = (self.rounds.stage(), self.touch)
+                    && (e.x - x0).abs() > SWIPE
+                {
+                    self.sim.swipe(if e.x > x0 { 1 } else { -1 });
+                    self.touch = Some((x0, true));
+                }
+            }
+            Ev::TouchUp | Ev::TouchCancel | Ev::MouseUp => self.touch = None,
+            _ => {}
+        }
     }
 
     fn banner(&mut self, s: &str, color: u32, ribbon: bool) {
@@ -220,11 +200,12 @@ impl Racer {
         }
     }
 
-    /// Feeds an event to the card buttons; true if one took it.
+    /// Feeds an event to the kit's own buttons (DAILY, SCORES); true if one
+    /// took it. They come before `Rounds`, which has the rest of the cards' input.
     fn card_event(&mut self, e: &Event) -> bool {
-        match self.mode {
-            Mode::Play => false,
-            Mode::Title => match self.daily_btn.handle(e) {
+        match self.rounds.stage() {
+            Stage::Playing | Stage::Ending => false,
+            Stage::Title => match self.daily_btn.handle(e) {
                 Some(Tap::Clicked) => {
                     self.toggle_daily();
                     true
@@ -232,8 +213,10 @@ impl Racer {
                 Some(_) => true,
                 None => false,
             },
-            Mode::Over(t) => {
-                if t < RETRY_GUARD {
+            Stage::Over => {
+                // Like the card's own button, nothing during its guard against
+                // a frantic tap (`Rounds` takes those).
+                if !self.rounds.card_ready() {
                     return false;
                 }
                 if let Some(tap) = self.daily_btn.handle(e) {
@@ -245,15 +228,11 @@ impl Racer {
                 if let Some(tap) = self.scores_btn.handle(e) {
                     if tap == Tap::Clicked {
                         self.audio.ui();
-                        store::show_scores(if self.daily { BOARD_DAILY } else { BOARD });
+                        store::show_scores(if self.rounds.is_daily() { BOARD_DAILY } else { BOARD });
                     }
                     return true;
                 }
-                if self.results.as_mut().and_then(|r| r.handle(e)) == Some(ResultsAction::Retry) {
-                    self.start();
-                    return true;
-                }
-                self.results.as_ref().is_some_and(|r| r.claims(e.x, e.y))
+                false
             }
         }
     }
@@ -261,34 +240,27 @@ impl Racer {
 
 impl Game for Racer {
     fn init() -> Self {
-        sys::round(Round::Idle);
+        let theme = look::theme();
+        // The title is a feed card, an ad: a name, a hook and a brag, never instructions.
+        // The game-over card floats over the wreck.
+        let rounds = Rounds::new(TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE)).board(BOARD).daily(BOARD_DAILY).heading(look::HEADING).floating().ending(0.0);
         let mut rng = Rng::from_host();
         let sim = Sim::new(rng.next_u32() as u64);
         let scene = Scene::build(rng.next_u32() as u64);
-        let layout = Layout::new();
-        let theme = look::theme();
-        let best = store::get_u64("best").unwrap_or(0) as u32;
-        let best_daily = store::get_u64(&Racer::daily_key()).unwrap_or(0) as u32;
+        let layout = rounds.layout;
         let row = card_row(&layout);
         let fx_seed = rng.next_u32() as u64;
         Racer {
-            mode: Mode::Title,
             sim,
             scene,
             rng,
-            daily: false,
-            best,
-            best_daily,
             time: 0.0,
             title_k: 1.0,
             touch: None,
             trucks_seen: 0,
-            layout,
             theme,
-            // The title is a feed card, an ad: a name, a hook and a brag, never instructions.
-            title: TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE).best(best as i64),
-            hud: Hud::new(theme, best as i64),
-            results: None,
+            hud: Hud::new(theme, rounds.best()),
+            rounds,
             daily_btn: Button::new(daily_alone(&layout), "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR),
             scores_btn: Button::new(row[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY),
             fx: Particles::new(fx_seed),
@@ -306,43 +278,20 @@ impl Game for Racer {
             if self.card_event(&e) {
                 continue;
             }
-            match e.kind() {
-                Input::TouchDown | Input::MouseDown => {
-                    let dir = if e.x < W / 2.0 { -1 } else { 1 };
-                    match self.mode {
-                        // The tap that enters play is also the first lane change (SPEC §5.2).
-                        Mode::Title => {
-                            self.start();
-                            self.sim.press(dir);
-                            self.touch = Some((e.x, false));
-                        }
-                        Mode::Play => {
-                            self.sim.press(dir);
-                            self.touch = Some((e.x, false));
-                        }
-                        Mode::Over(t) if t > RETRY_GUARD => {
-                            self.start();
-                            self.sim.press(dir);
-                            self.touch = Some((e.x, false));
-                        }
-                        Mode::Over(_) => {}
-                    }
+            match self.rounds.input(&e) {
+                // The tap that enters play is also the first lane change (SPEC §5.2).
+                // (From the card's retry button it's the release: no lane change.)
+                Input::Start => {
+                    self.start();
+                    self.touch(&e);
                 }
-                Input::TouchMove | Input::MouseMove => {
-                    if let (Mode::Play, Some((x0, false))) = (self.mode, self.touch)
-                        && (e.x - x0).abs() > SWIPE
-                    {
-                        self.sim.swipe(if e.x > x0 { 1 } else { -1 });
-                        self.touch = Some((x0, true));
-                    }
-                }
-                Input::TouchUp | Input::TouchCancel | Input::MouseUp => self.touch = None,
-                _ => {}
+                Input::Play => self.touch(&e),
+                Input::Taken | Input::Extra => {}
             }
         }
 
-        match &mut self.mode {
-            Mode::Play => {
+        match self.rounds.stage() {
+            Stage::Playing => {
                 if self.sim.t < DEBUG_AUTOPILOT {
                     self.sim.autopilot();
                 }
@@ -358,26 +307,25 @@ impl Game for Racer {
                     self.finish();
                 }
             }
-            Mode::Over(t) => {
-                *t += dt;
+            // The wreck smokes on behind the card.
+            Stage::Ending | Stage::Over => {
                 self.sim.step(dt);
                 self.cues(false);
             }
             // The title card is an attract mode: the car drives and dodges by itself.
-            Mode::Title => {
+            Stage::Title => {
                 self.sim.autopilot();
                 self.sim.step(dt);
                 self.cues(false);
                 if self.sim.over {
-                    self.sim = self.new_sim();
+                    self.sim = self.attract_sim();
                 }
             }
         }
-        let want = if self.mode == Mode::Title { 1.0 } else { 0.0 };
+        let want = if self.rounds.stage() == Stage::Title { 1.0 } else { 0.0 };
         self.title_k += (want - self.title_k) * (1.0 - (-dt * 2.2).exp());
         self.scene.update(&self.sim, self.title_k, self.time, dt);
-        self.audio.update(&self.sim, self.mode == Mode::Play, dt);
-        self.title.update(dt);
+        self.audio.update(&self.sim, self.rounds.stage() == Stage::Playing, dt);
         self.hud.update(dt);
         self.fx.update(dt);
         self.flash.update(dt);
@@ -389,16 +337,15 @@ impl Game for Racer {
                 self.banner = None;
             }
         }
-        if let Some(card) = &mut self.results
-            && card.update(dt) == Some(ResultsEvent::NewBest)
-        {
+        // The cards' animations (and, the frame a round ends, the card itself).
+        if self.rounds.update(dt) == Some(ResultsEvent::NewBest) {
             self.audio.new_best();
         }
     }
 
     /// Back from a pause mid-round: 3, 2, 1 before the road moves again.
     fn resume(&mut self) {
-        if self.mode == Mode::Play && !self.sim.crashed() {
+        if self.rounds.stage() == Stage::Playing && !self.sim.crashed() {
             self.countdown.start(3);
         }
     }
@@ -407,31 +354,30 @@ impl Game for Racer {
         gfx3d::camera(&self.sim.camera(self.title_k, self.time));
         gfx3d::render();
 
-        match self.mode {
-            Mode::Title => {
-                self.title.draw(&self.layout);
+        let l = &self.rounds.layout;
+        match self.rounds.stage() {
+            Stage::Title => {
+                self.rounds.draw();
                 self.daily_btn.draw(&self.theme);
             }
-            Mode::Play => {
+            Stage::Playing | Stage::Ending => {
                 self.draw_speed_lines();
                 self.draw_tells();
-                self.hud.draw(&self.layout);
+                self.hud.draw(l);
                 self.draw_speed();
                 self.draw_hint();
                 self.draw_banner();
-                self.countdown.draw(&self.layout, &self.theme);
+                self.countdown.draw(l, &self.theme);
             }
-            Mode::Over(_) => {
+            Stage::Over => {
                 gfx2d::rect(0.0, 0.0, W, sim::H, with_alpha(self.theme.outline, 0.25));
-                if let Some(card) = &self.results {
-                    card.draw();
-                }
+                self.rounds.draw();
                 self.scores_btn.draw(&self.theme);
                 self.daily_btn.draw(&self.theme);
             }
         }
         self.fx.draw();
-        self.flash.draw(self.layout.screen);
+        self.flash.draw(l.screen);
     }
 }
 
@@ -499,12 +445,12 @@ impl Racer {
 
     fn draw_speed(&self) {
         let kmh = (self.sim.speed_now() * 3.6 * SPEEDO).round() as u32;
-        let x = self.layout.hud.right() - 52.0;
-        let y = self.layout.hud.y + 24.0;
+        let x = self.rounds.layout.hud.right() - 52.0;
+        let y = self.rounds.layout.hud.y + 24.0;
         let fg = if self.sim.boost_k > 0.2 { 0x7af4ffff } else { self.theme.text };
         ui::pill(&format!("{kmh}"), x, y, 30.0, with_alpha(self.theme.outline, 0.55), fg, Font::SansBold, Some(Icon::BOLT));
         text("KM/H").size(10.0).color(self.theme.text_dim).middle().draw(x, y + 23.0);
-        if self.daily {
+        if self.rounds.is_daily() {
             ui::pill("DAILY", x, y + 46.0, 22.0, with_alpha(self.theme.outline, 0.5), self.theme.gold, Font::SansBold, Some(Icon::STAR));
         }
     }
@@ -558,7 +504,7 @@ impl Racer {
         let Some(b) = &self.banner else { return };
         let k = Ease::BackOut.at((b.age / 0.3).min(1.0));
         let a = 1.0 - ((b.age - 1.4) / 0.4).clamp(0.0, 1.0);
-        let y = self.layout.hud.y + 150.0;
+        let y = self.rounds.layout.hud.y + 150.0;
         gfx2d::push();
         gfx2d::translate(W / 2.0, y);
         gfx2d::scale(k, k);

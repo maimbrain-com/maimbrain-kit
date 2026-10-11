@@ -1,8 +1,9 @@
 //! Rule tests and a bot that plays like a person, to tune difficulty.
 //! `cargo test -p kit_match3 --profile bot -- --ignored --nocapture difficulty`
-//! prints round lengths per skill preset.
+//! prints round lengths per skill preset (`maimbrain::bot::Difficulty`).
 
 use maimbrain::Rng;
+use maimbrain::bot::{Difficulty, Outcome};
 
 use crate::sim::*;
 
@@ -502,34 +503,25 @@ fn a_first_timer_lasts_20_to_45_seconds() {
 #[test]
 #[ignore]
 fn difficulty() {
-    let n = 200;
-    for skill in [FIRST_TIMER, DECENT, GOOD] {
-        let rounds: Vec<RoundStats> = (0..n).map(|s| play_round(skill, 1000 + s, 900.0)).collect();
-        let mut secs: Vec<f32> = rounds.iter().map(|r| r.seconds).collect();
-        secs.sort_by(|a, b| a.total_cmp(b));
-        let mut scores: Vec<u32> = rounds.iter().map(|r| r.score).collect();
-        scores.sort();
-        let mut levels = [0u32; 16];
-        for r in &rounds {
-            levels[(r.level as usize).min(15)] += 1;
-        }
-        let spm = rounds.iter().map(|r| r.swaps as f32 / r.seconds * 60.0).sum::<f32>() / n as f32;
-        let chain = rounds.iter().map(|r| r.best_chain).max().unwrap_or(0);
-        println!(
-            "{:12} median {:5.1}s (p10 {:5.1}, p90 {:5.1})  score median {} (p10 {}, p90 {})  swaps/min {:.0}  best cascade ×{}",
-            skill.name,
-            secs[n as usize / 2],
-            secs[n as usize / 10],
-            secs[n as usize * 9 / 10],
-            scores[n as usize / 2],
-            scores[n as usize / 10],
-            scores[n as usize * 9 / 10],
-            spm,
-            chain
-        );
-        let died: Vec<String> = (1..16).filter(|&l| levels[l] > 0).map(|l| format!("L{l}:{}", levels[l])).collect();
-        println!("{:12} fell asleep in level  {}", "", died.join("  "));
-    }
+    let report = Difficulty::new(200)
+        .seeds_from(1000)
+        .preset(FIRST_TIMER.name, FIRST_TIMER)
+        .target(20.0, 45.0)
+        .preset(DECENT.name, DECENT)
+        .preset(GOOD.name, GOOD)
+        .target(60.0, 180.0)
+        .run(|skill, seed| {
+            let r = play_round(skill, seed, 900.0);
+            Outcome::new(r.seconds)
+                .cause(format!("asleep in L{}", r.level))
+                .stat("score", r.score as f32)
+                .stat("swaps/min", r.swaps as f32 / r.seconds * 60.0)
+                .stat("best cascade", r.best_chain as f32)
+        });
+    report.print();
+    // What changed since the last run (committed: the last tuning that was kept).
+    report.compare_with("bot-report.tsv");
+    report.assert_skill_matters();
     // One traced first-timer round.
     let mut sim = Sim::new(1000, false);
     let mut bot = Bot::new(FIRST_TIMER, 1000 ^ 0x9e37_79b9);
@@ -598,4 +590,29 @@ fn mix_log() {
     if let Ok(path) = std::env::var("MB_MIX_LOG") {
         std::fs::write(path, log).unwrap();
     }
+}
+
+// ---- Platform ---------------------------------------------------------------------
+
+/// The platform's rules for a round (SKILL.md "Platform facts that bite"),
+/// on a fake host: a tap starts it, the score goes in before Over, a frantic
+/// tap doesn't restart, the best is kept, the session replays. A few blind
+/// swipes in the first seconds (some match, so there's a best to save), then
+/// nobody swipes and the board nods off.
+#[test]
+fn keeps_the_platform_rules() {
+    use crate::look::{BOARD_X, BOARD_Y, CELL};
+    use maimbrain::input::synth;
+    maimbrain::sys::test::Conformance::new()
+        .play(|t| {
+            // Every half second for 6 s: a cell swiped into its right-hand neighbour.
+            let i = (t / 0.5) as usize;
+            if !(1..=12).contains(&i) || t - i as f64 * 0.5 >= DT as f64 {
+                return Vec::new();
+            }
+            let (c, r) = (i % (COLS - 1), 2 + i / (COLS - 1));
+            let (x, y) = (BOARD_X + (c as f32 + 0.5) * CELL, BOARD_Y + (r as f32 + 0.5) * CELL);
+            synth::stroke(&[(x, y), (x + CELL, y)], 0.0, 0.1, synth::PANEL_HZ)
+        })
+        .check::<crate::Poppets>();
 }

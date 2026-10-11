@@ -1,8 +1,11 @@
 //! Rule tests, and a bot that drives like a person, to tune difficulty.
 //! `cargo test -p kit_racer --profile bot -- --ignored --nocapture difficulty`
-//! prints round lengths and causes of death per skill preset.
+//! prints round lengths and causes of death per skill preset
+//! (`maimbrain::bot::Difficulty`).
+
 
 use maimbrain::Rng;
+use maimbrain::bot::{Difficulty, Outcome};
 
 use crate::sim::{self, Cue, Kind, LANES, Phase, Sim};
 
@@ -353,47 +356,28 @@ fn first_timer_median_in_range() {
 #[test]
 #[ignore]
 fn difficulty() {
-    for skill in [FIRST_TIMER, DECENT, GOOD] {
-        let n = 200usize;
-        let mut secs = Vec::new();
-        let mut scores = Vec::new();
-        let mut causes = [0u32; 5];
-        let mut early = 0;
-        let mut near = 0.0;
-        for seed in 0..n as u64 {
-            let r = play_round(skill, 1000 + seed, 600.0);
-            near += r.near_misses as f32 / r.seconds.max(1.0) * 60.0 / n as f32;
-            secs.push(r.seconds);
-            scores.push(r.score);
-            causes[match r.cause {
-                Some(Kind::Car) => 0,
-                Some(Kind::Truck) => 1,
-                Some(Kind::Cones) => 2,
-                Some(Kind::Oil) => 3,
-                None => 4,
-            }] += 1;
-            if r.seconds < 10.0 {
-                early += 1;
-            }
-        }
-        secs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        scores.sort();
-        println!(
-            "{:12} median {:5.1}s (p10 {:5.1}, p90 {:5.1})  score median {:5}  died to: car {} truck {} cones {} oil→ {} none {}  (<10 s: {})  near misses/min {:.1}",
-            skill.name,
-            secs[n / 2],
-            secs[n / 10],
-            secs[n * 9 / 10],
-            scores[n / 2],
-            causes[0],
-            causes[1],
-            causes[2],
-            causes[3],
-            causes[4],
-            early,
-            near
-        );
-    }
+    let report = Difficulty::new(200)
+        .seeds_from(1000)
+        .preset(FIRST_TIMER.name, FIRST_TIMER)
+        .target(20.0, 45.0)
+        .preset(DECENT.name, DECENT)
+        .preset(GOOD.name, GOOD)
+        .target(60.0, 180.0)
+        .run(|skill, seed| {
+            let r = play_round(skill, seed, 600.0);
+            let cause = match r.cause {
+                Some(Kind::Car) => "car",
+                Some(Kind::Truck) => "truck",
+                Some(Kind::Cones) => "cones",
+                Some(Kind::Oil) => "oil→",
+                None => "none",
+            };
+            Outcome::new(r.seconds).cause(cause).stat("score", r.score as f32).stat("near misses/min", r.near_misses as f32 / r.seconds.max(1.0) * 60.0).flag("over in under 10 s", r.seconds < 10.0)
+        });
+    report.print();
+    // What changed since the last run (committed: the last tuning that was kept).
+    report.compare_with("bot-report.tsv");
+    report.assert_skill_matters();
     // One traced run, because medians swing on small changes.
     let mut sim = Sim::new(1234);
     let mut bot = Bot::new(DECENT, 99);
@@ -415,6 +399,15 @@ fn difficulty() {
             println!("  {:5.1}s speed {:4.1} m/s  score {:5}  obstacles {}", sim.t, sim.speed, sim.score(), sim.obstacles.len());
         }
     }
+}
+
+/// The platform's rules for a round (SKILL.md "Platform facts that bite"),
+/// on a fake host: a tap starts it, the score goes in before Over, a
+/// frantic tap doesn't restart, the best is kept, the session replays.
+/// Nobody steers, so the car runs into the first car in its lane.
+#[test]
+fn keeps_the_platform_rules() {
+    maimbrain::sys::test::Conformance::new().check::<crate::Racer>();
 }
 
 /// A bot-played round through the real sound module (the same cue and

@@ -1,0 +1,30 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		25.6	40.1	56.9
+won	first-timer		2.0
+stat	first-timer	score	10280	24040	44465
+ended	first-timer	bullet in bulbs	36.5
+ended	first-timer	bullet in darters	25.5
+ended	first-timer	bullet in boss	20.0
+ended	first-timer	bullet in swoopers	11.0
+ended	first-timer	body in darters	3.0
+ended	first-timer	body in bulbs	1.5
+ended	first-timer	bullet in loop 2+	1.5
+ended	first-timer	body in loop 2+	0.5
+ended	first-timer	body in swoopers	0.5
+seconds	decent		62.2	90.1	111.1
+won	decent		70.5
+stat	decent	score	27540	44330	74025
+ended	decent	bullet in loop 2+	61.0
+ended	decent	bullet in boss	29.5
+ended	decent	body in loop 2+	4.5
+ended	decent	bullet in bulbs	3.5
+ended	decent	body in boss	0.5
+ended	decent	body in darters	0.5
+ended	decent	bullet in darters	0.5
+seconds	good		96.2	121.9	212.3
+won	good		98.0
+stat	good	score	34155	53045	94670
+ended	good	bullet in loop 2+	73.5
+ended	good	bullet in boss	24.0
+ended	good	body in loop 2+	2.5

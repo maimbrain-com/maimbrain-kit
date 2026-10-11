@@ -1,0 +1,14 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		31.5	38.1	48.9
+stat	first-timer	snacks	11	14	17
+stat	first-timer	tower m	3.5	4.8	6.2
+stat	first-timer	first heart s	10.2	22.2	31.5
+seconds	decent		47.9	53.5	63.7
+stat	decent	snacks	15	17	21
+stat	decent	tower m	5.6	6.4	7.4
+stat	decent	first heart s	29.8	40.1	45.9
+seconds	good		61.0	68.4	75.1
+stat	good	snacks	21	24	26
+stat	good	tower m	7.1	7.9	9.0
+stat	good	first heart s	42.2	47.9	53.0

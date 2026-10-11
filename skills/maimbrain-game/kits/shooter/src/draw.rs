@@ -8,13 +8,14 @@ use std::f32::consts::{FRAC_PI_2, PI, TAU};
 
 use maimbrain::gfx2d::{self, Blend, Image};
 use maimbrain::motion::Ease;
+use maimbrain::rounds::Stage;
 use maimbrain::sys::{Asset, AssetState};
 use maimbrain::ui::{self, Icon, Rect, fade, lighten, mix, shape, text, with_alpha};
 
 use crate::look::{self, *};
 use crate::sim::*;
 use crate::sprites as spr;
-use crate::{Mode, Shooter};
+use crate::Shooter;
 
 const WHITE: u32 = 0xffffffff;
 
@@ -107,7 +108,7 @@ fn neon(pts: &[f32], width: f32, color: u32, a: f32) {
 
 pub fn frame(g: &Shooter) {
     let s = &g.sim;
-    let l = &g.layout;
+    let l = &g.rounds.layout;
     background(g);
     gfx2d::push();
     g.shake.apply(W / 2.0, H / 2.0);
@@ -133,12 +134,12 @@ pub fn frame(g: &Shooter) {
     g.popups.draw();
     g.flash.draw(l.screen);
     g.hurt.draw(l.screen);
-    match g.mode {
-        Mode::Title => {
-            g.title.draw(l);
+    match g.rounds.stage() {
+        Stage::Title => {
+            g.rounds.draw();
             g.daily_btn.draw(&g.theme);
         }
-        Mode::Play => {
+        Stage::Playing | Stage::Ending => {
             g.hud.draw(l);
             combo(g);
             powers(g);
@@ -147,15 +148,13 @@ pub fn frame(g: &Shooter) {
             if g.show_hint() {
                 hint(g);
             }
-            if g.daily {
+            if g.rounds.is_daily() {
                 // Under the pause pill's corner, clear of the score.
                 ui::pill("DAILY", 50.0, l.pill_zone().bottom() + 14.0, 24.0, with_alpha(INK, 0.6), WHITE, g.theme.body_font, Some(Icon::STAR));
             }
         }
-        Mode::Over(_) => {
-            if let Some(card) = &g.results {
-                card.draw();
-            }
+        Stage::Over => {
+            g.rounds.draw();
             g.scores_btn.draw(&g.theme);
             g.daily_btn.draw(&g.theme);
         }
@@ -177,7 +176,7 @@ fn hash(i: u32, salt: u32) -> f32 {
 fn background(g: &Shooter) {
     let s = &g.sim;
     let hot = ((s.heat() - 1.0) / 1.0).clamp(0.0, 1.0);
-    shape::gradient(g.layout.screen, BG_TOP, BG_BOTTOM);
+    shape::gradient(g.rounds.layout.screen, BG_TOP, BG_BOTTOM);
     if let Some(bg) = g.art.bg {
         gfx2d::sprite(bg, BACKDROP_TEXELS, [0.0, 0.0, W, H], mix(BG_TINT, BG_HOT_TINT, hot));
     }
@@ -244,8 +243,10 @@ fn ship(g: &Shooter) {
     let wreck = s.over;
     let dying = s.dying.is_some();
     let (mut x, mut y) = (sh.x, sh.y);
-    if let (true, Mode::Over(t), Some(card)) = (wreck, g.mode, &g.results) {
-        let spot_y = (card.panel_rect().bottom() + 40.0 + g.layout.card.bottom() - 46.0) / 2.0;
+    if let (true, Stage::Over, Some(card)) = (wreck, g.rounds.stage(), &g.rounds.results) {
+        // Seconds the card has been up.
+        let t = g.rounds.age();
+        let spot_y = (card.panel_rect().bottom() + 40.0 + g.rounds.layout.card.bottom() - 46.0) / 2.0;
         let k = Ease::CubicInOut.at((t / 1.6).min(1.0));
         x += (x.clamp(80.0, W - 110.0) - x) * k;
         y += (spot_y + 4.0 * (t * 1.3).sin() - y) * k;
@@ -683,7 +684,7 @@ fn combo(g: &Shooter) {
         return;
     }
     let th = &g.theme;
-    let (cx, cy) = (g.layout.hud.right() - 40.0, g.layout.hud.y + 82.0);
+    let (cx, cy) = (g.rounds.layout.hud.right() - 40.0, g.rounds.layout.hud.y + 82.0);
     // A chain count until it's worth a multiplier, then ×N with the chain under it.
     let m = s.multiplier();
     let heat = ((m - 1) as f32 / 4.0).min(1.0);
@@ -704,7 +705,7 @@ fn combo(g: &Shooter) {
 fn powers(g: &Shooter) {
     let sh = &g.sim.ship;
     let mut x = 28.0;
-    let y = g.layout.pill_zone().bottom() + if g.daily { 56.0 } else { 28.0 };
+    let y = g.rounds.layout.pill_zone().bottom() + if g.rounds.is_daily() { 56.0 } else { 28.0 };
     let mut chip = |p: Power, frac: Option<f32>| {
         let c = power_color(p);
         shape::disc(x, y, 15.0, with_alpha(INK, 0.7));
@@ -735,7 +736,7 @@ fn boss_bar(g: &Shooter) {
     let Some(b) = &g.sim.boss else { return };
     let fill = if b.entering() { (b.age / 2.0).min(1.0) } else { 1.0 };
     let frac = (b.hp / b.max_hp).max(0.0) * fill;
-    let r = Rect::centered(W / 2.0, g.layout.hud.y + 104.0, 200.0, 16.0);
+    let r = Rect::centered(W / 2.0, g.rounds.layout.hud.y + 104.0, 200.0, 16.0);
     shape::rrect(r.inset(-3.0), 11.0, with_alpha(INK, 0.8));
     let col = if b.enraged() { DANGER } else { BOSS };
     if frac > 0.0 {

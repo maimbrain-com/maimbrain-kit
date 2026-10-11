@@ -1,0 +1,25 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		33.3	40.2	49.9
+stat	first-timer	questions	6	7	9
+stat	first-timer	right	2	4	6
+stat	first-timer	score	190	480	1040
+stat	first-timer	best streak	2	3	5
+share	first-timer	misses timed out	51.7
+ended	first-timer	last miss hard	90.0
+ended	first-timer	last miss medium	10.0
+seconds	decent		35.7	50.9	79.0
+stat	decent	questions	7	11	17
+stat	decent	right	4	8	14
+stat	decent	score	450	1540	3990
+stat	decent	best streak	2	4	8
+share	decent	misses timed out	31.2
+ended	decent	last miss hard	98.0
+ended	decent	last miss medium	2.0
+seconds	good		46.3	79.1	143.0
+stat	good	questions	11	20	37
+stat	good	right	8	17	33
+stat	good	score	2260	7090	17350
+stat	good	best streak	5	10	18
+share	good	misses timed out	6.0
+ended	good	last miss hard	100.0

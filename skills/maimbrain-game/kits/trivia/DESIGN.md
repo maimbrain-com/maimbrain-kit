@@ -9,6 +9,7 @@ A fast quiz for the feed, staged like a 1950s TV game show. Watt, a lightbulb qu
 - **The loop**: a first round is ~30–50 s (7 questions), a good player's 1–3 min. Every question is harder in one of two ways: the clock (its pace drops 12% a question until it bottoms out by question 6) and the tier (easy → medium from question 3, hard from question 6, earlier on a streak). New things arrive about every 15–25 s: the first golden question (×2, gold card, fanfare) at question 5, the ×2 streak flame at 3 in a row, ×3 at 6, ×4 at 10, and a heart back for every 8 in a row.
 - **The cards**: title (attract mode): a question card flips in, Watt reads along while the ring drains, the card turns over to show the answer on green and Watt grins, the next card flips in (every 3.8 s, easy questions short enough to read at a glance, all text at its play size); the bouncing title, the tagline and the best above; no answer buttons and no instructions. Game over: the blown bulb smoking, LIGHTS OUT!, the score rolling up, BEST or NEW BEST! with confetti, "N RIGHT · BEST STREAK N", SCORES and DAILY. A replay reads from the HUD, the ring and the button colors alone.
 - **Score**: points (tier × speed × streak multiplier × golden), shown big at the top; best saved per mode; board 0 endless, board 1 daily.
+- **The round flow** is the SDK's `Rounds` (`maimbrain::rounds`): the tap on the title starts a round, and when the sim reports over (after its own ending: the reveal, the flicker, the pop, all still `Playing`, so `.ending(0.0)`) it submits the score, saves the best, shows the floating LIGHTS OUT! card and reports `Over`, in that order; the card ignores taps for its 0.35 s guard, then any tap retries. SCORES and DAILY are the kit's own buttons, fed events before `Rounds`. `tests::keeps_the_platform_rules` checks the flow on a fake host.
 
 **Daily mode** (the DAILY button on the title and results cards): `Rng::new(sys::daily_seed())`, so everyone gets the same questions in the same order with the answers in the same places. In daily mode the tiers follow the question number only (in endless they also follow the streak, which would make players' sequences diverge), and each question's answer order is seeded from its number, not from what came before. Separate board and best (`daily:<seed>` key).
 
@@ -42,7 +43,7 @@ All in `src/sim.rs`, top of the file:
 | `LIVES`, `WARMUP` | Hearts per round; how many opening questions are free. |
 | `DEAL_TIME`, `REVEAL_RIGHT`, `REVEAL_WRONG`, `ENDING_TIME` | The rhythm: card flip, how long a right / wrong answer is shown, the bulb blowing. |
 
-Host-side feel lives at the top of `src/lib.rs` (`RETRY_GUARD`, `HINT_IDLE`, `HINT_LEFT`, `POP_AT`, `PLAY_HOST`, `TITLE_HOST`, `MARQUEE_W`), in `src/look.rs` (every string, the palette, the theme, category emblems and colors) and in `src/sound.rs` (`MUSIC_VOL`, `HI_FLOOR`, `TENSION_VOL`, `STREAK_STEP`).
+Host-side feel lives at the top of `src/lib.rs` (`HINT_IDLE`, `HINT_LEFT`, `POP_AT`, `PLAY_HOST`, `TITLE_HOST`, `MARQUEE_W`), in `src/look.rs` (every string, the palette, the theme, category emblems and colors) and in `src/sound.rs` (`MUSIC_VOL`, `HI_FLOOR`, `TENSION_VOL`, `STREAK_STEP`).
 
 ## Make it yours
 
@@ -69,7 +70,7 @@ Three changes turn this kit into its own game:
 
 ## Difficulty (bot)
 
-`cargo test -p kit_trivia --profile bot -- --ignored --nocapture difficulty` (200 seeded rounds per preset; `first_timer_rounds_last_20_to_45_seconds` checks the first-timer median on 40 seeds in every `cargo test`).
+`cargo test -p kit_trivia --profile bot -- --ignored --nocapture difficulty` (200 seeded rounds per preset, endless and daily, reported by the SDK's `bot::Difficulty`: p10/p50/p90 against the targets, each round's questions, right answers, score, best streak and share of misses that timed out, and the tier of the last miss; it fails if a better preset doesn't last longer; `first_timer_rounds_last_20_to_45_seconds` checks the first-timer median on 40 seeds in every `cargo test`).
 
 The bot reads like a person: the clock it beats is reading time (question words at its reading speed, answers scanned at twice that, from the moment the card starts flipping in) plus a decision time plus a 150–350 ms reaction. Per question it either knows the answer (chance by tier) and picks it after a short think (with a small slip rate, the fat finger), or guesses after a longer think (sometimes ruling one wrong answer out first). When its plan would land after the buzzer, it either taps whatever it leans toward in the last second ("clutch") or freezes and times out. The good preset reads faster and knows more; that is its anticipation.
 
@@ -83,7 +84,7 @@ Daily rounds (fixed tier schedule): first-timer 43 s (34–52), decent 56 s (42�
 
 ## Determinism
 
-All randomness is `Rng`: the round seed from the session's `Rng::from_host()` (or `sys::daily_seed()` in daily mode), the decks shuffled once per round, each question's answer order from `seed ^ question number`, particles seeded from the game's `Rng`, sound jitter from the sound module's own fixed seed (output only). Time is only `dt`; the host's blinks, bobs and smoke are functions of accumulated game time; nothing changes in `render`. `the_sim_is_deterministic` checks the sim cue for cue.
+All randomness is `Rng`: the round seed from `Rounds::seed()` (a new one each round from the session's seed, or `sys::daily_seed()` in daily mode), the title loop's questions from the session's `Rng::from_host()`, the decks shuffled once per round, each question's answer order from `seed ^ question number`, particles seeded from the game's `Rng`, sound jitter from the sound module's own fixed seed (output only). Time is only `dt`; the host's blinks, bobs and smoke are functions of accumulated game time; nothing changes in `render`. `the_sim_is_deterministic` checks the sim cue for cue.
 
 In the preview (`mb serve --watch`, held session driven with `mb.tap` + `mb.step`): 8542 frames covering the title card's attract loop (several card flips), rounds answered with rotating taps through the bulb popping and the results card, retries by tapping the screen, and more rounds to game over: `await mb.verify()` → `{ frames: 8542, match: true, firstMismatch: null }`, draw hash `48e510aba688deb0`. The generated images load asynchronously and are polled in `update`, so they replay too. `mb.stats()`: `mb_update` ≈ 0.00 ms, `mb_render` 0.11 ms avg (0.2 max), ~640 mb2d quads a frame. `mb build`: `game.wasm` 159 KB, `.mbx` 893 KB (startup set 450 KB); `mb art check`: 5 images, 0.70 MB of assets, ~$0.37 of generation (host.png shows as "older style guide" only because `references` was set to it after it was made).
 

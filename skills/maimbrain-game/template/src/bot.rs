@@ -1,7 +1,9 @@
 //! A bot that plays like a person, to tune difficulty against (SKILL.md,
 //! "Write a bot"). `cargo test -p NAME -- --nocapture difficulty` plays 200
-//! seeded rounds per preset and prints how long they last, how they end and
-//! how they miss; `mix_log` records one round's sound for mix_check.py. It's a pattern to adapt as the game changes, not a library:
+//! seeded rounds per preset (`maimbrain::bot::Difficulty`) and prints how
+//! long they last, how they end and how they miss; `mix_log` records one
+//! round's sound for mix_check.py. The bot is a pattern to adapt as the game
+//! changes, not a library:
 //! - It only *looks* at the sim (what's on screen) and only acts through touch
 //!   events with their own times, what a finger produces (`input::synth`).
 //!   `play` delivers them frame by frame through `control`, the same mapping
@@ -21,6 +23,7 @@
 use std::collections::VecDeque;
 
 use maimbrain::Rng;
+use maimbrain::bot::{Difficulty, Outcome};
 use maimbrain::input::{Event, synth};
 
 use crate::control::{self, Control};
@@ -237,29 +240,26 @@ fn play(skill: Skill, seed: u64, mut sound: Option<&mut Sound>) -> Round {
 
 #[test]
 fn difficulty() {
-    println!("\n200 rounds per preset. Targets (SKILL.md): first-timer p50 20-45 s, good 60-180 s.");
-    let mut p50 = Vec::new();
-    for skill in [FIRST_TIMER, CASUAL, GOOD] {
-        let runs: Vec<Round> = (0..200).map(|seed| play(skill, seed, None)).collect();
-        let mut secs: Vec<f32> = runs.iter().map(|r| r.seconds).collect();
-        secs.sort_by(f32::total_cmp);
-        let pct = |p: usize| secs[p * (secs.len() - 1) / 100];
-        let total = |f: fn(&Round) -> u32| runs.iter().map(f).sum::<u32>() as f32;
-        let taps = total(|r| r.taps).max(1.0);
-        let pc = |f: fn(&Round) -> u32| 100.0 * total(f) / taps;
-        println!("{:<12} round p10 {:5.1}s  p50 {:5.1}s  p90 {:5.1}s | {:.1} taps/round, {:.0}% missed, {:.0}% touched down short",
-            skill.human.name, pct(10), pct(50), pct(90), taps / runs.len() as f32, pc(|r| r.missed), pc(|r| r.early));
-        let mut causes = std::collections::BTreeMap::new();
-        for r in &runs {
-            *causes.entry(r.cause).or_insert(0) += 1;
-        }
-        let mut causes: Vec<(&str, usize)> = causes.into_iter().collect();
-        causes.sort_by_key(|c| std::cmp::Reverse(c.1));
-        let causes: Vec<String> = causes.iter().map(|(c, n)| format!("{c} {}%", n * 100 / runs.len())).collect();
-        println!("{:<12} lost: {}", "", causes.join(", "));
-        p50.push(pct(50));
-    }
-    assert!(p50[0] < p50[2], "a good player should outlast a first-timer: {p50:?}");
+    // Targets (SKILL.md): a first-timer's round lasts 20-45 s, a good player's 1-3 min.
+    let report = Difficulty::new(200)
+        .preset("first-timer", FIRST_TIMER)
+        .target(20.0, 45.0)
+        .preset("casual", CASUAL)
+        .preset("good", GOOD)
+        .target(60.0, 180.0)
+        .run(|skill, seed| {
+            let r = play(skill, seed, None);
+            let taps = r.taps.max(1) as f32;
+            Outcome::new(r.seconds)
+                .cause(r.cause)
+                .stat("taps", r.taps as f32)
+                .stat("% missed", 100.0 * r.missed as f32 / taps)
+                .stat("% touched down short", 100.0 * r.early as f32 / taps)
+        });
+    report.print();
+    // What changed since the last run (committed: the last tuning that was kept).
+    report.compare_with("bot-report.tsv");
+    report.assert_skill_matters();
 }
 
 /// One casual round's sound, as `sound.rs` plays it, for the skill's

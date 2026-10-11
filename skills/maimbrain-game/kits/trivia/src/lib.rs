@@ -7,7 +7,10 @@
 //! Layout: `sim` (rules, tested in `tests`), `questions` (the bank in
 //! `questions.txt`), `look` (strings, palette, theme, category emblems),
 //! `art` (the generated images), `draw` (the host, stage, card, buttons),
-//! `sound` (cues → sound and haptics), and this file: rounds, input, juice.
+//! `sound` (cues → sound and haptics), and this file: input, juice and the
+//! screens. The round flow itself (a tap on the title starting play, the
+//! score, the bests, the game-over card, retrying) is
+//! `maimbrain::rounds::Rounds`; `tests::keeps_the_platform_rules` checks it.
 
 mod art;
 mod draw;
@@ -21,18 +24,16 @@ mod tests;
 use maimbrain::input::{self, Event};
 use maimbrain::juice::{Flash, Look, Particle, Particles, Popups, VignettePulse};
 use maimbrain::motion::{Ease, HitStop, Pulse, Punch, Shake, stagger};
+use maimbrain::rounds::{Input, Rounds, Stage};
 use maimbrain::sensors::{self, Haptic};
-use maimbrain::sys::{self, Round};
-use maimbrain::ui::{Button, ButtonKind, Hud, Icon, Layout, Rect, ResultsAction, ResultsCard, ResultsEvent, Tap, Theme, TitleCard, fade, pill, text, with_alpha};
-use maimbrain::{Game, Rng, export_game, gfx2d, store};
+use maimbrain::ui::{Button, ButtonKind, Hud, Icon, Layout, Rect, ResultsEvent, Tap, Theme, TitleCard, fade, pill, text, with_alpha};
+use maimbrain::{Game, Rng, export_game, gfx2d, store, sys};
 
 use draw::{Ans, Host, Mood};
 use sim::{Cue, Phase, Sim};
 
 const BOARD: u32 = 0;
 const BOARD_DAILY: u32 = 1;
-/// Taps right after a round ends don't restart it (a frantic tap during the failure).
-const RETRY_GUARD: f32 = 0.35;
 /// The how-to hint comes back when a player has been still this long on a
 /// question and the clock is nearly out (reading isn't stalling; freezing is).
 const HINT_IDLE: f32 = 3.0;
@@ -54,15 +55,6 @@ const ATTRACT_PERIOD: f32 = 3.8;
 const ATTRACT_REVEAL: f32 = 2.2;
 /// Set to e.g. 9 to start rounds at a later question (testing the hard end). Keep 0.
 const DEBUG_SKIP: u32 = 0;
-
-#[derive(Clone, Copy, PartialEq)]
-enum Mode {
-    /// The feed card: question cards flip by and Watt answers them.
-    Title,
-    Play,
-    /// Seconds since the round ended.
-    Over(f32),
-}
 
 /// Where things sit, from the safe area (computed once).
 #[derive(Clone, Copy)]
@@ -128,26 +120,23 @@ struct Puff {
 }
 
 struct Trivia {
-    mode: Mode,
+    /// Title (the feed card: question cards flip by and Watt answers them),
+    /// the round, the game-over card; the boards, the bests, daily mode.
+    rounds: Rounds,
     sim: Sim,
     attract: Attract,
     rng: Rng,
-    daily: bool,
-    best: u64,
-    best_daily: u64,
-    new_best: bool,
     time: f32,
     idle: f32,
     answered_once: bool,
     /// How the last question was answered (for drawing through the ending).
     last: Option<(Option<u8>, bool)>,
     popped: bool,
-    layout: Layout,
     geom: Geom,
     theme: Theme,
-    title: TitleCard,
     hud: Hud,
-    results: Option<ResultsCard>,
+    /// The game-over card's buttons are the kit's own, in a row low in the
+    /// card area (the card's retry sits above): Rounds never sees their taps.
     daily_btn: Button,
     scores_btn: Button,
     host: Host,
@@ -174,16 +163,9 @@ fn haptic_tap() {
 }
 
 impl Trivia {
-    fn daily_key() -> String {
-        format!("daily:{:016x}", sys::daily_seed())
-    }
-
-    fn current_best(&self) -> u64 {
-        if self.daily { self.best_daily } else { self.best }
-    }
-
-    fn new_sim(&mut self) -> Sim {
-        let mut s = if self.daily { Sim::new(sys::daily_seed(), true) } else { Sim::new(self.rng.next_u32() as u64, false) };
+    /// The round's sim, on the round's seed (today's in daily mode).
+    fn new_sim(&self) -> Sim {
+        let mut s = Sim::new(self.rounds.seed(), self.rounds.is_daily());
         for _ in 0..DEBUG_SKIP {
             while s.phase != Phase::Ask {
                 s.step(0.05);
@@ -197,20 +179,17 @@ impl Trivia {
         s
     }
 
+    /// A round has started (`Input::Start`: a tap on the title or the card).
     fn start(&mut self) {
         self.sim = self.new_sim();
-        self.hud.reset(self.current_best() as i64);
-        self.results = None;
-        self.new_best = false;
+        self.hud.reset(self.rounds.best());
         self.popped = false;
         self.last = None;
         self.idle = 0.0;
         self.smoke.clear();
         self.host = Host::new();
         self.host.rest = Mood::Think;
-        self.mode = Mode::Play;
         self.sound.start();
-        sys::round(Round::Playing);
         // The tap that started the round deals the first card at once: that
         // flip (and the jingle) is its answer, the warm-up question its first move.
         let cues = std::mem::take(&mut self.sim.cues);
@@ -234,22 +213,20 @@ impl Trivia {
         }
     }
 
+    /// DAILY, on the title or the game-over card: switches mode (its own
+    /// seed, board and best) and goes (back) to the title.
     fn toggle_daily(&mut self) {
-        self.daily = !self.daily;
-        self.sound.play(sound::UI, 0.5, if self.daily { 1.12 } else { 1.0 });
-        self.daily_btn.kind = if self.daily { ButtonKind::Primary } else { ButtonKind::Secondary };
-        self.title.set_best(self.current_best() as i64);
-        self.title.tagline = Some(if self.daily { look::DAILY_TAGLINE } else { look::TAGLINE }.to_string());
-        self.title.restart();
+        let daily = !self.rounds.is_daily();
+        self.rounds.set_daily(daily);
+        self.sound.play(sound::UI, 0.5, if daily { 1.12 } else { 1.0 });
+        self.daily_btn.kind = if daily { ButtonKind::Primary } else { ButtonKind::Secondary };
+        self.rounds.title.tagline = Some(if daily { look::DAILY_TAGLINE } else { look::TAGLINE }.to_string());
         self.title_t = 0.0;
-        self.results = None;
         self.sound.stop_music();
         // Back to a lit, smiling host for the card.
         self.host = Host::new();
         self.popped = false;
         self.smoke.clear();
-        self.mode = Mode::Title;
-        sys::round(Round::Idle);
     }
 
     /// Juice for the sim's cues (sounds and haptics are `sound`'s).
@@ -331,8 +308,8 @@ impl Trivia {
     /// Where the HUD draws heart `i` (0-based from the left).
     fn heart_pos(&self, i: u32) -> (f32, f32) {
         let (hs, max) = (22.0, sim::LIVES);
-        let right = self.layout.hud.right() - 16.0;
-        (right - (max - 1 - i.min(max - 1)) as f32 * (hs + 4.0) - hs / 2.0, self.layout.hud.y + 26.0)
+        let hud = self.rounds.layout.hud;
+        (hud.right() - 16.0 - (max - 1 - i.min(max - 1)) as f32 * (hs + 4.0) - hs / 2.0, hud.y + 26.0)
     }
 
     /// The bulb blows: glass, sparks, smoke, a thump.
@@ -366,34 +343,18 @@ impl Trivia {
         sensors::haptic(Haptic::Heavy);
     }
 
+    /// The bulb has blown (the sim's own ending, played while still
+    /// Playing): Rounds submits the score, saves the best, shows the card
+    /// and reports Over, this frame.
     fn game_over(&mut self) {
-        let score = self.sim.score as u64;
-        sys::log(sys::Level::Info, &format!("trivia: game over at {score} ({} right, daily: {})", self.sim.right, self.daily));
-        let prev = self.current_best();
-        // Submit before reporting Over: the platform saves the replay on Over.
-        if self.daily {
-            store::submit_score(BOARD_DAILY, score as i64);
-            if score > self.best_daily {
-                self.best_daily = score;
-                store::set_u64(&Self::daily_key(), score);
-            }
-        } else {
-            store::submit_score(BOARD, score as i64);
-            if score > self.best {
-                self.best = score;
-                store::set_u64("best", score);
-            }
-        }
-        self.new_best = score > prev && prev > 0;
-        self.sound.verdict(self.new_best);
-        self.title.set_best(self.current_best() as i64);
-        let label = if self.daily { look::DAILY_LABEL } else { look::SCORE_LABEL };
-        let seed = self.rng.next_u32() as u64;
-        self.results = Some(ResultsCard::new(score as i64, prev as i64, self.theme, &self.layout, seed).heading(look::HEADING).label(label).floating());
+        let score = self.sim.score as i64;
+        let daily = self.rounds.is_daily();
+        sys::log(sys::Level::Info, &format!("trivia: game over at {score} ({} right, daily: {daily})", self.sim.right));
+        let prev = self.rounds.best();
+        self.sound.verdict(score > prev && prev > 0);
+        self.rounds.end(score).label(if daily { look::DAILY_LABEL } else { look::SCORE_LABEL });
         self.daily_btn.reset();
         self.scores_btn.reset();
-        self.mode = Mode::Over(0.0);
-        sys::round(Round::Over);
     }
 
     /// The title card's loop: flips, a cheer when the answer shows.
@@ -403,7 +364,7 @@ impl Trivia {
         let t = self.attract.t;
         if before < ATTRACT_REVEAL && t >= ATTRACT_REVEAL {
             self.host.react(Mood::Happy, 1.2);
-            let (card, _, _) = Geom::title(&self.layout);
+            let (card, _, _) = Geom::title(&self.rounds.layout);
             self.fx.sparkles(card.cx(), card.cy(), 110.0, 14, 0xfff2b0ff);
             self.sound.play(sound::RIGHT, 0.16, 1.0);
         }
@@ -416,10 +377,12 @@ impl Trivia {
         self.host.look_target = if asking { ((self.time * 0.8).sin() * 0.5, 0.8) } else { (0.3, 0.2) };
     }
 
+    /// The kit's own buttons see an event before Rounds does: DAILY on the
+    /// title; DAILY and SCORES on the game-over card once it takes taps
+    /// (past its guard). True if one took it.
     fn ui_event(&mut self, e: &Event) -> bool {
-        match self.mode {
-            Mode::Play => false,
-            Mode::Title => match self.daily_btn.handle(e) {
+        match self.rounds.stage() {
+            Stage::Title => match self.daily_btn.handle(e) {
                 Some(Tap::Clicked) => {
                     self.toggle_daily();
                     true
@@ -427,10 +390,7 @@ impl Trivia {
                 Some(_) => true,
                 None => false,
             },
-            Mode::Over(t) => {
-                if t < RETRY_GUARD {
-                    return false;
-                }
+            Stage::Over if self.rounds.card_ready() => {
                 if let Some(tp) = self.daily_btn.handle(e) {
                     if tp == Tap::Clicked {
                         self.toggle_daily();
@@ -440,38 +400,37 @@ impl Trivia {
                 if let Some(tp) = self.scores_btn.handle(e) {
                     if tp == Tap::Clicked {
                         self.sound.play(sound::UI, 0.5, 1.0);
-                        store::show_scores(if self.daily { BOARD_DAILY } else { BOARD });
+                        store::show_scores(if self.rounds.is_daily() { BOARD_DAILY } else { BOARD });
                     }
                     return true;
                 }
-                if let Some(card) = &mut self.results {
-                    if card.handle(e) == Some(ResultsAction::Retry) {
-                        self.start();
-                        return true;
-                    }
-                    return card.claims(e.x, e.y);
-                }
                 false
             }
+            _ => false,
         }
     }
 }
 
 impl Game for Trivia {
     fn init() -> Self {
-        sys::round(Round::Idle);
-        let layout = Layout::new();
-        let geom = Geom::new(&layout);
         let theme = look::theme();
+        // The sim plays its own ending (the reveal, the flicker, the pop)
+        // before it reports over, so Rounds shows the card at once.
+        let rounds = Rounds::new(TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE))
+            .board(BOARD)
+            .daily(BOARD_DAILY)
+            .heading(look::HEADING)
+            .label(look::SCORE_LABEL)
+            .floating()
+            .ending(0.0);
+        let geom = Geom::new(&rounds.layout);
         let mut rng = Rng::from_host();
         let sim = Sim::new(rng.next_u32() as u64, false);
         let attract = Attract::pick(&mut rng);
-        let best = store::get_u64("best").unwrap_or(0);
-        let best_daily = store::get_u64(&Trivia::daily_key()).unwrap_or(0);
         // SCORES and DAILY sit low in the card area, clear of the feed's overlays.
-        let c = layout.card;
+        let c = rounds.layout.card;
         let row = Rect::new(c.x, c.bottom() - 46.0, c.w, 44.0).columns(2, 12.0);
-        let mut hud = Hud::new(theme, best as i64);
+        let mut hud = Hud::new(theme, rounds.best());
         hud.size = 44.0;
         // Hearts are drawn by `hearts` (on a paper strip, to read on the curtain).
         hud.lives = None;
@@ -482,21 +441,15 @@ impl Game for Trivia {
         let mut shake = Shake::new();
         shake.max_offset = 10.0;
         Trivia {
-            mode: Mode::Title,
+            rounds,
             sim,
             attract,
-            daily: false,
-            best,
-            best_daily,
-            new_best: false,
             time: 0.0,
             idle: 0.0,
             answered_once: false,
             last: None,
             popped: false,
-            title: TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE).best(best as i64),
             hud,
-            results: None,
             daily_btn: Button::new(Rect::centered(c.cx(), c.bottom() - 24.0, 140.0, 44.0), "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR).with_haptic(haptic_tap),
             scores_btn: Button::new(row[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY).with_haptic(haptic_tap),
             host: Host::new(),
@@ -518,7 +471,6 @@ impl Game for Trivia {
             tick: Pulse::new(0.35),
             smoke: Vec::new(),
             sound: sound::Sound::new(),
-            layout,
             geom,
             theme,
             rng,
@@ -532,25 +484,25 @@ impl Game for Trivia {
         self.art.update();
         self.sound.update(dt);
         for e in input::poll() {
-            if self.ui_event(&e) || !e.is_press() {
+            if self.ui_event(&e) {
                 continue;
             }
-            match self.mode {
+            match self.rounds.input(&e) {
                 // The tap that enters play starts the round (SPEC §5.2).
-                Mode::Title => self.start(),
-                Mode::Play => self.tap(e.x, e.y),
-                Mode::Over(t) if t > RETRY_GUARD => self.start(),
-                Mode::Over(_) => {}
+                Input::Start => self.start(),
+                Input::Play if e.is_press() => self.tap(e.x, e.y),
+                _ => {}
             }
         }
         // Where the daily button sits depends on the screen.
-        let c = self.layout.card;
+        let title = self.rounds.stage() == Stage::Title;
+        let c = self.rounds.layout.card;
         let row = Rect::new(c.x, c.bottom() - 46.0, c.w, 44.0).columns(2, 12.0);
-        self.daily_btn.rect = if self.mode == Mode::Title { Rect::centered(c.cx(), c.bottom() - 24.0, 140.0, 44.0) } else { row[1] };
+        self.daily_btn.rect = if title { Rect::centered(c.cx(), c.bottom() - 24.0, 140.0, 44.0) } else { row[1] };
 
-        match self.mode {
-            Mode::Title => self.attract(dt),
-            Mode::Play => {
+        match self.rounds.stage() {
+            Stage::Title => self.attract(dt),
+            Stage::Playing => {
                 let sdt = self.stop.step(dt);
                 self.sim.step(sdt);
                 let cues = std::mem::take(&mut self.sim.cues);
@@ -571,15 +523,17 @@ impl Game for Trivia {
                     self.game_over();
                 }
             }
-            Mode::Over(_) => {}
+            Stage::Ending | Stage::Over => {}
         }
-        if let Mode::Over(t) = &mut self.mode {
-            *t += dt;
+        // The card's roll-up landing on a new best gets its sting.
+        if self.rounds.update(dt) == Some(ResultsEvent::NewBest) {
+            self.sound.new_best();
         }
+        let play = self.rounds.playing();
 
         // Watt looks at what matters: the answers while asked, the clock when it's tight.
         let sim = &self.sim;
-        if self.mode != Mode::Title && matches!(self.host.mood, Mood::Think | Mood::Nervous | Mood::Idle) {
+        if !title && matches!(self.host.mood, Mood::Think | Mood::Nervous | Mood::Idle) {
             self.host.look_target = if sim.danger() > 0.35 {
                 (0.9, -0.2)
             } else if sim.phase == Phase::Ask {
@@ -588,12 +542,12 @@ impl Game for Trivia {
                 ((self.time * 0.4).sin() * 0.4, 0.0)
             };
         }
-        let mult = if self.mode == Mode::Title { 1 } else { sim.multiplier() };
+        let mult = if title { 1 } else { sim.multiplier() };
         self.host.glow_target = 0.15 + 0.22 * (mult - 1) as f32;
-        let danger = if self.mode == Mode::Play { self.sim.danger() } else { 0.0 };
-        self.sound.hi_target = if self.mode == Mode::Play { danger.max(0.25 * (mult - 1) as f32).min(1.0) } else { 0.0 };
+        let danger = if play { self.sim.danger() } else { 0.0 };
+        self.sound.hi_target = if play { danger.max(0.25 * (mult - 1) as f32).min(1.0) } else { 0.0 };
         // The stopwatch ticks in under the band as the clock runs down (only while asking).
-        self.sound.tension_target = if self.mode == Mode::Play && self.sim.phase == Phase::Ask {
+        self.sound.tension_target = if play && self.sim.phase == Phase::Ask {
             let frac = self.sim.time_left() / self.sim.cur.limit.max(0.1);
             ((0.6 - frac) / 0.45).clamp(0.0, 1.0).max(danger)
         } else {
@@ -616,13 +570,7 @@ impl Game for Trivia {
         self.smoke.retain(|p| p.age < p.life);
 
         self.host.update(dt);
-        self.title.update(dt);
         self.hud.update(dt);
-        if let Some(card) = &mut self.results
-            && card.update(dt) == Some(ResultsEvent::NewBest)
-        {
-            self.sound.new_best();
-        }
         self.daily_btn.update(dt);
         self.scores_btn.update(dt);
         self.fx.update(dt);
@@ -641,20 +589,22 @@ impl Game for Trivia {
     }
 
     fn render(&self) {
-        let l = &self.layout;
-        let heat = if self.mode == Mode::Play { ((self.sim.multiplier() - 1) as f32 / 3.0).min(1.0) } else { 0.0 };
-        let alarm = if self.mode == Mode::Play { self.sim.danger() * 0.7 } else { 0.0 };
+        let l = &self.rounds.layout;
+        let screen = self.rounds.stage();
+        let play = self.rounds.playing();
+        let heat = if play { ((self.sim.multiplier() - 1) as f32 / 3.0).min(1.0) } else { 0.0 };
+        let alarm = if play { self.sim.danger() * 0.7 } else { 0.0 };
         draw::backdrop(l, self.art.stage(), self.time, heat, alarm);
-        if let Mode::Over(t) = self.mode {
+        if screen == Stage::Over {
             // Lights out: the studio dims behind the results.
-            maimbrain::ui::shape::rrect(l.screen, 0.0, with_alpha(look::INK, 0.5 * (t / 0.6).min(1.0)));
+            maimbrain::ui::shape::rrect(l.screen, 0.0, with_alpha(look::INK, 0.5 * (self.rounds.age() / 0.6).min(1.0)));
         }
         gfx2d::push();
         self.shake.apply(l.screen.cx(), l.screen.cy());
-        match self.mode {
-            Mode::Title => self.title_scene(),
-            Mode::Play => self.scene(&self.sim),
-            Mode::Over(_) => {
+        match screen {
+            Stage::Title => self.title_scene(),
+            Stage::Playing | Stage::Ending => self.scene(&self.sim),
+            Stage::Over => {
                 // The aftermath: the blown bulb, smoking.
                 let (x, y) = self.over_host();
                 self.host.draw(self.art.host(), x, y, 1.5);
@@ -664,31 +614,31 @@ impl Game for Trivia {
             }
         }
         self.fx.draw();
-        if self.mode == Mode::Play {
+        if play {
             for p in &self.smoke {
                 draw::puff(p.x, p.y, p.age, p.life, p.size);
             }
         }
         gfx2d::pop();
         self.popups.draw();
-        match self.mode {
-            Mode::Title => {
+        match screen {
+            Stage::Title => {
                 self.title_text();
                 self.button(&self.daily_btn);
             }
-            Mode::Play => {
+            Stage::Playing | Stage::Ending => {
                 self.hud.draw(l);
                 self.hearts();
-                if self.daily {
+                if self.rounds.is_daily() {
                     let z = l.pill_zone();
                     pill("DAILY", z.x + 52.0, z.bottom() + 16.0, 24.0, with_alpha(look::INK, 0.6), self.theme.gold, gfx2d::Font::SansBold, Some(Icon::STAR));
                 }
                 self.hint();
             }
-            Mode::Over(_) => {
-                if let Some(card) = &self.results {
-                    card.draw();
-                }
+            Stage::Over => {
+                // The game-over card only: the title is the kit's own, drawn above
+                // (so the stock title card isn't linked in).
+                self.rounds.draw_card();
                 let (x, y) = self.over_host();
                 let line = format!("{} RIGHT · BEST STREAK {}", self.sim.right, self.sim.best_streak);
                 text(&line).size(16.0).color(0xffffffe0).outline(0.1, look::INK).middle().draw(x, y + 104.0);
@@ -705,7 +655,7 @@ impl Game for Trivia {
     }
 
     fn resume(&mut self) {
-        if self.mode == Mode::Play && !matches!(self.sim.phase, Phase::Ending | Phase::Over) {
+        if self.rounds.playing() && !matches!(self.sim.phase, Phase::Ending | Phase::Over) {
             self.sound.start_music();
         }
     }
@@ -713,15 +663,15 @@ impl Game for Trivia {
 
 impl Trivia {
     fn over_host(&self) -> (f32, f32) {
-        let c = self.layout.card;
+        let c = self.rounds.layout.card;
         let top = c.y + 24.0 + 200.0 + 60.0;
         let bottom = c.bottom() - 56.0 - 110.0;
         (c.cx(), (top + bottom) / 2.0)
     }
 
     fn smoke_origin(&self) -> (f32, f32) {
-        match self.mode {
-            Mode::Over(_) => {
+        match self.rounds.stage() {
+            Stage::Over => {
                 let (x, y) = self.over_host();
                 (x, y - 50.0)
             }
@@ -731,15 +681,15 @@ impl Trivia {
 
     /// The title: the name lettered on the marquee, the tagline, the best.
     fn title_text(&self) {
-        let l = &self.layout;
+        let l = &self.rounds.layout;
         let t = self.title_t;
         let enter = Ease::BackOut.at((t / 0.5).min(1.0));
         let sign = draw::marquee(self.art.marquee(), &look::TITLE_LINES, l.screen.cx(), l.safe.y + MARQUEE_Y - (1.0 - enter) * 160.0, MARQUEE_W, t, &self.theme);
-        if let Some(tag) = &self.title.tagline {
+        if let Some(tag) = &self.rounds.title.tagline {
             let a = Ease::QuadOut.at(((t - 0.45) / 0.4).clamp(0.0, 1.0));
             text(tag).size(18.0).color(look::ON_STAGE).outline(0.12, look::INK).shadow(0.0, 2.0, with_alpha(look::INK, 0.7)).alpha(a).middle().draw(l.screen.cx(), sign.bottom() + 15.0 + (1.0 - a) * 8.0);
         }
-        if let Some(b) = self.title.best {
+        if let Some(b) = self.rounds.title.best {
             let k = ((t - 0.7) / 0.5).clamp(0.0, 1.0);
             if k > 0.0 && b > 0 {
                 let s = Ease::BackOut.at(k);
@@ -781,7 +731,7 @@ impl Trivia {
 
     /// The title card's loop: Watt, the clock, a card that turns over.
     fn title_scene(&self) {
-        let (card, (hx, hy), (tx, ty)) = Geom::title(&self.layout);
+        let (card, (hx, hy), (tx, ty)) = Geom::title(&self.rounds.layout);
         let t = self.attract.t;
         self.host.draw(self.art.host(), hx, hy, TITLE_HOST);
         // A 5-second clock that drains until Watt "answers".

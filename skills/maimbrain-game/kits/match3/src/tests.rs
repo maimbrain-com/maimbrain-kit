@@ -1,5 +1,5 @@
 //! Rule tests and a bot that plays like a person, to tune difficulty.
-//! `cargo test -p kit_match3 --release -- --ignored --nocapture difficulty`
+//! `cargo test -p kit_match3 --profile bot -- --ignored --nocapture difficulty`
 //! prints round lengths per skill preset.
 
 use maimbrain::Rng;

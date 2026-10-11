@@ -35,11 +35,17 @@ use sound::Sound;
 /// (`Theme::from_identity`, docs/UI.md). Its fonts come from `mb font add`.
 const IDENTITY: &str = "__IDENTITY__";
 const BOARD: u32 = 0;
+/// How long the failure plays out (s) before the game-over card. The round
+/// stays `Playing` until then: `Over` sends the player back to browse ~1.2 s
+/// later, so reporting it at the moment of failure cuts the moment short.
+const DYING: f32 = 0.7;
 
 #[derive(PartialEq)]
 enum Mode {
     Title,
     Play,
+    /// The round has failed; seconds since. Taps do nothing.
+    Dying(f32),
     Over,
 }
 
@@ -139,6 +145,16 @@ impl Game for Bubble {
             Mode::Play => {
                 self.sim.step(dt);
                 if self.sim.over {
+                    // The failure lands now (its sound is the sim's Over cue);
+                    // the card and Over come once it has played out.
+                    self.fx.burst(self.sim.x, self.sim.y, 30, self.theme.bad);
+                    self.shake.add(0.6);
+                    self.mode = Mode::Dying(0.0);
+                }
+            }
+            Mode::Dying(t) => {
+                *t += dt;
+                if *t >= DYING {
                     // Submit before reporting Over: the platform saves the replay on Over.
                     store::submit_score(BOARD, self.sim.score as i64);
                     let prev = self.best;
@@ -149,8 +165,6 @@ impl Game for Bubble {
                     self.title.set_best(self.best as i64);
                     let seed = self.rng.next_u32() as u64;
                     self.results = Some(ResultsCard::new(self.sim.score as i64, prev as i64, self.theme, &self.layout, seed).heading("POP!").label("SCORE"));
-                    self.fx.burst(self.sim.x, self.sim.y, 30, self.theme.bad);
-                    self.shake.add(0.6);
                     self.mode = Mode::Over;
                     sys::round(Round::Over);
                 }
@@ -192,10 +206,10 @@ impl Game for Bubble {
         self.popups.draw();
         match self.mode {
             Mode::Title => self.title.draw(l),
-            Mode::Play => {
+            Mode::Play | Mode::Dying(_) => {
                 self.hud.draw(l);
                 // Play teaches: an animated hint on the bubble until the first pop.
-                if s.score == 0 {
+                if s.score == 0 && !s.over {
                     let bob = (self.time * 5.0).sin() * 6.0;
                     maimbrain::ui::text(&th.case("Pop it!")).font(th.body_font).size(th.fit(th.body_font, 20.0)).color(th.text).outline(0.1, th.outline).middle().draw(s.x, s.y + s.r + 24.0 + bob);
                 }

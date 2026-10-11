@@ -93,7 +93,7 @@ Three changes that turn this kit into your own game:
 
 ## Difficulty (bot)
 
-`cargo test -p kit_racer --release -- --ignored --nocapture difficulty` plays 200 seeded rounds per preset (and prints one traced run). The bot (`src/tests.rs`) drives like a person: it only plans for threats within its look-ahead (first-timer 1.25 s, decent 1.6 s, good 2.1 s), reacts after a delay (0.24–0.42 / 0.2–0.32 / 0.15–0.24 s), taps one lane at a time with a gap between taps, sometimes taps the wrong way (7% / 3.5% / 1.2%) or overshoots a one-lane move, won't cross a lane that's about to be occupied, and only the good preset reads blinkers before the truck moves.
+`cargo test -p kit_racer --profile bot -- --ignored --nocapture difficulty` plays 200 seeded rounds per preset (and prints one traced run). The bot (`src/tests.rs`) drives like a person: it only plans for threats within its look-ahead (first-timer 1.25 s, decent 1.6 s, good 2.1 s), reacts after a delay (0.24–0.42 / 0.2–0.32 / 0.15–0.24 s), taps one lane at a time with a gap between taps, sometimes taps the wrong way (7% / 3.5% / 1.2%) or overshoots a one-lane move, won't cross a lane that's about to be occupied, and only the good preset reads blinkers before the truck moves.
 
 | Preset | Median round | p10–p90 | Score (median) | Near misses / min | What ends it (of 200) |
 |---|---|---|---|---|---|

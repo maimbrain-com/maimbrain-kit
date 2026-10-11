@@ -89,7 +89,7 @@ pub struct MeasureArgs {
     final_: bool,
     /// "Did this change help?": no live run and no replay check, only the GPU at the --gpu-at
     /// moments in one short sample (3 repeats in one browser) and what the stepped frames
-    /// cost and drew. About 20–30 s. Compare quick runs with each other.
+    /// cost and drew. A few seconds. Compare quick runs with each other.
     #[arg(long, conflicts_with = "ab")]
     quick: bool,
     /// Print every line of the report (the default is one short summary block).

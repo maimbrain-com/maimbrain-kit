@@ -1,5 +1,24 @@
 # Creator kit changelog
 
+## 0.7.6
+
+Quicker steps in the loop a game is made in, measured on an M1 Pro with nothing else running.
+
+- **Games outside the Maimbrain repo share one build cache.** `mb build`, `serve`, `shot` and `measure` build every standalone game in `maimbrain/target` in your cache directory (`~/Library/Caches` on macOS), so the SDK compiles once rather than once per game. A new game's first test, build and shot goes from 14 s to 3 s, or from 75 s to 12 s with physics, and each game no longer keeps its own 160–810 MB `target/`. `mb new` prints the `export CARGO_TARGET_DIR=…` that makes `cargo test` share it too. Two games with the same crate name (two copies of a game) each get their own build: switching between them rebuilds the game's crate, never the SDK. Setting `CARGO_TARGET_DIR` (or `build.target-dir`) keeps your own.
+- **Bot runs compile in about a second.** Games now have a `bot` profile (release optimizations without LTO's slow link, incremental), and the skill, the kits and their docs run the bot with `cargo test -p <name> --profile bot -- --ignored --nocapture difficulty`. Re-tuning after a one-line change took 8–10 s, now 1.5–4 s; the run takes as long as before. A game made earlier gets it by adding this to its `Cargo.toml`:
+  ```toml
+  [profile.bot]
+  inherits = "release"
+  lto = false
+  codegen-units = 16
+  incremental = true
+  ```
+- **`mb shot` is about 28% faster** (a 2D sheet 3.6 → 2.6 s, a large 3D game's 6.4 → 4.6 s), with the same pixels: it no longer waits for the GPU after every stepped frame. `--stats` still does, for its GPU times.
+- **`mb shot` doesn't flood the terminal with the game's log.** A line the game logs again and again is listed once, with how many times and until which frame, and `mb shot` prints the first 20 lines and says where the rest are (`shot-sheet.txt` has them all; `--logs-match` prints every match).
+- **`mb build` skips wasm-opt when the wasm hasn't changed** (after an asset edit, or building again): 0.7–1.5 s of a build that has nothing to compile.
+- **The templates show the failure before the game-over card.** They reported `Over` on the frame the round was lost, so the feed's 1.2 s countdown back to browse began mid-burst. Now the round stays `Playing` through a short fail moment, then submits the score, saves the best and reports `Over` as the card appears, as the skill's "Failure order" asks.
+- **The skill asks for less of the spec up front:** SPEC §9 has subsections, and the reading list names only the parts every game needs (§2, §3, §5.2 "Feed navigation", §9.1, §9.3, §9.7, §9.8): 22 KB instead of 75 KB. `mb shot`, `mb measure` and the console (§9.4–§9.6) are looked up when used, and §5.7 by games that read a sensor. The skill also says to tune with `mb measure --quick` (a few seconds) and do one live run at the end, instead of looping live runs (13–15 s each).
+
 ## 0.7.5
 
 Fixes for what tripped up a builder making a game with 0.7.2.

@@ -5,7 +5,7 @@ the most of it. The events come from the game's own sound code (the
 `mix_trace` test logs every play, voice stop, loop start and track level
 that `src/sound.rs` asks for), so this hears what the game would play.
 
-    MIX_TRACE=/tmp/t.csv cargo test -p kit_shooter --release -- --ignored mix_trace
+    MIX_TRACE=/tmp/t.csv cargo test -p kit_shooter --profile bot -- --ignored mix_trace
     python3 tools/mixsim.py /tmp/t.csv [--assets assets] [--wav /tmp/mix.wav]
 
 (MIX_SEED and MIX_SKILL=first|decent|good pick the round.)

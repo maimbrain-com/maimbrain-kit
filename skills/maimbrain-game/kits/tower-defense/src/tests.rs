@@ -1,5 +1,5 @@
 //! Rule tests and a bot that plays like a person, to tune difficulty.
-//! `cargo test -p kit_tower_defense --release -- --ignored --nocapture difficulty`
+//! `cargo test -p kit_tower_defense --profile bot -- --ignored --nocapture difficulty`
 //! prints round lengths and how each skill preset dies.
 
 use maimbrain::Rng;

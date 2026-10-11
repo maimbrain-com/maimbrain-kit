@@ -42,3 +42,12 @@ inherits = "release"
 lto = false
 codegen-units = 16
 incremental = false
+
+# A game's bot and tuning tests (`cargo test -p <game> --profile bot -- --ignored
+# difficulty`): release speed for the run, without LTO's link, and incremental,
+# so a re-tune after a one-line change compiles in about a second, not 7–9.
+[profile.bot]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true

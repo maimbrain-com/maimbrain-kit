@@ -169,14 +169,7 @@ pub fn cache_dir() -> Result<PathBuf, String> {
     if let Some(d) = std::env::var_os("MB_FONT_CACHE") {
         return Ok(PathBuf::from(d));
     }
-    let base = if cfg!(windows) {
-        std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
-    } else if cfg!(target_os = "macos") {
-        std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library").join("Caches"))
-    } else {
-        std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))
-    }
-    .ok_or("can't find a cache directory for fonts (set MB_FONT_CACHE)")?;
+    let base = crate::user_cache_dir().ok_or("can't find a cache directory for fonts (set MB_FONT_CACHE)")?;
     Ok(base.join("maimbrain").join("fonts"))
 }
 

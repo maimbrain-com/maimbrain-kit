@@ -1,6 +1,6 @@
 //! Rule tests, a check of every line of the question bank, and a bot that
 //! plays like a person to tune difficulty:
-//! `cargo test -p kit_trivia --release -- --ignored --nocapture difficulty`
+//! `cargo test -p kit_trivia --profile bot -- --ignored --nocapture difficulty`
 //! prints round lengths and how each skill preset loses.
 
 use maimbrain::Rng;

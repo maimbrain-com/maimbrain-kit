@@ -13,7 +13,7 @@ use maimbrain::physics2d::{Body, BodyId, Event, Joint, JointId, Shape, Vec2, Wor
 
 // ---- Tuning knobs -----------------------------------------------------
 // The numbers that shape the game, roughly in order of how much they matter.
-// `cargo test -p kit_stacker --release -- --ignored --nocapture difficulty`
+// `cargo test -p kit_stacker --profile bot -- --ignored --nocapture difficulty`
 // measures what a change does to round lengths.
 
 /// Width of the plate the tower stands on, px. Narrower is harder at once.

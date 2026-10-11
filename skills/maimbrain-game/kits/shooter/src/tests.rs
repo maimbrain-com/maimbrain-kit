@@ -1,7 +1,7 @@
 //! Rule tests, determinism, and the difficulty report from the bot.
 //!
 //! `cargo test -p kit_shooter` runs the rules; the full report is
-//! `cargo test -p kit_shooter --release -- --ignored --nocapture difficulty`.
+//! `cargo test -p kit_shooter --profile bot -- --ignored --nocapture difficulty`.
 
 use crate::bot::{Bot, DECENT, FIRST_TIMER, GOOD, Skill};
 use crate::sim::*;
@@ -362,7 +362,7 @@ fn difficulty() {
 /// Writes a bot-played round's sound events (plays, loop starts, track
 /// levels) to `$MIX_TRACE` for an offline mix: `tools/mixsim.py` renders it
 /// with the real assets and measures the effects against the music.
-///   MIX_TRACE=/tmp/trace.csv cargo test -p kit_shooter --release -- --ignored mix_trace
+///   MIX_TRACE=/tmp/trace.csv cargo test -p kit_shooter --profile bot -- --ignored mix_trace
 #[test]
 #[ignore]
 fn mix_trace() {

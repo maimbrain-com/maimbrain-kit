@@ -69,7 +69,7 @@ Three changes turn this kit into its own game:
 
 ## Difficulty (bot)
 
-`cargo test -p kit_trivia --release -- --ignored --nocapture difficulty` (200 seeded rounds per preset; `first_timer_rounds_last_20_to_45_seconds` checks the first-timer median on 40 seeds in every `cargo test`).
+`cargo test -p kit_trivia --profile bot -- --ignored --nocapture difficulty` (200 seeded rounds per preset; `first_timer_rounds_last_20_to_45_seconds` checks the first-timer median on 40 seeds in every `cargo test`).
 
 The bot reads like a person: the clock it beats is reading time (question words at its reading speed, answers scanned at twice that, from the moment the card starts flipping in) plus a decision time plus a 150–350 ms reaction. Per question it either knows the answer (chance by tier) and picks it after a short think (with a small slip rate, the fat finger), or guesses after a longer think (sometimes ruling one wrong answer out first). When its plan would land after the buzzer, it either taps whatever it leans toward in the last second ("clutch") or freezes and times out. The good preset reads faster and knows more; that is its anticipation.
 

@@ -1,7 +1,7 @@
 //! Rule tests and a bot that plays like a person, to tune difficulty.
 //!
 //!     cargo test -p kit_stacker                                    # rules (fast)
-//!     cargo test -p kit_stacker --release -- --ignored --nocapture difficulty
+//!     cargo test -p kit_stacker --profile bot -- --ignored --nocapture difficulty
 //!
 //! The second prints round lengths, scores and how each skill preset loses.
 

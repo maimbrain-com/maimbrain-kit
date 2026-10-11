@@ -272,6 +272,10 @@ pub fn new_game(dir: &Path, opts: &Options) -> Result<(), String> {
         eprintln!("Read {}/DESIGN.md first: how it plays, the tuning knobs, and \"Make it yours\".", dir.display());
     }
     eprintln!("Next: mb build {0}   then mb serve {0}", dir.display());
+    if let Some(t) = crate::devbuild::shared_target(dir) {
+        let export = if cfg!(windows) { format!("$env:CARGO_TARGET_DIR = \"{}\"", t.display()) } else { format!("export CARGO_TARGET_DIR=\"{}\"", t.display()) };
+        eprintln!("mb builds every game in {}, so the SDK compiles once. For `cargo test` to share it too: {export}", t.display());
+    }
     Ok(())
 }
 
@@ -310,7 +314,11 @@ fn standalone_cargo(text: &str) -> String {
         .replace("publish.workspace = true", "publish = false")
         .replace(&format!("path = \"{GAME_SDK_PATH}\""), &format!("git = \"{SDK_GIT}\""))
         + "\n# Standalone: not part of any parent workspace.\n[workspace]\n\n[profile.release]\nopt-level = \"s\"\nlto = true\ncodegen-units = 1\npanic = \"abort\"\n"
+        + BOT_PROFILE
 }
+
+/// The bot's tests (`cargo test --profile bot`): release speed without LTO's slow link.
+const BOT_PROFILE: &str = "\n# The bot's tests: `cargo test --profile bot -- --ignored --nocapture difficulty`.\n[profile.bot]\ninherits = \"release\"\nlto = false\ncodegen-units = 16\nincremental = true\n";
 
 /// Sets the manifest's id, creator and name lines.
 fn manifest(text: &str, id: &str, creator: &str, title: &str) -> String {
@@ -500,5 +508,8 @@ mod tests {
         assert!(!out.contains("mb new --kit"));
         let standalone = standalone_cargo(&out);
         assert!(standalone.contains(&format!("maimbrain = {{ git = \"{SDK_GIT}\", features = [\"physics2d\"] }}")));
+        let doc: toml::Table = standalone.parse().unwrap();
+        assert_eq!(doc["profile"]["bot"]["inherits"].as_str(), Some("release"));
+        assert_eq!(doc["profile"]["bot"]["lto"].as_bool(), Some(false));
     }
 }

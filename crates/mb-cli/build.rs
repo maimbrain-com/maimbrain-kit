@@ -14,9 +14,12 @@
 //   of its files).
 //
 // The runtime is usually built *after* mb-cli has compiled once (`just
-// runtime` itself runs `mb abi`), so the files are watched even while they
-// don't exist yet: Cargo reruns a build script whose rerun-if-changed path is
-// missing, so the next `cargo run -p mb-cli` after `just runtime` embeds it.
+// runtime` itself runs `mb abi`), so they're watched even while they don't
+// exist yet, through the directory they'll appear in (runtime/): the next
+// `cargo run -p mb-cli` after `just runtime` embeds them. Not by watching the
+// missing files themselves: Cargo reruns a build script whose
+// rerun-if-changed path is missing on every build, which relinked mb (3–4 s)
+// on every `cargo run` until the runtime was built.
 use std::path::{Path, PathBuf};
 
 const RUNTIME_FILES: [&str; 6] = ["index.html", "runtime.js", "probe-worker.js", "headless.js", "mb_host_bg.wasm", "silence.wav"];
@@ -42,11 +45,18 @@ fn main() {
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("runtime");
     std::fs::create_dir_all(&out).unwrap();
     let present = RUNTIME_FILES.iter().all(|f| dist.join(f).is_file());
+    // Not built yet: watch the directory it will be built in (see the top of
+    // this file). Not the kit's root, though, which holds target/.
+    let parent = dist.parent().filter(|p| !present && *p != root && p.is_dir());
+    if let Some(p) = parent {
+        println!("cargo:rerun-if-changed={}", p.display());
+    }
     let mut runtime_id = Fnv::new();
     for f in RUNTIME_FILES {
         let src = dist.join(f);
-        // Watched whether or not it exists yet (see the top of this file).
-        println!("cargo:rerun-if-changed={}", src.display());
+        if parent.is_none() {
+            println!("cargo:rerun-if-changed={}", src.display());
+        }
         let dest = out.join(f);
         if present {
             std::fs::copy(&src, &dest).unwrap_or_else(|e| panic!("{}: {e}", src.display()));

@@ -79,7 +79,7 @@ Three changes that turn this kit into its own game:
 
 ## Difficulty (bot)
 
-`cargo test -p kit_shooter --release -- --ignored --nocapture difficulty`, 200 seeded rounds per preset. The bot (`src/bot.rs`) plays through the same touch API as a person: it re-plans every reaction delay from where bullets were that long ago (wound back by their velocity), anticipates forward if skilled, only notices bullets within its awareness radius, steers a thumb with a speed limit and a slowly wandering tremor (multiplied by `DRAG_GAIN` on the ship), overshoots big new moves and corrects cautiously after, has attention lapses (doesn't re-plan), and greedily lines up under enemies and chases pickups. It chooses among 77 nearby spots by scoring where each threat will be over the next 0.6 s.
+`cargo test -p kit_shooter --profile bot -- --ignored --nocapture difficulty`, 200 seeded rounds per preset. The bot (`src/bot.rs`) plays through the same touch API as a person: it re-plans every reaction delay from where bullets were that long ago (wound back by their velocity), anticipates forward if skilled, only notices bullets within its awareness radius, steers a thumb with a speed limit and a slowly wandering tremor (multiplied by `DRAG_GAIN` on the ship), overshoots big new moves and corrects cautiously after, has attention lapses (doesn't re-plan), and greedily lines up under enemies and chases pickups. It chooses among 77 nearby spots by scoring where each threat will be over the next 0.6 s.
 
 | Preset | Reaction | Awareness | Median round | p10–p90 | Score (median) | Beats the boss | Dies in |
 |---|---|---|---|---|---|---|---|

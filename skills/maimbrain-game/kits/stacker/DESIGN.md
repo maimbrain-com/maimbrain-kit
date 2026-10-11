@@ -82,7 +82,7 @@ For each, add a `Cue` for its moment and give it a sound, a haptic and a popup i
 
 ## Difficulty (bot)
 
-`cargo test -p kit_stacker --release -- --ignored --nocapture difficulty` (200 seeded rounds per preset). The bot plays like a person: it watches the landing ghost and taps when it's over the top snack, but acts on what it saw a reaction delay ago; it misjudges the ghost by a fresh random bias each snack (more for a kind it's never seen: overshoot), gets more careful (a narrower window) for three drops after losing a heart, and the better presets anticipate their own delay (lead), steer a leaning tower back toward the middle, and wait out twists and the previous snack settling.
+`cargo test -p kit_stacker --profile bot -- --ignored --nocapture difficulty` (200 seeded rounds per preset). The bot plays like a person: it watches the landing ghost and taps when it's over the top snack, but acts on what it saw a reaction delay ago; it misjudges the ghost by a fresh random bias each snack (more for a kind it's never seen: overshoot), gets more careful (a narrower window) for three drops after losing a heart, and the better presets anticipate their own delay (lead), steer a leaning tower back toward the middle, and wait out twists and the previous snack settling.
 
 | Preset | Delay | Misjudge | Lead | Median round | p10–p90 | Snacks (median) | Tower |
 |---|---|---|---|---|---|---|---|

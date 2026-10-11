@@ -57,7 +57,8 @@ pub struct ShotArgs {
     script: Script,
     /// Print the game's log lines (`sys::log`) at this level and up, each with its frame and game
     /// time, after the shots (and in the sheet's .txt). Without --logs: info and up; --logs alone:
-    /// every level, debug too.
+    /// every level, debug too. A line logged again and again is listed once, with its count; only
+    /// the first 20 are printed (all of them with --logs-match, and in the .txt).
     #[arg(long, value_enum, num_args = 0..=1, require_equals = true, default_missing_value = "debug", value_name = "LEVEL")]
     logs: Option<LogLevel>,
     /// Only the log lines that contain this text.
@@ -175,18 +176,39 @@ impl LogLevel {
 
 /// The game's log lines in `mb.step()`'s timings, at `min` and up and
 /// containing `matching`: "frame 31 (0.52 s)  warn: …", in frame order.
+/// A line the game logs again and again (every frame, say) is listed once,
+/// at its first frame, with how many times and until when.
 fn game_logs(timings: &[Value], hz: f64, min: LogLevel, matching: Option<&str>) -> Vec<String> {
-    let mut out = Vec::new();
+    // (first frame, line, times, last frame), in the order first logged.
+    let mut seen: Vec<(u64, &str, u32, u64)> = Vec::new();
+    let mut index: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
     for t in timings {
         let frame = t["frame"].as_u64().unwrap_or(0);
         for l in t["logs"].as_array().into_iter().flatten().filter_map(Value::as_str) {
             if LogLevel::of(l) >= min && matching.is_none_or(|m| l.contains(m)) {
-                out.push(format!("frame {frame} ({:.2} s)  {l}", frame as f64 / hz));
+                match index.get(l) {
+                    Some(&i) => {
+                        seen[i].2 += 1;
+                        seen[i].3 = frame;
+                    }
+                    None => {
+                        index.insert(l, seen.len());
+                        seen.push((frame, l, 1, frame));
+                    }
+                }
             }
         }
     }
-    out
+    seen.into_iter()
+        .map(|(frame, l, n, last)| {
+            let again = if n > 1 { format!("  (×{n}, until frame {last})") } else { String::new() };
+            format!("frame {frame} ({:.2} s)  {l}{again}", frame as f64 / hz)
+        })
+        .collect()
 }
+
+/// How many of the game's log lines `mb shot` prints (the sheet's .txt has them all).
+const LOG_LINES: usize = 20;
 
 /// Set while `mb shot` lists the game's log lines itself (with their frames):
 /// the page's console copies of them aren't printed as well.
@@ -561,8 +583,17 @@ pub fn run(a: ShotArgs) -> Result<(), String> {
         }
         if !logs.is_empty() {
             eprintln!("game log ({} line{}):", logs.len(), if logs.len() == 1 { "" } else { "s" });
-            for l in &logs {
+            // --logs-match picked these; otherwise the first few, and where the rest are.
+            let shown = if a.logs_match.is_some() { logs.len() } else { logs.len().min(LOG_LINES) };
+            for l in &logs[..shown] {
                 eprintln!("  {l}");
+            }
+            if shown < logs.len() {
+                let rest = match &sheet {
+                    Some(p) => format!("in {}", p.with_extension("txt").display()),
+                    None => "(--sheet lists them all; --logs-match <text> picks lines)".into(),
+                };
+                eprintln!("  … {} more {rest}", logs.len() - shown);
             }
         }
         for s in &shots {
@@ -742,7 +773,9 @@ fn capture(exe: &Path, url: &str, m: &Manifest, plan: &Plan, a: &ShotArgs, out: 
     let (mut chrome, sid) = open_page(exe, url, m)?;
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let mut shots = Vec::new();
-    let (poses, timings) = play(&mut chrome, &sid, m, plan, &a.script, a.track_node, |chrome, b, t, mark, marked_subject| {
+    // GPU-paced stepping only buys --stats its GPU times: a shot's pixels are the same either way.
+    let paced = a.stats.is_some();
+    let (poses, timings) = play(&mut chrome, &sid, m, plan, &a.script, a.track_node, paced, |chrome, b, t, mark, marked_subject| {
         let png = screenshot(chrome, &sid)?;
         let file = match mark {
             Some(m) => format!("{}-{}.png", a.name, file_safe(m)),
@@ -787,7 +820,7 @@ fn capture(exe: &Path, url: &str, m: &Manifest, plan: &Plan, a: &ShotArgs, out: 
         return Ok((shots, None, logs));
     }
     let twice = Script { hz: a.script.hz * 2.0, ..a.script.clone() };
-    let (again, _) = play(&mut chrome, &sid, m, &Plan::shoot(&twice, &a.at, a.mark_wait, m.logical_size)?, &twice, a.track_node, |_, _, _, _, _| Ok(()))?;
+    let (again, _) = play(&mut chrome, &sid, m, &Plan::shoot(&twice, &a.at, a.mark_wait, m.logical_size)?, &twice, a.track_node, paced, |_, _, _, _, _| Ok(()))?;
     let lo = smooth::Run { hz: a.script.hz, poses };
     Ok((shots, Some(smooth::check(&lo, &smooth::Run { hz: twice.hz, poses: again }, a.track_node)), logs))
 }
@@ -803,10 +836,12 @@ fn play(
     plan: &Plan,
     script: &Script,
     track: Option<u32>,
+    paced: bool,
     mut shot: impl FnMut(&mut Chrome, u32, f64, Option<&str>, Option<u32>) -> Result<(), String>,
 ) -> Result<(Vec<smooth::Pose>, Vec<Value>), String> {
     let hz = script.hz;
     let mut player = Player::start(chrome, sid, m, plan, script, track)?;
+    player.paced = paced;
     // Shots whose frame is known: (frame, time, mark), taken in frame order.
     let mut due: Vec<(u32, f64, Option<String>)> = plan.shots.iter().map(|&(b, t)| (b, t, None)).collect();
     let mut waiting: Vec<MarkShot> = plan.marks.clone();
@@ -917,6 +952,8 @@ pub(crate) struct Player<'p> {
     /// Every frame's pose, and its timings as `mb.step` gave them.
     pub(crate) poses: Vec<smooth::Pose>,
     pub(crate) timings: Vec<Value>,
+    /// Whether each step waits for the GPU (and times it): `mb.step`'s `paced`.
+    pub(crate) paced: bool,
 }
 
 impl<'p> Player<'p> {
@@ -933,7 +970,7 @@ impl<'p> Player<'p> {
         if let Some(n) = track {
             eval(chrome, sid, &format!("mb.track({n})"))?;
         }
-        Ok(Player { plan, hz: script.hz, bounds: plan.boundaries(), next: 0, now: 0, unsent: None, poses: Vec::new(), timings: Vec::new() })
+        Ok(Player { plan, hz: script.hz, bounds: plan.boundaries(), next: 0, now: 0, unsent: None, poses: Vec::new(), timings: Vec::new(), paced: true })
     }
 
     /// Plays on until `target` frames have run (a shot's frame), sending the
@@ -970,7 +1007,7 @@ impl<'p> Player<'p> {
             return Ok(None);
         }
         let until = if labels.is_empty() { String::new() } else { format!(", until: {}", serde_json::to_string(labels).unwrap()) };
-        let r = eval(chrome, sid, &format!("mb.step({}, {{ dt: 1 / {}{until} }})", b - self.now, self.hz))?;
+        let r = eval(chrome, sid, &format!("mb.step({}, {{ dt: 1 / {}, paced: {}{until} }})", b - self.now, self.hz, self.paced))?;
         let timings = r["timings"].as_array().cloned().unwrap_or_default();
         let hit = timings.last().and_then(|t| marked(t, labels));
         self.poses.extend(timings.iter().filter_map(smooth::Pose::from_timing));
@@ -1521,6 +1558,10 @@ mod tests {
         assert_eq!(game_logs(&timings, 60.0, LogLevel::Debug, None).len(), 4);
         assert_eq!(game_logs(&timings, 120.0, LogLevel::Debug, Some("node")), ["frame 30 (0.25 s)  debug: node 65539 is the bank"]);
         assert!(game_logs(&timings, 60.0, LogLevel::Error, Some("slow")).is_empty());
+        let every_frame: Vec<Value> = (1..=90).map(|f| json!({ "frame": f, "logs": ["info: speed 3", format!("info: frame {f}")] })).collect();
+        let folded = game_logs(&every_frame, 60.0, LogLevel::Info, None);
+        assert_eq!(folded.len(), 91, "a repeated line is listed once");
+        assert_eq!(folded[0], "frame 1 (0.02 s)  info: speed 3  (×90, until frame 90)");
         let cli = Cli::try_parse_from(["mb", "game", "--logs"]).unwrap();
         assert_eq!(cli.shot.logs, Some(LogLevel::Debug), "--logs alone: every level");
         let cli = Cli::try_parse_from(["mb", "game", "--logs=warn", "--logs-match", "bank"]).unwrap();

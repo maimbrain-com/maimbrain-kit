@@ -1,7 +1,7 @@
 //! Rule tests, and a bot that plays the sim like a person, to tune difficulty.
 //!
 //!     cargo test -p kit_runner
-//!     cargo test -p kit_runner --release -- --ignored --nocapture difficulty
+//!     cargo test -p kit_runner --profile bot -- --ignored --nocapture difficulty
 //!
 //! The second prints each skill preset's round lengths, and how and where it dies.
 
@@ -420,7 +420,7 @@ fn difficulty() {
 /// What `sound.rs` plays over a bot-played round, as an event log for the
 /// skill's `scripts/mix_check.py` (every play, voice stop and music level):
 ///
-///     MB_MIX_LOG=/tmp/mix.log cargo test -p kit_runner --release -- --ignored mix_log
+///     MB_MIX_LOG=/tmp/mix.log cargo test -p kit_runner --profile bot -- --ignored mix_log
 ///     python3 <skill>/scripts/mix_check.py assets /tmp/mix.log
 ///
 /// `MB_MIX_SEED` and `MB_MIX_SKILL` (first-timer, decent, good) pick the round.

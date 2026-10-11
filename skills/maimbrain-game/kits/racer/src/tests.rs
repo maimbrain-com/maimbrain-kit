@@ -1,5 +1,5 @@
 //! Rule tests, and a bot that drives like a person, to tune difficulty.
-//! `cargo test -p kit_racer --release -- --ignored --nocapture difficulty`
+//! `cargo test -p kit_racer --profile bot -- --ignored --nocapture difficulty`
 //! prints round lengths and causes of death per skill preset.
 
 use maimbrain::Rng;

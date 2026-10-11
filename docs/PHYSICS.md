@@ -184,4 +184,4 @@ Keep it cheap: let things sleep (don't `.always_awake()` without need); use `pol
 ## Tools
 
 - `tools/physics-probe/run.sh`: rebuilds the probe wasm, checks node and jsc against the native golden hashes, and prints the per-step cost table above.
-- `cargo test -p topple --release -- --ignored --nocapture difficulty` and the same for `knockdown`: bot-driven difficulty reports for the demos.
+- `cargo test -p topple --profile bot -- --ignored --nocapture difficulty` and the same for `knockdown`: bot-driven difficulty reports for the demos.

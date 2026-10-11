@@ -76,7 +76,7 @@ Three changes turn this kit into your own game. Do all three.
 
 ## Difficulty (bot)
 
-`cargo test -p kit_match3 --release -- --ignored --nocapture difficulty` (200 seeded rounds per preset). The bot plays the sim through the same `swap` the host uses. It models a person scanning a board: a reaction delay after the board settles (0.15–0.35 s), then think time to scan; each scan spots each available move only with some probability (more on later scans), judges a move's worth with noise (and, for less skilled players, without valuing specials), sometimes misreads and swaps two things that don't match (a bounce), then takes motor time to swipe. Skilled players anticipate: part of their scan happens while the previous cascade is still falling. It sees only the first step of a move (what a person sees), not the refills.
+`cargo test -p kit_match3 --profile bot -- --ignored --nocapture difficulty` (200 seeded rounds per preset). The bot plays the sim through the same `swap` the host uses. It models a person scanning a board: a reaction delay after the board settles (0.15–0.35 s), then think time to scan; each scan spots each available move only with some probability (more on later scans), judges a move's worth with noise (and, for less skilled players, without valuing specials), sometimes misreads and swaps two things that don't match (a bounce), then takes motor time to swipe. Skilled players anticipate: part of their scan happens while the previous cascade is still falling. It sees only the first step of a move (what a person sees), not the refills.
 
 | Preset | Think | Spots | Misreads | Median round | p10–p90 | Swaps/min | Falls asleep in |
 |---|---|---|---|---|---|---|---|

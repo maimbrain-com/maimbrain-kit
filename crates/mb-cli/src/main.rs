@@ -727,7 +727,8 @@ fn build(dir: &Path) -> Result<PathBuf, String> {
     }
     let max_memory = manifest.perf_tier.max_memory_pages() * 65536;
     eprintln!("building {name} ({:?}, max memory {} MiB)", manifest.perf_tier, max_memory >> 20);
-    let status = Command::new("cargo")
+    devbuild::claim_outputs(dir, &name);
+    let status = devbuild::cargo_command(dir)
         // The game's own Cargo.toml: works for a standalone crate and for a workspace member.
         .args(["build", "--manifest-path"])
         .arg(dir.join("Cargo.toml"))
@@ -742,15 +743,21 @@ fn build(dir: &Path) -> Result<PathBuf, String> {
     let target = workspace_target_dir(dir)?;
     let raw = target.join("wasm32-unknown-unknown/release").join(format!("{}.wasm", name.replace('-', "_")));
     let opt = raw.with_extension("opt.wasm");
-    let wasm_opt = Command::new("wasm-opt")
-        .args(["-O3", "--strip-debug", "--strip-producers"])
-        .args(mb_format_features())
-        .arg(&raw)
-        .arg("-o")
-        .arg(&opt)
-        .status();
+    let flags = [&["-O3", "--strip-debug", "--strip-producers"][..], &mb_format_features()[..]].concat();
+    // wasm-opt is most of a build whose wasm didn't change (an asset edit, a
+    // rebuild): reuse its output when it was made from these bytes with these flags.
+    let stamp = raw.with_extension("opt.wasm.from");
+    let from = std::fs::read(&raw).map(|b| format!("{} {}", mb_format::bundle::hex(&<sha2::Sha256 as sha2::Digest>::digest(&b)), flags.join(" "))).unwrap_or_default();
+    if !from.is_empty() && opt.is_file() && std::fs::read_to_string(&stamp).is_ok_and(|s| s == from) {
+        return Ok(opt);
+    }
+    let _ = std::fs::remove_file(&stamp);
+    let wasm_opt = Command::new("wasm-opt").args(&flags).arg(&raw).arg("-o").arg(&opt).status();
     match wasm_opt {
-        Ok(s) if s.success() => Ok(opt),
+        Ok(s) if s.success() => {
+            let _ = std::fs::write(&stamp, from);
+            Ok(opt)
+        }
         Ok(_) => Err("wasm-opt failed".into()),
         Err(_) => {
             eprintln!("warning: wasm-opt not found; packing unoptimized wasm");
@@ -838,8 +845,20 @@ fn mb_format_features() -> [&'static str; 7] {
     ]
 }
 
+/// The user's cache directory: `~/Library/Caches` on macOS, `%LOCALAPPDATA%`
+/// on Windows, else `$XDG_CACHE_HOME` or `~/.cache`.
+pub(crate) fn user_cache_dir() -> Option<PathBuf> {
+    if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
+    } else if cfg!(target_os = "macos") {
+        std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library").join("Caches"))
+    } else {
+        std::env::var_os("XDG_CACHE_HOME").map(PathBuf::from).or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))
+    }
+}
+
 fn workspace_target_dir(dir: &Path) -> Result<PathBuf, String> {
-    let out = Command::new("cargo")
+    let out = devbuild::cargo_command(dir)
         .args(["metadata", "--format-version", "1", "--no-deps", "--manifest-path"])
         .arg(dir.join("Cargo.toml"))
         .output()

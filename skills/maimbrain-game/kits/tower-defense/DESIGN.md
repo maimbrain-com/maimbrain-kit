@@ -72,7 +72,7 @@ Three changes turn this kit into its own game. Do all three.
 
 ## Difficulty (bot)
 
-`cargo test -p kit_tower_defense --release -- --ignored --nocapture difficulty` plays 200 seeded rounds per preset with a bot that builds the way a person does. Under it is `autopilot::Planner`, a sensible heuristic: POP first, a BOOM once armor is coming, a CHILL at three towers, the best uncovered pad by road coverage, then upgrades when they're better value per coin. The bot (`src/tests.rs`) adds the human part:
+`cargo test -p kit_tower_defense --profile bot -- --ignored --nocapture difficulty` plays 200 seeded rounds per preset with a bot that builds the way a person does. Under it is `autopilot::Planner`, a sensible heuristic: POP first, a BOOM once armor is coming, a CHILL at three towers, the best uncovered pad by road coverage, then upgrades when they're better value per coin. The bot (`src/tests.rs`) adds the human part:
 - it **glances** at its coins only every so often (first-timer 3–8 s, good 0.3–0.8 s), because it's watching the jellies;
 - a **reaction delay** (150–350 ms) plus the time for the picker's **second tap** (0.25–1.4 s), and **missed taps** that cost another try;
 - **mistakes**: a random pad (first-timer 50%, good 5%) or a random tower kind (first-timer 50%, good 3%);

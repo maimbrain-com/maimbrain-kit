@@ -47,9 +47,18 @@ pub fn lock(dir: &Path) -> BuildLock {
     }
 }
 
-/// Where `dir`'s build lock lives: one file per game directory, in the temp directory.
+/// Where `dir`'s build lock lives: one file per game directory, in the temp
+/// directory, or one for every game building in the shared target (two games
+/// there can have the same crate name, and so the same output file).
 fn lock_path(dir: &Path) -> Option<PathBuf> {
-    let canon = dir.canonicalize().ok()?;
+    let key = match shared_target(dir) {
+        Some(t) => {
+            std::fs::create_dir_all(&t).ok()?;
+            t
+        }
+        None => dir.to_path_buf(),
+    };
+    let canon = key.canonicalize().ok()?;
     // FNV-1a: stable across runs and mb versions.
     let h = canon.to_string_lossy().bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x100_0000_01b3));
     let locks = std::env::temp_dir().join("mb-build-locks");
@@ -138,6 +147,77 @@ pub fn build(dir: &Path, name: &str) -> Result<Built, Failure> {
     build_with(dir, name, &[])
 }
 
+/// Where cargo builds `dir`'s game when that isn't up to the game. A
+/// standalone game (its own workspace, as `mb new` makes one outside the
+/// Maimbrain repo) that would build in its own `target/` builds in one target
+/// shared by every game instead, `maimbrain/target` in the user's cache
+/// directory, so the SDK and its dependencies compile once rather than once
+/// per game (10 s for a 2D game, a minute with physics). `CARGO_TARGET_DIR`,
+/// a configured `build.target-dir` and a game inside a larger workspace keep
+/// theirs.
+pub fn shared_target(dir: &Path) -> Option<PathBuf> {
+    static SEEN: std::sync::Mutex<Vec<(PathBuf, Option<PathBuf>)>> = std::sync::Mutex::new(Vec::new());
+    if std::env::var_os("CARGO_TARGET_DIR").is_some() || std::env::var_os("CARGO_BUILD_TARGET_DIR").is_some() {
+        return None;
+    }
+    let dir = dir.canonicalize().ok()?;
+    let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, t)) = seen.iter().find(|(d, _)| *d == dir) {
+        return t.clone();
+    }
+    let shared = (|| {
+        let out = Command::new("cargo")
+            .args(["metadata", "--format-version", "1", "--no-deps", "--manifest-path"])
+            .arg(dir.join("Cargo.toml"))
+            .output()
+            .ok()?;
+        let v: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+        let root = PathBuf::from(v["workspace_root"].as_str()?);
+        let own_default = Path::new(v["target_directory"].as_str()?) == root.join("target");
+        (own_default && root.canonicalize().ok()? == dir).then(|| crate::user_cache_dir().map(|c| c.join("maimbrain").join("target")))?
+    })();
+    seen.push((dir, shared.clone()));
+    shared
+}
+
+/// Before building `dir`'s game `name` in the shared target (holding its
+/// lock): cargo names a game's wasm after its crate alone, so two games with
+/// one name (two copies of a game, `mb measure --ab`'s older commit) write the
+/// same file, and cargo, which keeps their records apart, would take the other
+/// game's wasm for this one's and not rebuild it. So the target remembers which
+/// game built each name last, and when it was another, that game's wasm goes
+/// first and cargo rebuilds this game's crate (its dependencies stay built).
+pub fn claim_outputs(dir: &Path, name: &str) {
+    if let (Some(target), Ok(me)) = (shared_target(dir), dir.canonicalize()) {
+        claim(&target, &me.to_string_lossy(), &name.replace('-', "_"));
+    }
+}
+
+/// `claim_outputs` in `target` for the game at `me`, whose wasm is `file`.wasm.
+fn claim(target: &Path, me: &str, file: &str) {
+    let owners = target.join("mb-owners");
+    let stamp = owners.join(file);
+    if std::fs::read_to_string(&stamp).is_ok_and(|s| s == me) {
+        return;
+    }
+    for profile in std::fs::read_dir(target.join("wasm32-unknown-unknown")).into_iter().flatten().flatten() {
+        let p = profile.path();
+        for f in [p.join("deps").join(format!("{file}.wasm")), p.join(format!("{file}.wasm")), p.join(format!("{file}.opt.wasm")), p.join(format!("{file}.opt.wasm.from"))] {
+            let _ = std::fs::remove_file(f);
+        }
+    }
+    let _ = std::fs::create_dir_all(&owners).and_then(|()| std::fs::write(&stamp, me));
+}
+
+/// `cargo`, set to build `dir`'s game in the shared target when it uses it.
+pub fn cargo_command(dir: &Path) -> Command {
+    let mut cargo = Command::new("cargo");
+    if let Some(t) = shared_target(dir) {
+        cargo.env("CARGO_TARGET_DIR", t);
+    }
+    cargo
+}
+
 /// `build`, with extra `--config` settings for cargo (e.g. a `patch` that
 /// points the SDK at another kit's).
 pub fn build_with(dir: &Path, name: &str, config: &[String]) -> Result<Built, Failure> {
@@ -179,7 +259,8 @@ fn cargo(dir: &Path, name: &str, manifest: &Manifest, config: &[String]) -> Resu
     let max_memory = manifest.perf_tier.max_memory_pages() * 65536;
     // Colour for a person at a terminal (Windows consoles may not take ANSI codes from us).
     let color = std::io::stderr().is_terminal() && !cfg!(windows);
-    let mut child = Command::new("cargo")
+    claim_outputs(dir, name);
+    let mut child = cargo_command(dir)
         .args(cargo_args(dir, name, color))
         .args(config.iter().flat_map(|c| ["--config", c.as_str()]))
         // Exactly what `mb build` sets (SPEC §3), so dependencies aren't rebuilt for a flag change.
@@ -352,6 +433,29 @@ mod tests {
         let (got, game) = waiter.join().unwrap();
         assert!(got && held.elapsed() >= std::time::Duration::from_millis(300), "the second run waited for the first");
         let _ = std::fs::remove_dir_all(&game);
+    }
+
+    #[test]
+    fn a_game_reclaims_its_wasm_from_another_of_the_same_name() {
+        let target = std::env::temp_dir().join(format!("mb-claim-test-{}", std::process::id()));
+        let outputs = ["release/deps/frog.wasm", "release/frog.wasm", "release/frog.opt.wasm", "mb-watch/deps/frog.wasm"].map(|p| target.join("wasm32-unknown-unknown").join(p));
+        let other = target.join("wasm32-unknown-unknown/release/deps/toad.wasm");
+        let built = || {
+            for f in outputs.iter().chain([&other]) {
+                std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+                std::fs::write(f, b"wasm").unwrap();
+            }
+        };
+        built();
+        claim(&target, "/games/a/frog", "frog");
+        assert!(outputs.iter().all(|f| !f.exists()), "no record of who built them: rebuilt");
+        assert!(other.exists(), "another name's wasm stays");
+        built();
+        claim(&target, "/games/a/frog", "frog");
+        assert!(outputs.iter().all(|f| f.exists()), "the same game's own wasm stays");
+        claim(&target, "/games/b/frog", "frog");
+        assert!(outputs.iter().all(|f| !f.exists()), "another game named frog: rebuilt");
+        let _ = std::fs::remove_dir_all(&target);
     }
 
     #[test]

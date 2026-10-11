@@ -1,9 +1,15 @@
-# Tests the kit on Linux, macOS and Windows, then builds mb for each platform
-# when a v* tag is pushed and attaches the archives to the GitHub release
-# (maimbrain.com/install.sh and install.ps1 download them).
+# Builds mb for each platform when a v* tag is pushed and attaches the archives
+# to the GitHub release (maimbrain.com/install.sh and install.ps1 download them).
+# Tags come from the monorepo's kit release, which pushes main and the tag together
+# only after the monorepo's CI ran these same tests (.github/ci/test.sh) on this
+# kit on Linux, macOS and Windows, so a tag goes straight to the builds. Pull
+# requests here (and Actions → release → Run workflow) run the tests.
+# Pushes to main build too, without publishing: they keep each platform's
+# compiled dependencies cached, which the next tag's builds start from.
 name: release
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -11,6 +17,7 @@ permissions:
   contents: write
 jobs:
   test:
+    if: github.event_name != 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -21,16 +28,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      # The tests live in a script so the monorepo's PR CI runs exactly these on a
-      # freshly assembled kit before anything reaches this repo (bash on all three:
-      # Git Bash on Windows).
+      # Every part of the tests (bash on all three: Git Bash on Windows). The
+      # monorepo's PR CI runs this script too, on each kit before it's published.
       - name: Test the kit (.github/ci/test.sh)
         shell: bash
         run: bash .github/ci/test.sh
 
   build:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: test
+    if: github.event_name == 'push'
     strategy:
       matrix:
         include:
@@ -49,15 +54,21 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      # The dependencies, compiled; saved from main (tags read main's caches).
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo build -p mb-cli --release --target ${{ matrix.target }}
       - name: Package (tar.gz)
-        if: runner.os != 'Windows'
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os != 'Windows'
         run: tar -czf mb-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release mb
       - name: Package (zip)
-        if: runner.os == 'Windows'
+        if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Windows'
         shell: pwsh
         run: Compress-Archive -Path target/${{ matrix.target }}/release/mb.exe -DestinationPath mb-${{ matrix.target }}.zip
       - name: Upload to the release
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
           gh release create "$TAG" --title "$TAG" --generate-notes 2>/dev/null || true

@@ -788,6 +788,9 @@ pub fn pick(name: &str, model: &str, est: Option<f64>) -> Result<Box<dyn Provide
         Route::Maimbrain(s) => {
             maimbrain::check_budget(&s, est, name)?;
             eprintln!("  keys: Maimbrain's (@{}) · {}", s.username, s.summary());
+            if name == "tripo" {
+                return Ok(Box::new(super::tripo::Tripo::signed_in(Box::new(Http), Poll::from_env())?));
+            }
             Ok(Box::new(maimbrain::Maimbrain::signed_in(name, Box::new(Http))?))
         }
         Route::Own(from) => {

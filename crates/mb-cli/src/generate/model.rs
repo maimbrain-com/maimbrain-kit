@@ -444,9 +444,6 @@ pub fn run(a: ModelArgs) -> Result<(), String> {
     let style = if a.no_style { Style::default() } else { Style::load(&a.game)?.0 };
     let style_provider = style.provider.as_deref().filter(|p| provider::default_model(p, Media::Model).is_some());
     let flag = if a.import.is_some() { Some("import".to_string()) } else { super::maimbrain::take_flags(a.provider.as_deref(), a.own_keys)? };
-    if super::maimbrain::mode() == super::maimbrain::Mode::Maimbrain && !matches!(flag.as_deref(), Some("mock" | "import")) {
-        return Err("Maimbrain's keys don't cover 3D models yet; use your own key (mb keys set tripo) or --provider mock".into());
-    }
     let order = ["tripo", "meshy"];
     let chosen = if flag.as_deref() == Some("import") { Ok("import".to_string()) } else { provider::choose(flag.as_deref(), style_provider, &order, "3D models") };
     let chosen = if chosen.is_err() && a.dry_run { Ok(order[0].to_string()) } else { chosen };
@@ -646,11 +643,18 @@ pub fn rig_task_of(result: &Value) -> Option<(String, String)> {
 /// rigging again. The rigged model and clips go into `raw` and the recipe; the
 /// tasks and the cost into the sidecar. False for a dry run (nothing to write).
 fn add_rig(a: &ModelArgs, job: &mut ModelJob, sc: &mut Sidecar, raw: &mut Raw) -> Result<bool, String> {
-    let provider_name = match a.provider.clone() {
+    use super::maimbrain::{self, Mode};
+    let provider_name = match maimbrain::take_flags(a.provider.as_deref(), a.own_keys)? {
         Some(p) => p,
         None if matches!(job.provider.as_str(), "import" | "") => "tripo".to_string(),
+        // --provider maimbrain on a model from a provider its keys don't cover.
+        None if maimbrain::mode() == Mode::Maimbrain && !maimbrain::SERVER_PROVIDERS.contains(&job.provider.as_str()) => "tripo".to_string(),
         None => job.provider.clone(),
     };
+    let model_id = if provider_name == job.provider { job.model.clone() } else { provider::default_model(&provider_name, Media::Model).map(|m| m.id.to_string()).unwrap_or_default() };
+    // A task lives on the account that ran it, yours or Maimbrain's: only those on this run's can be built on.
+    let account = if a.dry_run { None } else { maimbrain::would_use(&provider_name, Some(&model_id)).then_some("maimbrain") };
+    let here = |id: &str| a.dry_run || task_via(&sc.result, id) == account;
     let mut rig = rig_task_of(&sc.result);
     if let Some(id) = &a.rig_task {
         let ty = a.rig_type.clone().or(job.rig_type.clone()).unwrap_or_else(|| "biped".into());
@@ -668,6 +672,10 @@ fn add_rig(a: &ModelArgs, job: &mut ModelJob, sc: &mut Sidecar, raw: &mut Raw) -
     for s in a.animate.iter().filter(|s| !new.contains(s)) {
         eprintln!("  {s}: already a clip of it; not made again");
     }
+    if let Some((id, _)) = rig.clone().filter(|(id, _)| a.rig_task.is_none() && !new.is_empty() && !here(id)) {
+        eprintln!("  note: rig task {id} was made on {} keys, which these can't add clips to; rigging again", if account.is_some() { "your own" } else { "Maimbrain's" });
+        rig = None;
+    }
     // A rig mb can't add clips to (made before rig tasks were recorded): rig again, or adopt one with --rig-task.
     let need_rig = rig.is_none() && (!rigged || !new.is_empty() || a.rig_type.is_some());
     if rigged && rig.is_none() && !new.is_empty() && a.rig_task.is_none() {
@@ -679,7 +687,7 @@ fn add_rig(a: &ModelArgs, job: &mut ModelJob, sc: &mut Sidecar, raw: &mut Raw) -
         if a.rig_task.is_some() {
             job.rig = true;
             job.rig_type = Some(ty.clone());
-            add_tasks(sc, &[(format!("rig ({ty})"), id)], &["adopted the rig task with --rig-task".to_string()], 0.0);
+            add_tasks(sc, &[(format!("rig ({ty})"), id)], &["adopted the rig task with --rig-task".to_string()], 0.0, account);
         }
         return Ok(true);
     }
@@ -694,8 +702,8 @@ fn add_rig(a: &ModelArgs, job: &mut ModelJob, sc: &mut Sidecar, raw: &mut Raw) -
         .into_iter()
         .flatten()
         .find(|t| t["step"].as_str().is_some_and(|s| s.ends_with("-to-model") || s == "mock"))
-        .and_then(|t| t["id"].as_str().map(str::to_string));
-    let model_id = if provider_name == job.provider { job.model.clone() } else { provider::default_model(&provider_name, Media::Model).map(|m| m.id.to_string()).unwrap_or_default() };
+        .and_then(|t| t["id"].as_str().map(str::to_string))
+        .filter(|id| here(id));
     let price = provider::find_model(&provider_name, &model_id).and_then(|m| match m.price {
         provider::Price::Model3d { rig, animation, .. } => Some((rig, animation)),
         _ => None,
@@ -761,19 +769,34 @@ fn add_rig(a: &ModelArgs, job: &mut ModelJob, sc: &mut Sidecar, raw: &mut Raw) -
     if provider_name != job.provider && job.provider == "import" {
         job.provider = provider_name;
     }
-    add_tasks(sc, &tasks, &out.notes, out.cost_usd.unwrap_or(0.0));
+    add_tasks(sc, &tasks, &out.notes, out.cost_usd.unwrap_or(0.0), prov.via());
     Ok(true)
 }
 
 /// Adds a rig's tasks, notes and cost to a sidecar about to be reprocessed.
-fn add_tasks(sc: &mut Sidecar, tasks: &[(String, String)], notes: &[String], cost: f64) {
+fn add_tasks(sc: &mut Sidecar, tasks: &[(String, String)], notes: &[String], cost: f64, via: Option<&str>) {
     let mut all = sc.result["tasks"].as_array().cloned().unwrap_or_default();
-    all.extend(tasks.iter().map(|(s, id)| json!({ "step": s, "id": id })));
+    all.extend(tasks.iter().map(|(s, id)| task_json(s, id, via)));
     sc.result["tasks"] = json!(all);
     let mut n = sc.result["notes"].as_array().cloned().unwrap_or_default();
     n.extend(notes.iter().map(|s| json!(s)));
     sc.result["notes"] = json!(n);
     sc.cost_usd = Some(sc.cost_usd.unwrap_or(0.0) + cost);
+}
+
+/// A provider task for the sidecar's `result.tasks`, with `"via": "maimbrain"`
+/// when it ran on Maimbrain's keys (so on Maimbrain's Tripo account).
+fn task_json(step: &str, id: &str, via: Option<&str>) -> Value {
+    let mut t = json!({ "step": step, "id": id });
+    if let Some(v) = via {
+        t["via"] = json!(v);
+    }
+    t
+}
+
+/// Whose keys ran the task `id` in a sidecar's `result.tasks` ("maimbrain", or None: yours).
+fn task_via<'a>(result: &'a Value, id: &str) -> Option<&'a str> {
+    result["tasks"].as_array()?.iter().find(|t| t["id"] == id)?["via"].as_str()
 }
 
 /// The recipe's `--clip` edits with `new` ones: an edit replaces the one
@@ -1213,17 +1236,12 @@ pub fn execute(game: &Path, job: &ModelJob, variants: u32, dry_run: bool, limit:
     eprintln!("  {} {} · seed {}{}", job.provider, job.model, job.seed, if model.is_some_and(|m| !m.seed) { " (not honored)" } else { "" });
     let est = model.and_then(|m| provider::estimate_model(m, job.reference.is_some(), job.rig, job.animate.len()));
     let art = super::ensure_art_dir(game)?;
-    let (outs, ref_files): (Vec<(u64, Raw, Option<f64>, Option<String>, Vec<String>, Vec<(String, String)>, Option<String>)>, Vec<FileRef>) = match raw {
+    let (outs, ref_files): (Vec<(u64, Raw, Option<f64>, Option<String>, Vec<String>, Vec<Value>, Option<String>)>, Vec<FileRef>) = match raw {
         Some((r, sc)) => {
             eprintln!("  reprocessing {} (no provider call)", sc.raw);
             // Keep what the generation cost and reported.
             let notes = sc.result["notes"].as_array().into_iter().flatten().filter_map(|n| n.as_str().map(str::to_string)).collect();
-            let tasks = sc.result["tasks"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|t| (t["step"].as_str().unwrap_or("").to_string(), t["id"].as_str().unwrap_or("").to_string()))
-                .collect();
+            let tasks = sc.result["tasks"].as_array().cloned().unwrap_or_default();
             (vec![(sc.seed, r, sc.cost_usd, sc.model_text.clone(), notes, tasks, sc.via.clone())], sc.references.clone())
         }
         None => {
@@ -1272,7 +1290,8 @@ pub fn execute(game: &Path, job: &ModelJob, variants: u32, dry_run: bool, limit:
                     eprintln!("  warning: the model came back without a rig");
                 }
                 let raw = Raw { glb: out.glb, clips: out.clips };
-                outs.push((seed, raw, out.cost_usd, out.text, out.notes, out.tasks, prov.via().map(str::to_string)));
+                let tasks = out.tasks.iter().map(|(s, id)| task_json(s, id, prov.via())).collect();
+                outs.push((seed, raw, out.cost_usd, out.text, out.notes, tasks, prov.via().map(str::to_string)));
             }
             (outs, image.map(|i| vec![i.1]).unwrap_or_default())
         }
@@ -1308,7 +1327,7 @@ pub fn execute(game: &Path, job: &ModelJob, variants: u32, dry_run: bool, limit:
         facts["rigged"] = json!(facts["joints"].as_u64().unwrap_or(0) > 0);
         facts["warnings"] = json!(warnings);
         facts["notes"] = json!(notes);
-        facts["tasks"] = json!(tasks.iter().map(|(s, id)| json!({ "step": s, "id": id })).collect::<Vec<_>>());
+        facts["tasks"] = json!(tasks);
         // The rig clips are added to later (`--animate` on this model), from the tasks.
         facts["rig_task"] = rig_task_of(&facts).map(|(id, t)| json!({ "id": id, "rig_type": t })).unwrap_or(Value::Null);
         let dest = if variants == 1 { game.join(&job.out) } else { art.join("variants").join(format!("{}-{}.glb", job.name, v + 1)) };
@@ -1457,7 +1476,11 @@ pub fn regen(a: &super::RegenArgs, sc: &Sidecar) -> Result<(), String> {
     if let Some(p) = &a.prompt {
         job.subject = p.clone();
     }
-    if let Some(p) = &a.provider {
+    // --provider maimbrain on a model from a provider its keys don't cover: tripo.
+    let switch = a.provider.clone().or_else(|| {
+        (super::maimbrain::mode() == super::maimbrain::Mode::Maimbrain && !super::maimbrain::SERVER_PROVIDERS.contains(&job.provider.as_str())).then(|| "tripo".to_string())
+    });
+    if let Some(p) = &switch {
         job.provider = p.clone();
         if a.model.is_none() {
             job.model = provider::default_model(p, Media::Model).map(|m| m.id.to_string()).unwrap_or_default();
@@ -1514,6 +1537,14 @@ mod tests {
             orient: None,
             compress: true,
         }
+    }
+
+    #[test]
+    fn tasks_record_whose_keys_ran_them() {
+        let result = json!({ "tasks": [task_json("text-to-model", "task_gen", None), task_json("rig (biped)", "task_rig", Some("maimbrain"))] });
+        assert_eq!(result["tasks"][0], json!({ "step": "text-to-model", "id": "task_gen" }), "yours: no via, as before");
+        assert_eq!((task_via(&result, "task_gen"), task_via(&result, "task_rig")), (None, Some("maimbrain")));
+        assert_eq!(rig_task_of(&result), Some(("task_rig".to_string(), "biped".to_string())));
     }
 
     #[test]

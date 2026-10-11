@@ -1,5 +1,11 @@
 # Creator kit changelog
 
+## 0.7.2
+
+- **3D models on Maimbrain's keys:** accounts the Maimbrain team has also given 3D access can run `mb model` on Maimbrain's Tripo key with no Tripo key of their own (or with `--provider maimbrain`), within the same monthly budget as art and sound: models, rigs, clips, `--rig` on a model made earlier and `--variants` all work as on your own key. `mb models` marks the Tripo models `M`. Each task is charged at its list price when it starts and at what Tripo reports when it finishes (a failed one costs nothing); a person runs two tasks of each kind at once, and a run over that, or over Tripo's own limits, waits and tries again. Meshy and voices stay on your own keys.
+- Each task in a model's sidecar (`result.tasks`) records `"via": "maimbrain"` when it ran on Maimbrain's key. Rigging a model made on the other account's key uploads its raw `.glb` instead of using its task, and new clips for a rig made on the other account rig it again.
+- **The kit's tests run several times faster:** a debug build from this repo now optimizes its dependencies (and `mb` a little), as the monorepo's does, so `cargo test` no longer spends minutes encoding audio and simplifying meshes unoptimized. `.github/ci/test.sh` takes parts (`bash .github/ci/test.sh unit`, `mb smoke serve`, …) to run a few of them.
+
 ## 0.7.1
 - **`mb` runs on Windows again.** It overflowed its stack the moment it started: every subcommand lives in one function, and a debug build's frame for it outgrew the 1 MB main thread Windows gives a process. `mb` now runs on a thread with its own 64 MB stack on every platform. 0.7.0 shipped no `mb` downloads for any platform because of this; 0.7.1 has them.
 

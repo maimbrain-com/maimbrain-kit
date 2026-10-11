@@ -26,6 +26,12 @@
 //! process dies) before creating a generation task, so parallel `mb model`
 //! runs on one machine queue instead of failing, and retries a refused
 //! creation with backoff, for tasks started elsewhere on the account.
+//!
+//! On Maimbrain's keys (generate/maimbrain.rs) the same client talks to the
+//! Maimbrain server, which passes these paths through to Tripo with its key
+//! (`{server}/api/v1/generate/tripo`, the `mb login` token as the key): no
+//! region to find, no slots or balance (the server has its own caps and the
+//! budget), and only its "busy" answers (code 2000 or 1007) are retried.
 
 use serde_json::{Value, json};
 
@@ -43,6 +49,8 @@ pub struct Tripo {
     settled: std::sync::atomic::AtomicBool,
     /// Where the concurrency slots' lock files live (None: no queueing across processes).
     slots: Option<std::path::PathBuf>,
+    /// Through the Maimbrain server, on its key.
+    maimbrain: bool,
 }
 
 /// Tasks an account runs at once in a generation pool: P-series 5, H-series 10.
@@ -214,7 +222,19 @@ impl Tripo {
         let pinned = std::env::var("TRIPO_BASE_URL").ok().filter(|u| !u.is_empty());
         let settled = std::sync::atomic::AtomicBool::new(pinned.is_some());
         let base = std::sync::Mutex::new(pinned.map(|u| u.trim_end_matches('/').to_string()).unwrap_or_else(|| BASES[0].to_string()));
-        Tripo { key, http, poll, base, settled, slots: None }
+        Tripo { key, http, poll, base, settled, slots: None, maimbrain: false }
+    }
+
+    /// On Maimbrain's key: the server at `server`, signed in with `token`.
+    pub fn on_maimbrain(server: &str, token: &str, http: Box<dyn Transport>, poll: Poll) -> Tripo {
+        let base = format!("{}/api/v1/generate/tripo", server.trim_end_matches('/'));
+        Tripo { key: token.to_string(), http, poll, base: std::sync::Mutex::new(base), settled: true.into(), slots: None, maimbrain: true }
+    }
+
+    /// With the `mb login` credentials.
+    pub fn signed_in(http: Box<dyn Transport>, poll: Poll) -> Result<Tripo, String> {
+        let c = crate::remote::credentials()?;
+        Ok(Tripo::on_maimbrain(&c.server, &c.token, http, poll))
     }
 
     /// Queues generation tasks with other `mb` processes through lock files in `dir`.
@@ -279,6 +299,9 @@ impl Tripo {
     /// tasks still running). `GET /user/balance` on the V3 base, then on the
     /// V2 OpenAPI base the SDKs use.
     pub fn balance(&self) -> Result<f64, String> {
+        if self.maimbrain {
+            return Err("tripo on Maimbrain's keys has no balance (the budget is mb models' line)".into());
+        }
         let base = self.base.lock().unwrap().clone();
         let v2 = if base.contains("tripo3d.com") { "https://api.tripo3d.com/v2/openapi" } else { "https://api.tripo3d.ai/v2/openapi" };
         let mut last = String::new();
@@ -306,6 +329,14 @@ impl Tripo {
 
     fn data(&self, r: super::provider::Response) -> Result<Value, String> {
         let v: Value = serde_json::from_slice(&r.body).unwrap_or_default();
+        if self.maimbrain && (r.status != 200 || v["code"].as_i64().unwrap_or(-1) != 0) {
+            let msg = v["message"].as_str().or(v["error"].as_str()).map(str::to_string).unwrap_or_else(|| format!("HTTP {}", r.status));
+            return Err(match r.status {
+                401 => "Maimbrain's keys: your sign-in has expired or was revoked; run mb login".into(),
+                402..=404 => format!("Maimbrain's keys: {msg}"),
+                _ => format!("Maimbrain's keys: tripo: {msg}{}", v["suggestion"].as_str().map(|s| format!(" ({s})")).unwrap_or_default()),
+            });
+        }
         if r.status != 200 || v["code"].as_i64().unwrap_or(-1) != 0 {
             let msg = v["message"].as_str().map(str::to_string).unwrap_or_else(|| String::from_utf8_lossy(&r.body).chars().take(300).collect());
             let hint = match (r.status, v["code"].as_i64()) {
@@ -327,11 +358,17 @@ impl Tripo {
         let mut attempt = 0;
         loop {
             let r = self.post(path, "application/json", serde_json::to_vec(body).unwrap())?;
-            let code = serde_json::from_slice::<Value>(&r.body).ok().and_then(|v| v["code"].as_i64());
-            let busy = r.status == 429 || matches!(code, Some(2000 | 1007));
+            let v = serde_json::from_slice::<Value>(&r.body).unwrap_or_default();
+            let code = v["code"].as_i64();
+            // The server's other refusals (a daily limit) are 429s too, without these codes.
+            let busy = (r.status == 429 && !self.maimbrain) || matches!(code, Some(2000 | 1007));
             if busy && t0.elapsed() < self.poll.timeout {
                 let wait = backoff(&self.poll, attempt);
-                let why = if code == Some(1007) { "too many requests just now" } else { "the account's tasks are at Tripo's limit (5 P-series or 10 H-series at once)" };
+                let why = match (self.maimbrain, v["message"].as_str()) {
+                    (true, Some(m)) => m.to_string(),
+                    _ if code == Some(1007) => "too many requests just now".into(),
+                    _ => "the account's tasks are at Tripo's limit (5 P-series or 10 H-series at once)".into(),
+                };
                 eprintln!("    tripo: {why}; trying again in {:.0} s", wait.as_secs_f32());
                 std::thread::sleep(wait);
                 attempt += 1;
@@ -395,7 +432,11 @@ impl Tripo {
 
 impl Provider for Tripo {
     fn name(&self) -> &'static str {
-        "tripo"
+        if self.maimbrain { "tripo on Maimbrain's keys" } else { "tripo" }
+    }
+
+    fn via(&self) -> Option<&'static str> {
+        self.maimbrain.then_some("maimbrain")
     }
 
     fn image(&self, _req: &ImageRequest) -> Result<Output, String> {
@@ -403,7 +444,7 @@ impl Provider for Tripo {
     }
 
     fn balance_usd(&self) -> Option<Result<f64, String>> {
-        Some(self.balance().map(|credits| credits * 0.01))
+        (!self.maimbrain).then(|| self.balance().map(|credits| credits * 0.01))
     }
 
     fn audio(&self, _req: &AudioRequest) -> Result<Output, String> {
@@ -769,6 +810,46 @@ mod tests {
         let t = Tripo::new("tsk_test".into(), Box::new(fake.clone()), Poll { every: Duration::ZERO, timeout: Duration::ZERO });
         let e = t.model(&ModelRequest { prompt: "a mech".into(), model: "P1-20260311".into(), ..Default::default() }).unwrap_err();
         assert!(e.contains("code 2000") && e.contains("5 P-series"), "{e}");
+    }
+
+    #[test]
+    fn on_maimbrains_key_the_same_calls_go_to_the_server() {
+        let glb = b"glTF\x02\0\0\0fake".to_vec();
+        let fake = Rc::new(Fake::new(vec![
+            reply(429, json!({ "code": 2000, "message": "2 of your p-series tasks are already running on Maimbrain's Tripo key" })),
+            reply(200, json!({ "code": 0, "data": { "task_id": "task_gen" } })),
+            task("task_gen", "success", 100, json!({ "model_url": "https://cdn.tripo3d.ai/m.glb?sig=1" }), 40.0),
+            file(&glb),
+        ]));
+        let t = Tripo::on_maimbrain("https://maimbrain.test/", "cli_tok", Box::new(fake.clone()), Poll { every: Duration::ZERO, timeout: Duration::from_secs(5) });
+        assert_eq!((t.name(), t.via()), ("tripo on Maimbrain's keys", Some("maimbrain")));
+        assert!(t.balance_usd().is_none(), "the budget, not a Tripo balance");
+        let out = t.model(&ModelRequest { prompt: "a koi".into(), model: "P1-20260311".into(), polys: 4000, ..Default::default() }).unwrap();
+        assert_eq!(out.glb, glb);
+        assert!((out.cost_usd.unwrap() - 0.40).abs() < 1e-9);
+        let sent = fake.sent.borrow();
+        assert_eq!(sent[0].0, "https://maimbrain.test/api/v1/generate/tripo/generation/text-to-model");
+        assert_eq!(sent[1].0, sent[0].0, "the server's busy answer is retried");
+        assert_eq!(sent[0].1[0], ("Authorization".to_string(), "Bearer cli_tok".to_string()));
+        assert_eq!(sent[2].0, "GET https://maimbrain.test/api/v1/generate/tripo/tasks/task_gen");
+        assert!(sent[3].0.starts_with("GET https://cdn.tripo3d.ai/") && sent[3].1.is_empty(), "no token to the file host");
+        drop(sent);
+        // The server's refusals: no other region, no retry, its message.
+        let fake = Rc::new(Fake::new(vec![
+            reply(401, json!({ "error": "sign in required" })),
+            reply(402, json!({ "code": "over_budget", "message": "this would cost about $0.4000, more than the $0.10 left" })),
+            reply(429, json!({ "code": "daily_limit", "message": "that's the most 3D tasks for one day on Maimbrain's keys; try tomorrow" })),
+            reply(403, json!({ "code": "not_allowed", "message": "@ada can't make 3D models on Maimbrain's keys" })),
+        ]));
+        let t = Tripo::on_maimbrain("https://maimbrain.test", "cli_tok", Box::new(fake.clone()), Poll { every: Duration::ZERO, timeout: Duration::from_secs(5) });
+        let req = ModelRequest { prompt: "a koi".into(), model: "P1-20260311".into(), ..Default::default() };
+        assert!(t.model(&req).unwrap_err().contains("run mb login"));
+        assert!(t.model(&req).unwrap_err().contains("$0.10 left"));
+        assert!(t.model(&req).unwrap_err().contains("try tomorrow"));
+        assert_eq!(t.model(&req).unwrap_err(), "Maimbrain's keys: @ada can't make 3D models on Maimbrain's keys");
+        assert_eq!(fake.sent.borrow().len(), 4);
+        assert!(fake.sent.borrow().iter().all(|s| s.0.starts_with("https://maimbrain.test/")));
+        assert!(t.balance().is_err());
     }
 
     #[test]

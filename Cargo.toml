@@ -8,8 +8,37 @@ edition = "2024"
 version = "0.0.0"
 publish = false
 
+# Tests run the debug `mb`, which decodes, encodes and resizes real audio,
+# images and meshes: optimize the dependencies doing that work (our own crates
+# stay unoptimized, so they still build fast and debug well).
+[profile.dev.package."*"]
+opt-level = 2
+# mb's own audio analysis (loop cutting, beat and seam checks) is the rest of
+# the music tests' time.
+[profile.dev.package.mb-cli]
+opt-level = 1
+# Except wasmi (mb-format's metering tests): optimized, its trap on running out
+# of fuel overflows a test thread's stack.
+[profile.dev.package.wasmi]
+opt-level = 0
+[profile.dev.package.wasmi_core]
+opt-level = 0
+[profile.dev.package.wasmi_ir]
+opt-level = 0
+[profile.dev.package.wasmi_collections]
+opt-level = 0
+
 [profile.release]
 opt-level = 3
 lto = true
 codegen-units = 1
 panic = "abort"
+
+# CI builds whose output is only tested, never shipped (the server tests' `mb`
+# and the iOS compile check): release optimizations without the
+# whole-program LTO and single codegen unit that make release links slow.
+[profile.ci]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = false

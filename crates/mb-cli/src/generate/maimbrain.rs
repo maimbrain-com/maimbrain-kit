@@ -1,15 +1,19 @@
 //! Maimbrain's generation keys. Creators the Maimbrain team has given access
 //! (a toggle on the server's admin page) can generate with the platform's
 //! Gemini and ElevenLabs keys, within a monthly budget, without a key of
-//! their own. The server makes the provider call and returns the raw image
+//! their own; with a second toggle, 3D models on its Tripo key too, within the
+//! same budget. The server makes the provider call and returns the raw image
 //! or sound; everything after that (keying, fitting, loops, loudness,
-//! sidecars) still happens here.
+//! sidecars) still happens here. For Tripo the server passes Tripo's task
+//! API through instead, and the usual Tripo client talks to it
+//! (`Tripo::on_maimbrain` in tripo.rs).
 //!
 //! Which keys a call uses:
 //!   1. your own key for the provider, if you have one (you pay) — unchanged;
 //!   2. otherwise, when you're signed in (`mb login`) and the server says your
 //!      account has access, Maimbrain's keys (`GET /api/v1/generate/status`,
-//!      then `POST /api/v1/generate/image|music|sfx`);
+//!      then `POST /api/v1/generate/image|music|sfx`, or Tripo's paths under
+//!      `/api/v1/generate/tripo/`);
 //!   3. otherwise the usual "set a key" message, plus how to ask for access.
 //!
 //! `--own-keys` (or `MB_KEYS_SOURCE=own`) never uses Maimbrain's keys;
@@ -27,7 +31,10 @@ use super::audio::Kind;
 use super::provider::{AudioRequest, ImageRequest, Output, Provider, Transport, b64, unb64};
 
 /// Providers the server calls with Maimbrain's keys.
-pub const SERVER_PROVIDERS: &[&str] = &["gemini", "elevenlabs"];
+pub const SERVER_PROVIDERS: &[&str] = &["gemini", "elevenlabs", "tripo"];
+
+/// Those the server calls in one request (this file's `Maimbrain` provider); tripo goes through tripo.rs.
+const PROXIED: &[&str] = &["gemini", "elevenlabs"];
 
 pub const ASK: &str = "or ask the Maimbrain team for access to its keys";
 
@@ -185,7 +192,7 @@ pub fn decide(provider: &str, model: Option<&str>, mode: Mode, own_key: Option<&
     let forced = mode == Mode::Maimbrain;
     if !SERVER_PROVIDERS.contains(&provider) {
         return Err(if forced {
-            format!("Maimbrain's keys cover gemini (images, music) and elevenlabs (sound effects, music), not {provider}")
+            format!("Maimbrain's keys cover gemini (images, music), elevenlabs (sound effects, music) and tripo (3D models), not {provider}")
         } else {
             no_key(provider)
         });
@@ -212,6 +219,12 @@ pub fn decide(provider: &str, model: Option<&str>, mode: Mode, own_key: Option<&
         Err(e) if forced => Err(e),
         Err(e) => Err(format!("{}\n(couldn't check Maimbrain's keys: {e})", no_key(provider))),
     }
+}
+
+/// Whether a call to `provider` (and `model`) would go through Maimbrain's keys.
+pub fn would_use(provider: &str, model: Option<&str>) -> bool {
+    let own = super::keys::lookup(provider);
+    matches!(decide(provider, model, mode(), own.as_ref().map(|k| k.1.as_str()), &Live), Ok(Route::Maimbrain(_)))
 }
 
 /// Refuses a call the month's remaining budget can't cover.
@@ -279,7 +292,7 @@ pub struct Maimbrain {
 
 impl Maimbrain {
     pub fn new(server: &str, token: &str, upstream: &str, http: Box<dyn Transport>) -> Result<Maimbrain, String> {
-        let upstream = SERVER_PROVIDERS.iter().find(|p| **p == upstream).ok_or(format!("Maimbrain's keys don't cover {upstream}"))?;
+        let upstream = PROXIED.iter().find(|p| **p == upstream).ok_or(format!("Maimbrain's keys don't cover {upstream} this way"))?;
         Ok(Maimbrain { server: server.trim_end_matches('/').to_string(), token: token.to_string(), upstream, http, last: RefCell::new(None) })
     }
 
@@ -428,6 +441,20 @@ mod tests {
         // Providers the server doesn't call: the plain message.
         let e = decide("openai", None, Mode::Auto, None, &FakeServer(Ok(Some(allowed(0.0))))).unwrap_err();
         assert!(e.contains("mb keys set openai") && !e.contains("Maimbrain"), "{e}");
+    }
+
+    #[test]
+    fn three_d_models_go_through_maimbrain_when_the_server_lists_tripo() {
+        let mut st = allowed(0.0);
+        let s = FakeServer(Ok(Some(st.clone())));
+        let e = decide("tripo", Some("P1-20260311"), Mode::Auto, None, &s).unwrap_err();
+        assert!(e.contains("mb keys set tripo") && e.contains("don't cover tripo P1-20260311"), "without 3D access: {e}");
+        st.providers.push(ServerProvider { name: "tripo".into(), models: vec![ServerModel { id: "P1-20260311".into() }] });
+        let s = FakeServer(Ok(Some(st)));
+        assert!(matches!(decide("tripo", Some("P1-20260311"), Mode::Auto, None, &s), Ok(Route::Maimbrain(_))));
+        assert!(matches!(decide("tripo", Some("P1-20260311"), Mode::Auto, Some("TRIPO_API_KEY"), &s), Ok(Route::Own(_))));
+        assert!(decide("meshy", Some("meshy-7.1"), Mode::Maimbrain, None, &s).unwrap_err().contains("tripo (3D models), not meshy"));
+        assert!(Maimbrain::new("http://s", "t", "tripo", Box::new(Rc::new(Fake::new(vec![])))).is_err(), "tripo goes through tripo.rs");
     }
 
     #[test]

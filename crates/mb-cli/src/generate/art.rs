@@ -766,6 +766,9 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
     for w in &verdict.warnings {
         eprintln!("  warning: the prompt references a named style ({w}); make sure the result is your own look");
     }
+    if let Some(w) = style.unset_warning().filter(|_| !job.no_style) {
+        eprintln!("  warning: {w}");
+    }
     let key = if job.keyed { Some(style.key_color()?) } else { None };
     let mut refs = Vec::new();
     let mut ref_files = Vec::new();
@@ -1612,7 +1615,7 @@ pub fn regen(a: &super::RegenArgs, sc: &Sidecar) -> Result<(), String> {
         // A grid --grid didn't fix follows the style as it is now (pixel_art, pixel_scale).
         if !job.grid_explicit {
             let scale = style.pixel_scale.max(1);
-            job.grid = (style.pixel_art && job.kind != "background" && job.kind != "icon" && job.size[0] % scale == 0 && job.size[1] % scale == 0)
+            job.grid = (style.pixel_art && !["background", "icon", "sky"].contains(&job.kind.as_str()) && job.size[0] % scale == 0 && job.size[1] % scale == 0)
                 .then(|| [(job.size[0] / scale).max(1), (job.size[1] / scale).max(1)]);
         }
         let (im, mut facts) = process(&job, &style, &palette, &Image::decode(&raw)?)?;

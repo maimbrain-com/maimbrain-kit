@@ -1221,6 +1221,9 @@ pub fn execute(game: &Path, job: &ModelJob, variants: u32, dry_run: bool, limit:
     for w in &verdict.warnings {
         eprintln!("  warning: the prompt references a named style ({w}); make sure the result is your own design");
     }
+    if let Some(w) = style.unset_warning().filter(|_| !job.no_style && raw.is_none()) {
+        eprintln!("  warning: {w}");
+    }
     let (full_prompt, negative) = compose(job, &style);
     let model = provider::find_model(&job.provider, &job.model);
     let rigged = job.rig || !job.animate.is_empty();

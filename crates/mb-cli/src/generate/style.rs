@@ -98,6 +98,14 @@ impl Style {
         Ok((s, Some(super::sha256_hex(text.as_bytes()))))
     }
 
+    /// Why the style guide doesn't set a look, if it doesn't (an empty `style`,
+    /// or no art/style.toml): generations then get the generator's own look.
+    pub fn unset_warning(&self) -> Option<&'static str> {
+        self.style.trim().is_empty().then_some(
+            "art/style.toml sets no `style`, so this gets the generator's own generic look; write this game's look there (medium, shapes, line, light, mood), from DESIGN.md's identity",
+        )
+    }
+
     pub fn palette_rgb(&self) -> Result<Vec<[u8; 3]>, String> {
         self.palette.iter().map(|c| parse_hex(c)).collect()
     }
@@ -272,22 +280,33 @@ pub const TEMPLATE: &str = r##"# The style guide for this game's generated art. 
 
 name = "NAME"
 
-# The look in a sentence or two: medium, shapes, line, light, mood.
-style = "bold flat vector shapes with thick dark outlines, soft cel shading, warm evening light"
+# The look in a sentence or two: medium, shapes, line, light, mood, from the
+# game's identity (DESIGN.md). Games are crisp pixel art by default (`pixel_art`
+# below); say what kind. Left empty, every image gets the image model's own
+# generic look, and `mb art` and `mb model` warn. For example:
+#   "16-bit console pixel art, two shading steps per color, cool night palette, moonlit"
+#   "Game Boy pixel art: four greens, chunky clusters, no dithering"
+#   "1-bit pixel art, black on paper white, careful silhouettes"
+# Or turn pixel_art off for another look:
+#   "gouache storybook painting, visible brush texture, muted earth tones, soft overcast light"
+#   "black ink and grey wash on rough paper, one red accent, stark and quiet"
+style = ""
 
 # Short style words added to every prompt.
-keywords = ["readable silhouettes", "chunky proportions", "high contrast"]
+keywords = ["readable silhouettes", "high contrast"]
 
 # Things this game's art should never have (text, watermarks and logos are always avoided).
-avoid = ["photorealism", "busy detail"]
+avoid = ["busy detail"]
 
 # Hex colors, darkest first. Sent with every prompt; `palette_lock` snaps every pixel to them.
 palette = ["#1d1b2f", "#3b3f6b", "#5d8aa8", "#f2c14e", "#f78154", "#fdf6e3"]
 palette_lock = false
 
-# Pixel art: generate, then reduce to a grid of art pixels stored `pixel_scale`
-# texels wide (SPEC §5.3: 4 texels per art pixel, drawn 2 units wide).
-pixel_art = false
+# Pixel art (the default): generate, then reduce to a grid of art pixels stored
+# `pixel_scale` texels wide (SPEC §5.3: 4 texels per art pixel, drawn 2 units
+# wide). Backgrounds, skies and the icon keep their full resolution. false for
+# another look, and for a 3D game unless it uses the retro look (MB3D.md).
+pixel_art = true
 pixel_scale = 4
 
 # Quantize every asset to at most this many colors (0: off). Smaller PNGs.
@@ -351,6 +370,15 @@ mod tests {
     }
 
     #[test]
+    fn template_is_pixel_art_with_no_look_words() {
+        // Pixel art by default; the game writes what kind.
+        let s: Style = toml::from_str(TEMPLATE).unwrap();
+        assert!(s.pixel_art);
+        assert!(s.unset_warning().is_some());
+        assert!(Style { style: "ink and grey wash".into(), ..s }.unset_warning().is_none());
+    }
+
+    #[test]
     fn unknown_fields_are_errors() {
         // A misspelled key lands in the per-kind map, where it isn't a table.
         assert!(toml::from_str::<Style>("colour = 3").is_err());
@@ -409,7 +437,9 @@ mod tests {
 
     #[test]
     fn prompt_has_style_palette_key_and_originality() {
-        let s: Style = toml::from_str(TEMPLATE).unwrap();
+        let mut s: Style = toml::from_str(TEMPLATE).unwrap();
+        s.style = "ink and grey wash, one red accent".into();
+        s.avoid.push("photorealism".into());
         let p = compose(
             &s,
             &PromptParts {
@@ -427,7 +457,7 @@ mod tests {
         for want in [
             "a moth with glass wings",
             "side view",
-            "thick dark outlines",
+            "art style: ink and grey wash, one red accent.",
             "#f2c14e",
             "32×32",
             "magenta color (#ff00ff)",

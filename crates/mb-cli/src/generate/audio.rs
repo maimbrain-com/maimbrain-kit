@@ -128,7 +128,12 @@ pub fn resample(x: &[f32], from: u32, to: u32) -> Vec<f32> {
     if from == to || x.is_empty() {
         return x.to_vec();
     }
-    resample_ratio(x, to as f64 / from as f64)
+    let g = gcd(from as u64, to as u64);
+    resample_rational(x, to as u64 / g, from as u64 / g)
+}
+
+fn gcd(a: u64, b: u64) -> u64 {
+    if b == 0 { a } else { gcd(b, a % b) }
 }
 
 /// `x` rotated to start at sample `at` (a loop stays seamless).
@@ -248,31 +253,104 @@ pub fn local_period(x: &[f32], rate: u32, len: usize, dev: f64) -> Option<(usize
     Some((((lag as f32 + off) * hop as f32).round() as usize, v))
 }
 
+/// The resampler's low-pass cutoff (a fraction of the input's Nyquist) and
+/// half-width (input samples) for `ratio`.
+fn sinc_shape(ratio: f64) -> (f64, f64) {
+    let cutoff = ratio.min(1.0) * 0.95;
+    (cutoff, 16.0 / cutoff.min(1.0))
+}
+
+/// The resampler's kernel at `d` input samples from the output's position.
+fn sinc_tap(d: f64, cutoff: f64, half: f64) -> f64 {
+    use std::f64::consts::PI;
+    let s = if d.abs() < 1e-12 { 1.0 } else { (PI * d * cutoff).sin() / (PI * d * cutoff) };
+    let wpos = (d / half + 1.0) / 2.0; // 0..1 across the window
+    let w = 0.42 - 0.5 * (2.0 * PI * wpos).cos() + 0.08 * (4.0 * PI * wpos).cos();
+    s * w
+}
+
+/// Σ x[i]·k / Σ k over the taps (0 if they cancel).
+#[inline]
+fn weighted(x: &[f32], k: &[f64]) -> f32 {
+    let (mut acc, mut wsum) = (0.0f64, 0.0f64);
+    for (&xi, &ki) in x.iter().zip(k) {
+        acc += xi as f64 * ki;
+        wsum += ki;
+    }
+    if wsum.abs() > 1e-9 { (acc / wsum) as f32 } else { 0.0 }
+}
+
+/// `resample_ratio` for ratio = p / q (in lowest terms): output o sits at
+/// o·q / p in the input, so its fractional position is one of p phases, and
+/// each phase's taps are computed once. Falls back to `resample_ratio` when
+/// that table would be too big (many phases).
+fn resample_rational(x: &[f32], p: u64, q: u64) -> Vec<f32> {
+    let ratio = p as f64 / q as f64;
+    let (cutoff, half) = sinc_shape(ratio);
+    let taps = 2 * half.ceil() as usize + 1;
+    if p as usize * taps > 1 << 20 {
+        return resample_ratio(x, ratio);
+    }
+    // Phase r: offsets j (from floor(t)) with |j − r/p| ≤ half, and their taps.
+    let phases: Vec<(i64, Vec<f64>)> = (0..p)
+        .map(|r| {
+            let frac = r as f64 / p as f64;
+            let (lo, hi) = ((frac - half).ceil() as i64, (frac + half).floor() as i64);
+            (lo, (lo..=hi).map(|j| sinc_tap(j as f64 - frac, cutoff, half)).collect())
+        })
+        .collect();
+    let n_out = (x.len() as f64 * ratio).round() as usize;
+    let last = x.len() as i64 - 1;
+    (0..n_out as u64)
+        .map(|o| {
+            let (base, r) = ((o * q / p) as i64, (o * q % p) as usize);
+            let (j0, k) = &phases[r];
+            let lo = (base + j0).max(0);
+            let hi = (base + j0 + k.len() as i64 - 1).min(last);
+            if hi < lo {
+                return 0.0;
+            }
+            let skip = (lo - base - j0) as usize;
+            weighted(&x[lo as usize..=hi as usize], &k[skip..])
+        })
+        .collect()
+}
+
 /// Windowed-sinc resampling by `ratio` (output length = input × ratio).
+/// The kernel's sines and cosines step from tap to tap by rotation (two
+/// per output sample instead of three per tap).
 pub fn resample_ratio(x: &[f32], ratio: f64) -> Vec<f32> {
     if x.is_empty() {
         return Vec::new();
     }
-    let cutoff = ratio.min(1.0) * 0.95;
-    let half = 16.0 / cutoff.min(1.0);
+    let (cutoff, half) = sinc_shape(ratio);
     let n_out = (x.len() as f64 * ratio).round() as usize;
+    // Sinc phase π·c·d and window phase π·d/half, each a step per tap: the Blackman
+    // window at wpos = (d/half + 1)/2 is 0.42 + 0.5·cos(π·d/half) + 0.08·cos(2π·d/half).
+    let (sa, ca) = (std::f64::consts::PI * cutoff).sin_cos();
+    let (sb, cb) = (std::f64::consts::PI / half).sin_cos();
+    let mut k = Vec::new();
     let mut out = Vec::with_capacity(n_out);
     for o in 0..n_out {
         let t = o as f64 / ratio;
         let lo = (t - half).ceil().max(0.0) as usize;
         let hi = ((t + half).floor() as usize).min(x.len() - 1);
-        let mut acc = 0.0;
-        let mut wsum = 0.0;
-        for (i, &xi) in x.iter().enumerate().take(hi + 1).skip(lo) {
-            let d = i as f64 - t;
-            let s = if d.abs() < 1e-12 { 1.0 } else { (std::f64::consts::PI * d * cutoff).sin() / (std::f64::consts::PI * d * cutoff) };
-            let wpos = (d / half + 1.0) / 2.0; // 0..1 across the window
-            let w = 0.42 - 0.5 * (2.0 * std::f64::consts::PI * wpos).cos() + 0.08 * (4.0 * std::f64::consts::PI * wpos).cos();
-            let k = s * w;
-            acc += xi as f64 * k;
-            wsum += k;
+        if hi < lo {
+            out.push(0.0);
+            continue;
         }
-        out.push(if wsum.abs() > 1e-9 { (acc / wsum) as f32 } else { 0.0 });
+        let d0 = lo as f64 - t;
+        let (mut s1, mut c1) = (std::f64::consts::PI * cutoff * d0).sin_cos();
+        let (mut s2, mut c2) = (std::f64::consts::PI * d0 / half).sin_cos();
+        k.clear();
+        for j in 0..=hi - lo {
+            let d = d0 + j as f64;
+            let s = if d.abs() < 1e-12 { 1.0 } else { s1 / (std::f64::consts::PI * d * cutoff) };
+            k.push(s * (0.42 + 0.5 * c2 + 0.08 * (2.0 * c2 * c2 - 1.0)));
+            (s1, c1) = (s1 * ca + c1 * sa, c1 * ca - s1 * sa);
+            (s2, c2) = (s2 * cb + c2 * sb, c2 * cb - s2 * sb);
+        }
+        out.push(weighted(&x[lo..=hi], &k));
     }
     out
 }
@@ -285,8 +363,10 @@ pub fn loud_rms(x: &[f32]) -> f32 {
         return 0.0;
     }
     let mut sq: Vec<f32> = x.iter().map(|v| v * v).collect();
-    sq.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let top = &sq[sq.len() / 3..];
+    // The loudest two thirds, in no order (a selection, not a sort).
+    let third = sq.len() / 3;
+    sq.select_nth_unstable_by(third, |a, b| a.partial_cmp(b).unwrap());
+    let top = &sq[third..];
     (top.iter().map(|&v| v as f64).sum::<f64>() / top.len().max(1) as f64).sqrt() as f32
 }
 
@@ -306,7 +386,7 @@ pub fn limit(x: &[f32], g: f32, rate: u32) -> Vec<f32> {
     let y: Vec<f32> = x.iter().map(|v| v * g).collect();
     let n = y.len();
     let need: Vec<f32> = y.iter().map(|v| if v.abs() > ceiling { ceiling / v.abs() } else { 1.0 }).collect();
-    let la = ((0.0015 * rate as f32) as usize).max(1);
+    let la = lookahead(rate);
     // m[i] = min(need[i-la ..= i+la]) via a monotonic deque.
     let mut m = vec![1.0f32; n];
     let mut q: std::collections::VecDeque<usize> = std::collections::VecDeque::new();
@@ -346,12 +426,20 @@ pub fn normalize(x: &[f32], kind: Kind, rate: u32) -> Vec<f32> {
     limit(x, gain_for(x, kind), rate)
 }
 
+/// The limiter's look-ahead (samples): 1.5 ms.
+fn lookahead(rate: u32) -> usize {
+    ((0.0015 * rate as f32) as usize).max(1)
+}
+
 /// `limit` for a loop: limited as if it were playing on repeat, so the
-/// gain at its end and its start agree (no step at the seam).
+/// gain at its end and its start agree (no step at the seam). Run over the
+/// loop twice and kept the second time, with two look-aheads of a third
+/// after it (all the second pass sees of it: a mean over ±la of minima over ±la).
 pub fn limit_loop(x: &[f32], g: f32, rate: u32) -> Vec<f32> {
     let n = x.len();
-    let three: Vec<f32> = x.iter().chain(x).chain(x).copied().collect();
-    limit(&three, g, rate)[n..2 * n].to_vec()
+    let post = (2 * lookahead(rate)).min(n);
+    let ext: Vec<f32> = x.iter().chain(x).chain(&x[..post]).copied().collect();
+    limit(&ext, g, rate)[n..2 * n].to_vec()
 }
 
 // --- trimming (sfx) -------------------------------------------------------------
@@ -701,6 +789,25 @@ pub fn filter(x: &[f32], stages: &[Biquad]) -> Vec<f32> {
     x.iter().map(|&v| st.iter_mut().fold(v, |s, f| f.run(s))).collect()
 }
 
+/// Eight filters over the same input, each from rest: as eight `filter`
+/// calls, but side by side in one pass (each is a chain of dependent steps).
+pub fn filter8(x: &[f32], bank: [Biquad; 8]) -> [Vec<f32>; 8] {
+    let [mut f0, mut f1, mut f2, mut f3, mut f4, mut f5, mut f6, mut f7] = bank;
+    let mut out: [Vec<f32>; 8] = std::array::from_fn(|_| Vec::with_capacity(x.len()));
+    let [o0, o1, o2, o3, o4, o5, o6, o7] = &mut out;
+    for &v in x {
+        o0.push(f0.run(v));
+        o1.push(f1.run(v));
+        o2.push(f2.run(v));
+        o3.push(f3.run(v));
+        o4.push(f4.run(v));
+        o5.push(f5.run(v));
+        o6.push(f6.run(v));
+        o7.push(f7.run(v));
+    }
+    out
+}
+
 /// The same over a loop: run twice and keep the second pass, so the state
 /// at the seam is the steady state (seamless).
 pub fn filter_loop(x: &[f32], stages: &[Biquad]) -> Vec<f32> {
@@ -855,7 +962,8 @@ pub fn chroma(x: &[f32], rate: u32) -> [f64; 12] {
     if y.len() < n {
         return out;
     }
-    let win: Vec<f64> = (0..n).map(|k| 0.5 - 0.5 * (std::f64::consts::TAU * k as f64 / (n - 1) as f64).cos()).collect();
+    static WIN: std::sync::OnceLock<Vec<f64>> = std::sync::OnceLock::new();
+    let win = WIN.get_or_init(|| (0..n).map(|k| 0.5 - 0.5 * (std::f64::consts::TAU * k as f64 / (n - 1) as f64).cos()).collect());
     // MIDI 33 (A1, 55 Hz) up to 95 (B6, ~1976 Hz).
     let probes: Vec<(f64, usize)> = (33..=95)
         .flat_map(|m| [-1.0 / 3.0, 0.0, 1.0 / 3.0].map(move |c| (440.0 * 2f64.powf((m as f64 + c - 69.0) / 12.0), m as usize % 12)))
@@ -866,17 +974,36 @@ pub fn chroma(x: &[f32], rate: u32) -> [f64; 12] {
         for k in 0..n {
             frame[k] = y[s + k] as f64 * win[k];
         }
-        for &(coeff, pc) in &probes {
-            let (mut s1, mut s2) = (0.0f64, 0.0f64);
-            for &v in &frame {
-                let s0 = v + coeff * s1 - s2;
-                s2 = s1;
-                s1 = s0;
+        // Eight probes per pass over the frame: each is a chain of dependent
+        // steps, so running eight side by side keeps the FPU busy.
+        for group in probes.chunks(8) {
+            let c = std::array::from_fn(|j| group.get(j).map_or(0.0, |p| p.0));
+            let ends = goertzel8(&frame, c);
+            for (&(c, pc), (s1, s2)) in group.iter().zip(ends) {
+                out[pc] += s1 * s1 + s2 * s2 - c * s1 * s2;
             }
-            out[pc] += s1 * s1 + s2 * s2 - coeff * s1 * s2;
         }
     }
     out
+}
+
+/// The Goertzel recurrence over `x` for eight coefficients at once: each
+/// one's final (s1, s2), as eight separate passes would give.
+fn goertzel8(x: &[f64], c: [f64; 8]) -> [(f64, f64); 8] {
+    let [c0, c1, c2, c3, c4, c5, c6, c7] = c;
+    let (mut p0, mut q0, mut p1, mut q1, mut p2, mut q2, mut p3, mut q3) = (0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64);
+    let (mut p4, mut q4, mut p5, mut q5, mut p6, mut q6, mut p7, mut q7) = (0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64, 0.0f64);
+    for &v in x {
+        (p0, q0) = (v + c0 * p0 - q0, p0);
+        (p1, q1) = (v + c1 * p1 - q1, p1);
+        (p2, q2) = (v + c2 * p2 - q2, p2);
+        (p3, q3) = (v + c3 * p3 - q3, p3);
+        (p4, q4) = (v + c4 * p4 - q4, p4);
+        (p5, q5) = (v + c5 * p5 - q5, p5);
+        (p6, q6) = (v + c6 * p6 - q6, p6);
+        (p7, q7) = (v + c7 * p7 - q7, p7);
+    }
+    [(p0, q0), (p1, q1), (p2, q2), (p3, q3), (p4, q4), (p5, q5), (p6, q6), (p7, q7)]
 }
 
 /// All 24 keys, best first: the share of the chroma's power on each key's
@@ -1188,6 +1315,48 @@ pub mod tests {
         // Zero crossings ≈ 2 × 440 × 0.25 s.
         let zc = y.windows(2).filter(|w| w[0] <= 0.0 && w[1] > 0.0).count();
         assert!((108..=112).contains(&zc), "{zc}");
+    }
+
+    #[test]
+    fn resample_paths_match_the_kernel_tap_by_tap() {
+        // The kernel evaluated afresh at every tap, as the resampler once did.
+        let direct = |x: &[f32], ratio: f64| -> Vec<f32> {
+            let (cutoff, half) = sinc_shape(ratio);
+            (0..(x.len() as f64 * ratio).round() as usize)
+                .map(|o| {
+                    let t = o as f64 / ratio;
+                    let lo = (t - half).ceil().max(0.0) as usize;
+                    let hi = ((t + half).floor() as usize).min(x.len() - 1);
+                    let k: Vec<f64> = (lo..=hi).map(|i| sinc_tap(i as f64 - t, cutoff, half)).collect();
+                    weighted(&x[lo..=hi], &k)
+                })
+                .collect()
+        };
+        let x: Vec<f32> = (0..3000).map(|i| ((i as f32 * 0.05).sin() + 0.5 * (i as f32 * 0.31).sin()) * if i % 701 == 0 { 3.0 } else { 1.0 }).collect();
+        let close = |a: &[f32], b: &[f32]| a.len() == b.len() && a.iter().zip(b).all(|(p, q)| (p - q).abs() < 1e-6);
+        for (from, to) in [(48000, 44100), (44100, 22050), (22050, 44100), (24000, 22050)] {
+            let ratio = to as f64 / from as f64;
+            let want = direct(&x, ratio);
+            assert!(close(&resample(&x, from, to), &want), "{from} → {to} (phase table)");
+            assert!(close(&resample_ratio(&x, ratio), &want), "{from} → {to} (rotation)");
+        }
+        for ratio in [0.917_234_5, 1.059_463_1, 0.3] {
+            assert!(close(&resample_ratio(&x, ratio), &direct(&x, ratio)), "{ratio}");
+        }
+    }
+
+    #[test]
+    fn limit_loop_is_the_middle_of_three_plays() {
+        let rate = 44100;
+        let la = lookahead(rate);
+        let x: Vec<f32> = (0..rate as usize / 2).map(|i| (i as f32 * 0.03).sin() * 0.05).collect();
+        // A clipping peak anywhere in the start the end's look-ahead reaches (up to 2·la in).
+        for at in [0, la / 2, la, la + 1, 3 * la / 2, 2 * la - 1, 2 * la, 3 * la] {
+            let mut x = x.clone();
+            x[at] = 0.95;
+            let three: Vec<f32> = x.iter().chain(&x).chain(&x).copied().collect();
+            assert_eq!(limit_loop(&x, 4.0, rate as u32), limit(&three, 4.0, rate as u32)[x.len()..2 * x.len()], "peak at {at}");
+        }
     }
 
     #[test]

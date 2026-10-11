@@ -237,7 +237,7 @@ impl Feats {
         let n = ((x.len() as f64 - first) / beat).floor().max(0.0) as usize;
         let win = (beat.max(0.4 * rate as f64)) as usize;
         let prof = (0..n).map(|k| profile(x, rate, (first + k as f64 * beat).round() as usize, win)).collect();
-        let filtered: Vec<Vec<f32>> = BANDS.iter().map(|&f| audio::filter(x, &[Biquad::bandpass(rate, f.min(rate as f32 * 0.45), 1.0)])).collect();
+        let filtered = audio::filter8(x, BANDS.map(|f| Biquad::bandpass(rate, f.min(rate as f32 * 0.45), 1.0)));
         let half = beat / 2.0;
         let bands = (0..2 * n)
             .map(|h| {

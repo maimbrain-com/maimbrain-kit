@@ -1,5 +1,13 @@
 # Creator kit changelog
 
+## 0.7.3
+
+- **Games are crisp pixel art by default, not a flat-vector cartoon.** The `art/style.toml` that `mb art init` writes used to set `style = "bold flat vector shapes with thick dark outlines, soft cel shading"` with "chunky proportions", so every image a game generated came out as the same generic cartoon unless its builder rewrote it. The template now turns `pixel_art` on (sprites reduced to a grid of whole art pixels, 4 texels each; backgrounds, skies and the icon keep full resolution) and leaves `style` empty, with commented pixel-art examples and a couple of other media for games that turn it off. "Chunky proportions" and the blanket avoid-"photorealism" are gone. An existing `art/style.toml` is unchanged: edit its `style` (and `pixel_art`), then `mb art check` lists what to regenerate.
+- **`mb art` and `mb model` warn when `style` is empty** (or there's no `art/style.toml`): the generation gets the provider's own generic look, so write the game's look there.
+- **The skill no longer steers toward cartoons.** assets.md, identity.md and engagement.md make crisp pixel art the default look and the flat-vector cartoon something to use only when asked; another medium (painting, ink, paper, clay) when the identity calls for it. Code-drawn art (`pixel.py`, mb2d shapes) stays on the art-pixel grid: no soft alpha glows, blurred halos, anti-aliased blobs or emoji faces stuck on the scene. The fallback icon without a key is 64×64 pixel art. Toon shading and outlines in mb3d are one look among several rather than "the fastest way to a coherent look", and slapstick and puns are for games whose tone is comedy.
+- `mb regen <sky> --reprocess` no longer reduces a sky to a pixel grid when the style has `pixel_art` on (a fresh `mb art sky` never did).
+- **`mb music`'s audio analysis is about 3× faster**, with the same output: resampling, pitch shifts and key detection do the same arithmetic with less repeated work (a layered, sectioned `mb music` run on the mock takes 2.6 s instead of 8.2 s).
+
 ## 0.7.2
 
 - **3D models on Maimbrain's keys:** accounts the Maimbrain team has also given 3D access can run `mb model` on Maimbrain's Tripo key with no Tripo key of their own (or with `--provider maimbrain`), within the same monthly budget as art and sound: models, rigs, clips, `--rig` on a model made earlier and `--variants` all work as on your own key. `mb models` marks the Tripo models `M`. Each task is charged at its list price when it starts and at what Tripo reports when it finishes (a failed one costs nothing); a person runs two tasks of each kind at once, and a run over that, or over Tripo's own limits, waits and tries again. Meshy and voices stay on your own keys.

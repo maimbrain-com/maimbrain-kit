@@ -5,8 +5,10 @@
 //! - A card takes no input, so the title card shows a hook and the best,
 //!   never "tap to play"; the game starts on any tap.
 //! - Key text and buttons stay inside `Layout::card`, clear of the
-//!   platform's overlays (the title strip at the bottom, the buttons down
-//!   the right).
+//!   platform's overlays (the title at the bottom, the buttons down the
+//!   right); on the game-over card, inside `Layout::results`, which also
+//!   keeps the band above the title clear for the platform's challenge
+//!   strip after a round.
 //! - The platform draws its own pause pill and leaderboards: nothing here
 //!   duplicates them. Open the leaderboard with `store::show_scores` from a
 //!   button of your own if you want one.
@@ -182,7 +184,8 @@ pub enum ResultsEvent {
 ///
 /// To draw your own card from your world, build it `.state_only()`: it keeps
 /// the roll-up, the new-best moment and the retry rule, and you draw from
-/// `shown_score`, `best`, `new_best_shown`, `stamp`, `gap_to_best`…
+/// `shown_score`, `best`, `new_best_shown`, `stamp`, `gap_to_best`…, with
+/// your text and buttons inside `Layout::results`.
 #[derive(Clone, Debug)]
 pub struct ResultsCard {
     pub heading: String,
@@ -226,7 +229,7 @@ impl ResultsCard {
             extra: None,
             panel: true,
             lower_is_better: false,
-            area: layout.card,
+            area: layout.results,
             counter: Counter::new(0),
             t: 0.0,
             fx: Particles::new(seed),
@@ -757,9 +760,13 @@ mod tests {
         assert!(events.contains(&ResultsEvent::Tick));
         assert_eq!(events.iter().filter(|e| **e == ResultsEvent::NewBest).count(), 1);
         assert!(r.finished());
-        // The retry button sits inside the card area, clear of the overlays.
+        // The retry button sits inside the card area, clear of the overlays
+        // and the challenge strip, and so does an extra button under it.
         let b = r.retry.as_ref().unwrap().rect;
-        assert!(b.bottom() <= layout.card.bottom() && b.x >= layout.card.x);
+        assert!(b.bottom() <= layout.results.bottom() && b.x >= layout.results.x);
+        let r3 = ResultsCard::new(50, 100, Theme::night(), &layout, 1).extra(Button::new(Rect::default(), "SCORES"));
+        let e = r3.extra.as_ref().unwrap().rect;
+        assert!(e.bottom() <= layout.results.bottom() && e.x >= layout.results.x, "{e:?}");
         let r2 = ResultsCard::new(50, 100, Theme::night(), &layout, 1);
         assert!(!r2.is_new_best());
     }

@@ -183,11 +183,14 @@ fn a_draft_that_changes_how_a_board_ranks_fits_only_a_new_season() {
     assert!(e.contains("submit it for review:  mb submit wobble.mbx --season"), "{e}");
 }
 
-/// A draft whose score check found 7 of the season's top 20 scores change.
+/// A draft whose score check found 7 of the season's top 20 scores change:
+/// only a new season fits it.
 fn scores_changed() -> Value {
     let mut v = draft();
     v["score_check"] = json!({ "state": "done", "season": 1, "runs": 20, "changed": 7, "unchecked": 0, "format": "integer",
                                "changes": [{ "player": { "username": "riley", "display_name": "Riley" }, "was": 1240, "now": 980 }] });
+    v["suggested_level"] = json!("season");
+    v["season_reasons"] = json!(["7 of Season 1's top 20 runs score differently on it (Riley's 1,240 would now be 980)"]);
     v
 }
 
@@ -199,7 +202,9 @@ fn says_whether_the_seasons_best_scores_carry_over() {
     assert!(o.status.success(), "{}", stderr(&o));
     let e = stderr(&o);
     assert!(e.contains("Scores: your changes affect 7 of the top 20 scores (Riley's 1,240 would now be 980).\n"), "{e}");
-    assert!(e.contains("Keep Season 1's scores (mb submit wobble.mbx --update or --fix), or start Season 2 (--season)."), "{e}");
+    assert!(e.contains("Release: only a new season fits, because:\n    7 of Season 1's top 20 runs score differently on it (Riley's 1,240 would now be 980).\n"), "{e}");
+    assert!(e.contains("submit it for review:  mb submit wobble.mbx --season"), "{e}");
+    assert!(!e.contains("Keep Season 1's scores"), "{e}");
 
     // Submitting says it again; having chosen, there's nothing to choose.
     let o = mb(&d, &["submit", "wobble", "--update"]);
@@ -208,9 +213,20 @@ fn says_whether_the_seasons_best_scores_carry_over() {
     assert!(e.contains("Scores: your changes affect 7 of the top 20 scores"), "{e}");
     assert!(!e.contains("Keep Season 1's scores"), "{e}");
 
+    // A server from before the rule that changed scores need a new season: the choice is said here.
+    let mut v = scores_changed();
+    v["suggested_level"] = json!("update");
+    v["season_reasons"] = json!([]);
+    let s = FakeServer::with(v, (200, json!({})));
+    let d = setup("scores-older-server", &s.url);
+    let e = stderr(&mb(&d, &["publish", "wobble.mbx", "--model", "none"]));
+    assert!(e.contains("Keep Season 1's scores (mb submit wobble.mbx --update or --fix), or start Season 2 (--season)."), "{e}");
+
     let mut v = scores_changed();
     v["score_check"]["changed"] = json!(0);
     v["score_check"]["unchecked"] = json!(2);
+    v["suggested_level"] = json!("update");
+    v["season_reasons"] = json!([]);
     let s = FakeServer::with(v, (200, json!({})));
     let d = setup("scores-same", &s.url);
     let e = stderr(&mb(&d, &["publish", "wobble.mbx", "--model", "none"]));

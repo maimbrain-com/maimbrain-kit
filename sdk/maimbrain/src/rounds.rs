@@ -575,7 +575,8 @@ mod tests {
         host.run(&mut g, 4.0, DT);
         let first = g.rounds.seed();
         host.run(&mut g, 1.0, DT);
-        host.tap(180.0, 320.0);
+        // Anywhere but the card's buttons (its retry button clicks on release).
+        host.tap(180.0, 200.0);
         host.frame(&mut g, DT);
         assert_eq!((g.starts, g.rounds.played()), (2, 2));
         assert_ne!(g.rounds.seed(), first);

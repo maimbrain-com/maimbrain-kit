@@ -5465,6 +5465,42 @@ var Runtime = class _Runtime {
     if (!this.stopped) present(host_end_frame);
     return { frames: this.frames, of: frames.length, firstMismatch, compared: Math.min(expected.length, this.frames + 1), missingAssets };
   }
+  /** Recorded frames a replay session has played (the next one to play). */
+  get replayCursor() {
+    return this.cursor;
+  }
+  /** Seeking a held replay session (main.ts `mb.seek`): plays its recorded
+   *  frames up to frame `target` (that many played) as fast as it can,
+   *  silent and unpresented, for at most `budgetMs`, then shows the last
+   *  one. Resolves to whether it got there. Sound picks up where it would
+   *  be once the session plays on: one-shots set off on the way are skipped,
+   *  as watch mode's restore does. */
+  async seekStep(target, budgetMs) {
+    if (this.source.kind !== "replay") throw new Error("seekStep needs a replay session");
+    const frames = this.source.log.frames;
+    const end = Math.min(target, frames.length);
+    const t0 = performance.now();
+    let ran = 0;
+    this.presenting = false;
+    this.session.audio.fastForward(true);
+    try {
+      while (this.cursor < end && !this.stopped && performance.now() - t0 < budgetMs) {
+        const f = frames[this.cursor];
+        await this.session.assets.publishRecorded(f.assets ?? []);
+        this.cursor++;
+        this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
+        ran++;
+      }
+    } finally {
+      this.presenting = true;
+      this.session.audio.fastForward(false);
+    }
+    if (ran > 0 && !this.stopped) {
+      present(host_prepare);
+      present(host_end_frame);
+    }
+    return this.cursor >= end;
+  }
   /** Headless (`mb replay`): plays a replay session's whole log as fast as it
    *  can, unpresented, waiting for each asset the run saw arrive. `onFrame`
    *  is told the 1-based number of the frame about to run. Stops early if the

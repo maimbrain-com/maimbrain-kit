@@ -858,11 +858,8 @@ pub fn choose_with(
     {
         return Ok(p.to_string());
     }
-    Err(format!(
-        "no provider key for {media}. Set one up:\n{}\nor try the pipeline offline with --provider mock{}",
-        order.iter().map(|p| format!("  {p}: {}", super::keys::help_for(p))).collect::<Vec<_>>().join("\n"),
-        super::maimbrain::hint(mode, server)
-    ))
+    let setup = order.iter().map(|p| format!("  {p}: {}", super::keys::help_for(p))).collect::<Vec<_>>().join("\n");
+    Err(super::maimbrain::no_provider(media, &setup, mode, server))
 }
 
 /// Base64 (standard alphabet, padded).
@@ -1061,9 +1058,10 @@ pub mod tests {
         assert_eq!(choose_with(None, Some("openai"), &order, "images", Mode::Maimbrain, &openai, &ok).unwrap(), "gemini");
         assert_eq!(choose_with(None, None, &["elevenlabs"], "sfx", Mode::Maimbrain, &none, &ok).unwrap(), "elevenlabs");
         assert!(choose_with(None, None, &["openai"], "images", Mode::Maimbrain, &none, &ok).is_err());
-        // Signed out or without access: the setup message says how to get access.
+        // Signed out or without access: the setup message says how to get access, signing in first.
         let e = choose_with(None, None, &order, "images", Mode::Auto, &none, &S(None)).unwrap_err();
         assert!(e.contains("ask the Maimbrain team") && e.contains("mb login"), "{e}");
+        assert!(e.find("mb login") < e.find("GEMINI_API_KEY"), "{e}");
         let denied = S(Some(Status { allowed: false, username: "bob".into(), ..Status::default() }));
         assert!(choose_with(None, None, &order, "images", Mode::Auto, &none, &denied).unwrap_err().contains("@bob doesn't have it"));
         // A named provider is always taken as is.

@@ -133,10 +133,14 @@ impl Rect {
     }
 }
 
-/// The platform's feed overlays on a card (SPEC §5.2): the title strip over
-/// the bottom edge and the buttons down the right edge.
+/// The platform's feed overlays on a card (SPEC §5.2): the title over the
+/// bottom edge and the buttons down the right edge.
 pub const CARD_BOTTOM: f32 = 70.0;
 pub const CARD_RIGHT: f32 = 56.0;
+/// The platform's after-round challenge strip (who you played against and
+/// how it went), over a game-over card just above the title: the bottom of
+/// `Layout::card` that `Layout::results` leaves out.
+pub const CARD_STRIP: f32 = 96.0;
 /// The pause pill plus the mic badge beside it, top-left in play.
 pub const PILL_ZONE: (f32, f32) = (110.0, 50.0);
 /// Smallest comfortable touch target (Apple HIG), in logical units.
@@ -149,10 +153,14 @@ pub struct Layout {
     pub screen: Rect,
     /// Inside the safe-area insets.
     pub safe: Rect,
-    /// Where title and results cards keep buttons and key text: the safe
-    /// area minus the card overlays, symmetric so centred things stay
-    /// centred (CARD_RIGHT off both sides, CARD_BOTTOM off the bottom).
+    /// Where title cards keep buttons and key text (game-over cards use
+    /// `results`): the safe area minus the card overlays, symmetric so
+    /// centred things stay centred (CARD_RIGHT off both sides, CARD_BOTTOM
+    /// off the bottom).
     pub card: Rect,
+    /// The same on a game-over card, which also keeps the challenge strip's
+    /// band clear: `card` less its bottom CARD_STRIP (`strip()`).
+    pub results: Rect,
     /// The play HUD's area: the safe area (the pause pill lives in the top
     /// inset; keep the top-left `pill_zone()` clear of anything tappable).
     pub hud: Rect,
@@ -172,7 +180,14 @@ impl Layout {
         let safe = screen.inset_sides(s.inset_left, s.inset_top, s.inset_right, s.inset_bottom);
         let side = CARD_RIGHT.max(s.inset_left).max(s.inset_right);
         let card = Rect::new(side, safe.y, (w - 2.0 * side).max(0.0), (h - s.inset_bottom.max(CARD_BOTTOM) - 8.0 - safe.y).max(0.0));
-        Layout { screen, safe, card, hud: safe }
+        let results = card.split_bottom(CARD_STRIP).1;
+        Layout { screen, safe, card, results, hud: safe }
+    }
+
+    /// Where the platform draws its challenge strip after a round, over a
+    /// game-over card: the band between `results` and the title.
+    pub fn strip(&self) -> Rect {
+        self.card.split_bottom(CARD_STRIP).0
     }
 
     /// The top-left corner the platform's pause pill and mic badge use in play.
@@ -293,6 +308,10 @@ mod tests {
         assert_eq!(l.card.x, 56.0);
         assert_eq!(l.card.right(), 304.0);
         assert!(l.card.bottom() <= 640.0 - 70.0);
+        // A game-over card stops above the challenge strip, which ends where the card does.
+        assert_eq!((l.results.x, l.results.y, l.results.w), (l.card.x, l.card.y, l.card.w));
+        assert_eq!(l.results.bottom(), l.card.bottom() - CARD_STRIP);
+        assert_eq!(l.strip(), Rect::new(56.0, l.results.bottom(), 248.0, CARD_STRIP));
         assert_eq!(l.pill_zone().h, 59.0);
         let stub = Layout::default();
         assert_eq!(stub.screen.w, 360.0);

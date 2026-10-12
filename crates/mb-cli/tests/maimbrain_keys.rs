@@ -221,6 +221,7 @@ fn signed_out_the_message_mentions_mb_login() {
     let d = tmp("signedout");
     let e = stderr(&mb(&d, BG, &[]));
     assert!(e.contains("GEMINI_API_KEY") && e.contains("ask the Maimbrain team") && e.contains("mb login"), "{e}");
+    assert!(e.find("mb login") < e.find("GEMINI_API_KEY"), "signing in comes before setting a key: {e}");
     let e = stderr(&mb(&d, &[BG, &["--provider", "maimbrain"]].concat(), &[]));
     assert!(e.contains("run mb login"), "{e}");
     let _ = std::fs::remove_dir_all(&d);

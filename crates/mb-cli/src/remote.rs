@@ -254,6 +254,13 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
     }
     let submit_command = if season_only { format!("mb submit {source} --season") } else { format!("mb submit {source}") };
     match v["state"].as_str().unwrap_or("") {
+        // Sent with submit, it waits for the score check (the score rule needs its result).
+        "draft" if submit && v["score_check"]["state"] == "running" && v["score_check"].get("submit").is_some() => {
+            eprintln!("✓ {name} passed validation. It goes to review by itself once the check of your top runs finishes,");
+            eprintln!("  unless only a new season fits: then it stays a private draft, and mb publish {source} shows why.");
+            eprintln!("  Track it at {}/create", c.server);
+            Ok(())
+        }
         "draft" if submit => {
             eprintln!("✗ {name} passed validation but was NOT sent for review.");
             if let Some(reason) = not_sent {
@@ -382,8 +389,10 @@ fn release_summary(v: &Value, source: &str) {
 }
 
 /// What the score check found (the version's `score_check`): whether the
-/// season's best runs score the same on this build, as evidence for the
-/// release choice; with `choose`, how to act on it when they don't.
+/// season's best runs score the same on this build. When they don't, the
+/// server says only a new season fits (`season_reasons`, which
+/// `release_summary` shows); with `choose`, a server from before that rule
+/// gets how to act on it here.
 fn score_summary(v: &Value, source: &str, choose: bool) {
     let check = &v["score_check"];
     let n = |k: &str| check[k].as_u64().unwrap_or(0);
@@ -407,7 +416,7 @@ fn score_summary(v: &Value, source: &str, choose: bool) {
                 }
             });
             eprintln!("  Scores: your changes affect {changed} of the top {runs} scores{}.", example.unwrap_or_default());
-            if choose {
+            if choose && season_reasons(v).is_empty() {
                 let season = check["season"].as_u64().unwrap_or(1);
                 eprintln!("  Keep Season {season}'s scores (mb submit {source} --update or --fix), or start Season {} (--season).", season + 1);
             }

@@ -246,7 +246,7 @@ fn ship(g: &Shooter) {
     if let (true, Stage::Over, Some(card)) = (wreck, g.rounds.stage(), &g.rounds.results) {
         // Seconds the card has been up.
         let t = g.rounds.age();
-        let spot_y = (card.panel_rect().bottom() + 40.0 + g.rounds.layout.card.bottom() - 46.0) / 2.0;
+        let spot_y = (card.panel_rect().bottom() + 40.0 + crate::over_row(&g.rounds.layout)[0].y) / 2.0;
         let k = Ease::CubicInOut.at((t / 1.6).min(1.0));
         x += (x.clamp(80.0, W - 110.0) - x) * k;
         y += (spot_y + 4.0 * (t * 1.3).sin() - y) * k;

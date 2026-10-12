@@ -38,6 +38,13 @@ const PROXIED: &[&str] = &["gemini", "elevenlabs"];
 
 pub const ASK: &str = "or ask the Maimbrain team for access to its keys";
 
+/// What a signed-out run without a key of your own says first. An account
+/// with access needs nothing but `mb login`, and an agent that reads "set a
+/// key" first asks its user for a key they don't have.
+pub const SIGN_IN: &str = "If your Maimbrain account has access to Maimbrain's generation keys, you don't need a key of your own: \
+     run mb login (it prints a link and a code to confirm in a browser), then run this again. \
+     mb models then shows your access and what's left of this month's budget.";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     /// Your key if you have one, else Maimbrain's if your account has access.
@@ -199,7 +206,10 @@ pub fn decide(provider: &str, model: Option<&str>, mode: Mode, own_key: Option<&
     }
     match server.status() {
         Ok(None) if forced => Err("Maimbrain's keys need you signed in: run mb login (the Maimbrain team gives access per account)".into()),
-        Ok(None) => Err(format!("{}\n{ASK}; once you have it, sign in with mb login", no_key(provider))),
+        Ok(None) => Err(format!(
+            "no {provider} key, and mb isn't signed in to Maimbrain.\n{SIGN_IN}\nWithout that access: {}, {ASK}",
+            super::keys::help_for(provider)
+        )),
         Ok(Some(s)) if !s.allowed => {
             let who = if s.username.is_empty() { "your account".to_string() } else { format!("@{}", s.username) };
             if forced {
@@ -252,17 +262,24 @@ pub fn allow_name_refused(names: &[String], provider: &str) -> String {
     )
 }
 
-/// The hint added when no provider has a key, by what the server says.
-pub fn hint(mode: Mode, server: &dyn Server) -> String {
+/// The message when no provider has a key for `media`; `setup` lists how to
+/// set up each. Signed out, signing in comes first.
+pub fn no_provider(media: &str, setup: &str, mode: Mode, server: &dyn Server) -> String {
+    let offline = "or try the pipeline offline with --provider mock";
     if mode == Mode::Own {
-        return String::new();
+        return format!("no provider key for {media}. Set one up:\n{setup}\n{offline}");
     }
-    match server.status() {
-        Ok(None) => format!("\n{ASK}; once you have it, sign in with mb login"),
-        Ok(Some(s)) if !s.allowed => format!("\n{ASK} (@{} doesn't have it)", s.username),
-        Ok(Some(_)) => "\n(Maimbrain's keys don't cover this; see mb models)".into(),
-        Err(e) => format!("\n{ASK} (couldn't check: {e})"),
-    }
+    let why = match server.status() {
+        Ok(None) => {
+            return format!(
+                "no provider key for {media}, and mb isn't signed in to Maimbrain.\n{SIGN_IN}\nWithout that access, set up a key of your own:\n{setup}\n{ASK}, {offline}"
+            );
+        }
+        Ok(Some(s)) if !s.allowed => format!("{ASK} (@{} doesn't have it)", s.username),
+        Ok(Some(_)) => "(Maimbrain's keys don't cover this; see mb models)".into(),
+        Err(e) => format!("{ASK} (couldn't check: {e})"),
+    };
+    format!("no provider key for {media}. Set one up:\n{setup}\n{offline}\n{why}")
 }
 
 /// One line for `mb models` and `mb doctor`.
@@ -273,7 +290,7 @@ pub fn describe(server: &dyn Server) -> (bool, String) {
             (true, format!("Maimbrain's keys: @{} has access · {} · {}", s.username, s.summary(), if names.is_empty() { "no providers configured".into() } else { names.join(", ") }))
         }
         Ok(Some(s)) => (false, format!("Maimbrain's keys: @{} doesn't have access ({})", s.username, ASK.trim_start_matches("or "))),
-        Ok(None) => (false, format!("Maimbrain's keys: not signed in (mb login); {}", ASK.trim_start_matches("or "))),
+        Ok(None) => (false, format!("Maimbrain's keys: not signed in; if your account has access, run mb login ({ASK})")),
         Err(e) => (false, format!("Maimbrain's keys: couldn't check ({e})")),
     }
 }
@@ -434,6 +451,7 @@ mod tests {
     fn without_a_key_or_access_the_message_says_how_to_get_either() {
         let e = decide("gemini", NB, Mode::Auto, None, &FakeServer(Ok(None))).unwrap_err();
         assert!(e.contains("mb keys set gemini") && e.contains(ASK) && e.contains("mb login"), "{e}");
+        assert!(e.find("mb login") < e.find("GEMINI_API_KEY"), "signed out, signing in comes first: {e}");
         let e = decide("gemini", NB, Mode::Auto, None, &FakeServer(Ok(Some(denied())))).unwrap_err();
         assert!(e.contains("mb keys set gemini") && e.contains("@bob doesn't have it"), "{e}");
         let e = decide("gemini", NB, Mode::Auto, None, &FakeServer(Err("can't reach the server".into()))).unwrap_err();
@@ -475,7 +493,7 @@ mod tests {
         let e = decide("gemini", NB, Mode::Own, None, &Panics).unwrap_err();
         assert!(e.contains("--own-keys"), "{e}");
         assert!(matches!(decide("gemini", NB, Mode::Own, Some("mb keys"), &Panics), Ok(Route::Own(_))));
-        assert!(hint(Mode::Own, &Panics).is_empty());
+        assert!(!no_provider("images", "  gemini: …", Mode::Own, &Panics).contains("Maimbrain"));
     }
 
     #[test]

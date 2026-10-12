@@ -128,6 +128,7 @@ impl Poppets {
         let label = if self.rounds.is_daily() { DAILY_LABEL } else { SCORE_LABEL };
         self.rounds.end(self.sim.score as i64).label(label);
         self.daily_btn.reset();
+        self.daily_btn.rect = button_row(self.rounds.layout.results)[1];
         self.scores_btn.reset();
         self.selected = None;
         self.touch = None;
@@ -137,6 +138,7 @@ impl Poppets {
     /// mode's best and a demo board.
     fn toggle_daily(&mut self) {
         self.rounds.set_daily(!self.rounds.is_daily());
+        self.daily_btn.rect = button_row(self.rounds.layout.card)[1];
         self.sfx.ui();
         self.daily_btn.kind = if self.rounds.is_daily() { ButtonKind::Primary } else { ButtonKind::Secondary };
         let seed = self.demo_seed();
@@ -523,8 +525,7 @@ impl Game for Poppets {
         // plays the falling asleep itself, so the card comes as soon as it's over.
         let title = TitleCard::new(TITLE, theme).tagline(TAGLINE).size(56.0).at(layout.safe.y + 62.0);
         let rounds = Rounds::new(title).board(BOARD_ENDLESS).daily(BOARD_DAILY).heading(HEADING).ending(0.0);
-        // DAILY and SCORES sit low in the card area, clear of the feed's overlays.
-        let row = Rect::new(layout.card.x, layout.card.bottom() - 46.0, layout.card.w, 44.0).columns(2, 12.0);
+        let (row, over_row) = (button_row(layout.card), button_row(layout.results));
         let sim = Sim::new(rng.next_u32() as u64, true);
         Poppets {
             sim,
@@ -535,7 +536,7 @@ impl Game for Poppets {
             hud: Hud::new(theme, rounds.best()),
             rounds,
             daily_btn: Button::new(row[1], "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR),
-            scores_btn: Button::new(row[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY),
+            scores_btn: Button::new(over_row[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY),
             fx: Particles::new(rng.next_u32() as u64),
             popups: Popups::new(),
             shake: Shake::new(),
@@ -708,6 +709,13 @@ impl Game for Poppets {
         }
         self.flash.draw(l.screen);
     }
+}
+
+/// DAILY (and SCORES after a round) low in a card's area, clear of the
+/// feed's overlays: `layout.card` on the title, `layout.results` on the
+/// game-over card (above the challenge strip too).
+fn button_row(area: Rect) -> Vec<Rect> {
+    Rect::new(area.x, area.bottom() - 46.0, area.w, 44.0).columns(2, 12.0)
 }
 
 export_game!(Poppets);

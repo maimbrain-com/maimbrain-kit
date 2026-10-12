@@ -668,7 +668,7 @@ mod tests {
     use crate::ui::{Theme, identity::IDENTITIES};
 
     /// Every identity's layouts draw without panicking at any time, and the
-    /// results blocks stay inside the card area.
+    /// results blocks stay inside the game-over card's area.
     #[test]
     fn every_identity_lays_out() {
         let l = Layout::default();
@@ -677,14 +677,14 @@ mod tests {
             for t in [0.0, 0.3, 1.0, 5.0] {
                 let a = TitleArgs { title: "Mega Stack", tagline: Some("how high?"), best: Some(("BEST", 42)), size: 64.0, y: 120.0, color: th.text, t };
                 title(&th, &l, &a);
-                let r = ResultsArgs { heading: "SPLAT", label: "", shown: 1234, punch: 1.0, best: 2000, new_best: t > 1.0, landed: t > 0.5, stamp: 1.0, t, area: l.card };
+                let r = ResultsArgs { heading: "SPLAT", label: "", shown: 1234, punch: 1.0, best: 2000, new_best: t > 1.0, landed: t > 0.5, stamp: 1.0, t, area: l.results };
                 results(&th, &r);
                 hud_score(&th, &l, "1,234", 56.0, 1.0, th.text);
             }
-            let p = results_rect(&th, l.card);
+            let p = results_rect(&th, l.results);
             let (_, ry) = retry_center(&th, p);
-            assert!(p.x >= l.card.x && p.right() <= l.card.right() + 0.5, "{name}");
-            assert!(ry + 34.0 <= l.card.bottom() + 60.0, "{name}: retry at {ry}");
+            assert!(p.x >= l.results.x && p.right() <= l.results.right() + 0.5, "{name}");
+            assert!(ry + 34.0 <= l.results.bottom(), "{name}: retry at {ry}, clear of the challenge strip");
         }
     }
 }

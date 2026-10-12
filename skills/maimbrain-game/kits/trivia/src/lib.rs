@@ -427,9 +427,9 @@ impl Game for Trivia {
         let mut rng = Rng::from_host();
         let sim = Sim::new(rng.next_u32() as u64, false);
         let attract = Attract::pick(&mut rng);
-        // SCORES and DAILY sit low in the card area, clear of the feed's overlays.
-        let c = rounds.layout.card;
-        let row = Rect::new(c.x, c.bottom() - 46.0, c.w, 44.0).columns(2, 12.0);
+        // SCORES and DAILY sit low on the game-over card, clear of the feed's
+        // overlays and the challenge strip.
+        let (c, row) = (rounds.layout.card, over_row(&rounds.layout));
         let mut hud = Hud::new(theme, rounds.best());
         hud.size = 44.0;
         // Hearts are drawn by `hearts` (on a paper strip, to read on the curtain).
@@ -497,8 +497,7 @@ impl Game for Trivia {
         // Where the daily button sits depends on the screen.
         let title = self.rounds.stage() == Stage::Title;
         let c = self.rounds.layout.card;
-        let row = Rect::new(c.x, c.bottom() - 46.0, c.w, 44.0).columns(2, 12.0);
-        self.daily_btn.rect = if title { Rect::centered(c.cx(), c.bottom() - 24.0, 140.0, 44.0) } else { row[1] };
+        self.daily_btn.rect = if title { Rect::centered(c.cx(), c.bottom() - 24.0, 140.0, 44.0) } else { over_row(&self.rounds.layout)[1] };
 
         match self.rounds.stage() {
             Stage::Title => self.attract(dt),
@@ -607,7 +606,7 @@ impl Game for Trivia {
             Stage::Over => {
                 // The aftermath: the blown bulb, smoking.
                 let (x, y) = self.over_host();
-                self.host.draw(self.art.host(), x, y, 1.5);
+                self.host.draw(self.art.host(), x, y, OVER_HOST);
                 for p in &self.smoke {
                     draw::puff(p.x, p.y, p.age, p.life, p.size);
                 }
@@ -641,7 +640,8 @@ impl Game for Trivia {
                 self.rounds.draw_card();
                 let (x, y) = self.over_host();
                 let line = format!("{} RIGHT · BEST STREAK {}", self.sim.right, self.sim.best_streak);
-                text(&line).size(16.0).color(0xffffffe0).outline(0.1, look::INK).middle().draw(x, y + 104.0);
+                // Just above SCORES and DAILY, under Watt.
+                text(&line).size(16.0).color(0xffffffe0).outline(0.1, look::INK).middle().draw(x, over_row(&self.rounds.layout)[0].y - 22.0);
                 self.button(&self.scores_btn);
                 self.button(&self.daily_btn);
             }
@@ -662,18 +662,19 @@ impl Game for Trivia {
 }
 
 impl Trivia {
+    /// Watt's glass centre on the game-over card: under the floating card's
+    /// retry button (its bottom 278 below the card area's top), with the stats
+    /// line and SCORES and DAILY below him, all above the challenge strip.
     fn over_host(&self) -> (f32, f32) {
-        let c = self.rounds.layout.card;
-        let top = c.y + 24.0 + 200.0 + 60.0;
-        let bottom = c.bottom() - 56.0 - 110.0;
-        (c.cx(), (top + bottom) / 2.0)
+        let c = self.rounds.layout.results;
+        (c.cx(), c.y + 278.0 + 34.0 * OVER_HOST + 6.0)
     }
 
     fn smoke_origin(&self) -> (f32, f32) {
         match self.rounds.stage() {
             Stage::Over => {
                 let (x, y) = self.over_host();
-                (x, y - 50.0)
+                (x, y - 50.0 * OVER_HOST / 1.5)
             }
             _ => (self.geom.host.0, self.geom.host.1 - 34.0),
         }
@@ -835,6 +836,16 @@ impl Trivia {
             text(look::HINT).size(16.0).color(fade(look::GLOW, a)).middle().draw(c.cx(), c.bottom() + bob);
         }
     }
+}
+
+/// Watt's scale on the game-over card (it was 1.5 before the challenge strip took the bottom).
+const OVER_HOST: f32 = 1.1;
+
+/// SCORES and DAILY on the game-over card: low in its area, clear of the
+/// feed's overlays and the challenge strip.
+fn over_row(l: &Layout) -> Vec<Rect> {
+    let c = l.results;
+    Rect::new(c.x, c.bottom() - 46.0, c.w, 44.0).columns(2, 12.0)
 }
 
 export_game!(Trivia);

@@ -520,8 +520,10 @@ impl Game for Runner {
         let rounds = Rounds::new(TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE)).board(BOARD).daily(BOARD_DAILY).floating().ending(0.0);
         let layout = rounds.layout;
         let mut rng = Rng::from_host();
-        // DAILY and SCORES sit low in the card area, clear of the feed's overlays.
-        let row = Rect::new(layout.card.x, layout.card.bottom() - 46.0, layout.card.w, 44.0).columns(2, 12.0);
+        // DAILY (and SCORES after a round) sit low in the card area, clear of
+        // the feed's overlays; on the game-over card, above the challenge strip too.
+        let daily_title = Rect::centered(layout.card.cx(), layout.card.bottom() - 24.0, (layout.card.w - 12.0) / 2.0, 44.0);
+        let row = Rect::new(layout.results.x, layout.results.bottom() - 46.0, layout.results.w, 44.0).columns(2, 12.0);
         let seed = rng.next_u32() as u64;
         let mut g = Runner {
             sim: Sim::new(seed),
@@ -535,9 +537,9 @@ impl Game for Runner {
             theme,
             hud: Hud::new(theme, rounds.best()),
             rounds,
-            daily_title: Rect::centered(layout.card.cx(), row[1].cy(), row[1].w, row[1].h),
+            daily_title,
             daily_over: row[1],
-            daily_btn: Button::new(Rect::centered(layout.card.cx(), row[1].cy(), row[1].w, row[1].h), "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR).with_haptic(tap_haptic),
+            daily_btn: Button::new(daily_title, "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR).with_haptic(tap_haptic),
             scores_btn: Button::new(row[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY).with_haptic(tap_haptic),
             countdown: Countdown::default(),
             fx: Particles::new(rng.next_u32() as u64),
@@ -671,11 +673,11 @@ impl Game for Runner {
             }
             Stage::Over => {
                 self.rounds.draw();
-                // How far it got, by the aftermath.
+                // How far it got, by the aftermath, above SCORES and DAILY.
                 let a = ((self.rounds.age() - 0.8) / 0.3).clamp(0.0, 1.0);
                 if a > 0.0 {
                     let th = &self.theme;
-                    ui::pill(&format!("{} m", self.sim.meters()), W / 2.0, GROUND_Y + 40.0, 30.0, ui::with_alpha(th.outline, 0.6 * a), ui::fade(0xffffffff, a), th.body_font, Some(Icon::FLAG));
+                    ui::pill(&format!("{} m", self.sim.meters()), W / 2.0, self.daily_over.y - 24.0, 30.0, ui::with_alpha(th.outline, 0.6 * a), ui::fade(0xffffffff, a), th.body_font, Some(Icon::FLAG));
                 }
                 self.scores_btn.draw(&self.theme);
                 self.daily_btn.draw(&self.theme);

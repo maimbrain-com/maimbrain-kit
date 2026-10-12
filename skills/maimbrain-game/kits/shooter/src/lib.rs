@@ -31,7 +31,7 @@ use maimbrain::juice::{Flash, Particles, Popups, VignettePulse};
 use maimbrain::motion::{HitStop, Punch, Shake};
 use maimbrain::rounds::{Input, Rounds, Stage};
 use maimbrain::sys::{self, Level};
-use maimbrain::ui::{Button, ButtonKind, Hud, Icon, Rect, ResultsEvent, Tap, Theme, TitleCard, fmt_int, lighten, with_alpha};
+use maimbrain::ui::{Button, ButtonKind, Hud, Icon, Layout, Rect, ResultsEvent, Tap, Theme, TitleCard, fmt_int, lighten, with_alpha};
 use maimbrain::{Game, Rng, export_game, store};
 
 use bot::Bot;
@@ -109,8 +109,9 @@ impl Game for Shooter {
         // reports over, so no extra ending.
         let rounds = Rounds::new(TitleCard::new(look::TITLE, theme).tagline(look::TAGLINE)).board(BOARD).daily(BOARD_DAILY).heading(look::HEADING).label(look::SCORE_LABEL).ending(0.0);
         let layout = &rounds.layout;
-        // DAILY on the title card, SCORES and DAILY on the results card: low in the card area.
-        let row = Rect::new(layout.card.x, layout.card.bottom() - 46.0, layout.card.w, 44.0).columns(2, 12.0);
+        // DAILY on the title card, SCORES and DAILY on the results card: low
+        // in the card area (`place_daily`).
+        let row = over_row(layout);
         let (sim, demo_bot) = attract(&mut rng);
         let mut g = Shooter {
             sim,
@@ -349,8 +350,7 @@ impl Shooter {
     /// The DAILY button: centred on the title card, beside SCORES on the results card.
     fn place_daily(&mut self, on: Stage) {
         let l = &self.rounds.layout;
-        let row = Rect::new(l.card.x, l.card.bottom() - 46.0, l.card.w, 44.0).columns(2, 12.0);
-        self.daily_btn.rect = if on == Stage::Title { Rect::centered(l.card.cx(), row[1].cy(), 150.0, 44.0) } else { row[1] };
+        self.daily_btn.rect = if on == Stage::Title { Rect::centered(l.card.cx(), l.card.bottom() - 24.0, 150.0, 44.0) } else { over_row(l)[1] };
         self.daily_btn.kind = if self.rounds.is_daily() { ButtonKind::Primary } else { ButtonKind::Secondary };
     }
 
@@ -452,6 +452,12 @@ impl Shooter {
             }
         }
     }
+}
+
+/// SCORES and DAILY on the results card: low in its area, clear of the
+/// feed's overlays and the challenge strip.
+pub(crate) fn over_row(l: &Layout) -> Vec<Rect> {
+    Rect::new(l.results.x, l.results.bottom() - 46.0, l.results.w, 44.0).columns(2, 12.0)
 }
 
 export_game!(Shooter);

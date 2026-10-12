@@ -86,14 +86,14 @@ impl Game for Picnic {
         let layout = &rounds.layout;
         // DAILY (and SCORES after a round) sit low in the card area, clear of
         // the feed's overlays, at its edges so the tower stays in view.
-        let row = [Rect::new(layout.card.x, layout.card.bottom() - 46.0, 112.0, 44.0), Rect::new(layout.card.right() - 112.0, layout.card.bottom() - 46.0, 112.0, 44.0)];
+        let (row, over) = (button_row(layout.card), button_row(layout.results));
         let mut g = Picnic {
             sim: Sim::new(rng.next_u32() as u64),
             time: 0.0,
             idle: 0.0,
             hud: Hud::new(theme, 0),
             daily_btn: Button::new(row[1], "DAILY").kind(ButtonKind::Secondary).with_icon(Icon::STAR),
-            scores_btn: Button::new(row[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY),
+            scores_btn: Button::new(over[0], "SCORES").kind(ButtonKind::Secondary).with_icon(Icon::TROPHY),
             fx: Particles::new(rng.next_u32() as u64),
             popups: Popups::new(),
             shake: Shake::new(),
@@ -153,6 +153,7 @@ impl Game for Picnic {
             let label = if self.rounds.is_daily() { look::DAILY_LABEL } else { look::SCORE_LABEL };
             self.rounds.end(self.sim.score as i64).label(label);
             self.daily_btn.reset();
+            self.daily_btn.rect = button_row(self.rounds.layout.results)[1];
             self.scores_btn.reset();
         }
         if self.rounds.update(dt) == Some(ResultsEvent::NewBest) {
@@ -275,6 +276,7 @@ impl Picnic {
     fn toggle_daily(&mut self) {
         let from_card = self.rounds.stage() == Stage::Over;
         self.rounds.set_daily(!self.rounds.is_daily());
+        self.daily_btn.rect = button_row(self.rounds.layout.card)[1];
         self.sound.ui(self.rounds.is_daily());
         if from_card {
             self.sim = Sim::new(self.rng.next_u32() as u64);
@@ -402,6 +404,12 @@ impl Picnic {
             }
         }
     }
+}
+
+/// SCORES and DAILY at a card area's bottom edges: `layout.card` on the
+/// title, `layout.results` on the game-over card (above the challenge strip).
+fn button_row(area: Rect) -> [Rect; 2] {
+    [Rect::new(area.x, area.bottom() - 46.0, 112.0, 44.0), Rect::new(area.right() - 112.0, area.bottom() - 46.0, 112.0, 44.0)]
 }
 
 export_game!(Picnic);

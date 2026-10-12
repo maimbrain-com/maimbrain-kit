@@ -1,5 +1,13 @@
 # Creator kit changelog
 
+## 0.7.8
+
+Game-over cards leave room for the feed's challenge strip.
+
+- **`Layout::results` is where a game-over card keeps its buttons and text.** After a round against another player's score, the feed draws a strip over the game-over card: both avatars, "YOU BEAT ANN" or "70 SHORT", and a tap for a rematch. For a game built with 0.7.8 it goes in a band 96 pt tall just above the title (`Layout::strip()`), at the same place on the card on every phone. Older games get it a fixed distance above the bottom of the screen, so where it lands on their card depends on the phone: on some phones it covers the kits' SCORES and DAILY buttons, on others the player's wreck. `Layout::results` is `Layout::card` without the band. `ResultsCard` and `Rounds` use it, so their cards move up by themselves. Title cards keep `Layout::card`, since nothing covers them after a round. Move buttons of your own on the game-over card (SCORES, DAILY) and a card you draw yourself into `layout.results`. The kits and the templates do this.
+- **`mb serve` and `mb shot --overlays` shade the strip's band** ("game-over card: challenge strip").
+- **Signed out with no key of your own, `mb art`, `music`, `sfx` and `model` say to run `mb login` first.** If your Maimbrain account has access to Maimbrain's generation keys, you don't need a key of your own; the error used to lead with setting `GEMINI_API_KEY`, and an agent read that as needing one. `mb models` and `mb doctor` say the same when signed out, and the skill tells agents to ask for `mb login` before asking for a key.
+
 ## 0.7.7
 
 The round, its rules and the bot's report move out of every game and into the SDK, and the skill stops "improving" games their owners have already tuned.

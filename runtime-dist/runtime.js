@@ -6013,6 +6013,42 @@ var Runtime = class _Runtime {
     if (!this.stopped) present(host_end_frame);
     return { frames: this.frames, of: frames.length, firstMismatch, compared: Math.min(expected.length, this.frames + 1), missingAssets };
   }
+  /** Recorded frames a replay session has played (the next one to play). */
+  get replayCursor() {
+    return this.cursor;
+  }
+  /** Seeking a held replay session (main.ts `mb.seek`): plays its recorded
+   *  frames up to frame `target` (that many played) as fast as it can,
+   *  silent and unpresented, for at most `budgetMs`, then shows the last
+   *  one. Resolves to whether it got there. Sound picks up where it would
+   *  be once the session plays on: one-shots set off on the way are skipped,
+   *  as watch mode's restore does. */
+  async seekStep(target, budgetMs) {
+    if (this.source.kind !== "replay") throw new Error("seekStep needs a replay session");
+    const frames = this.source.log.frames;
+    const end = Math.min(target, frames.length);
+    const t0 = performance.now();
+    let ran = 0;
+    this.presenting = false;
+    this.session.audio.fastForward(true);
+    try {
+      while (this.cursor < end && !this.stopped && performance.now() - t0 < budgetMs) {
+        const f = frames[this.cursor];
+        await this.session.assets.publishRecorded(f.assets ?? []);
+        this.cursor++;
+        this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
+        ran++;
+      }
+    } finally {
+      this.presenting = true;
+      this.session.audio.fastForward(false);
+    }
+    if (ran > 0 && !this.stopped) {
+      present(host_prepare);
+      present(host_end_frame);
+    }
+    return this.cursor >= end;
+  }
   /** Headless (`mb replay`): plays a replay session's whole log as fast as it
    *  can, unpresented, waiting for each asset the run saw arrive. `onFrame`
    *  is told the 1-based number of the frame about to run. Stops early if the
@@ -6557,12 +6593,42 @@ function drawOverlays(layout, screen2, mic, bannerTop) {
   document.body.append(root);
   const draw = () => {
     const l = layout();
-    const lw = screen2[0] ?? 360, lh = screen2[1] ?? 640, insetTop = screen2[2] ?? 0;
+    const lw = screen2[0] ?? 360, lh = screen2[1] ?? 640, insetTop = screen2[2] ?? 0, insetBottom = screen2[4] ?? 0;
+    const stripBottom = lh - Math.max(insetBottom, 70) - 8;
     const box = (x, y, w, h, label) => `<div style="position:absolute;left:${l.offsetX + x * l.scale}px;top:${l.offsetY + y * l.scale}px;width:${w * l.scale}px;height:${h * l.scale}px;background:rgba(255,0,128,.25);outline:1px dashed #f08;color:#fff;font:10px system-ui;padding:2px;box-sizing:border-box">${label}</div>`;
-    root.innerHTML = box(0, lh - 70, lw, 70, "card: title + creator") + box(lw - 56, lh * 0.45, 56, lh * 0.55 - 70, "card: buttons") + (bannerTop ? box(72, insetTop, lw - 144, 110, "replay card: Beat \u2026 (top)") : box(0, lh - 230, lw - 56, 160, "replay card: Beat \u2026")) + box(8, insetTop + 4, mic ? 110 : 64, 44, mic ? "pause pill + mic badge (play)" : "pause pill (play)");
+    root.innerHTML = box(0, lh - 70, lw, 70, "card: title + creator") + box(lw - 56, lh * 0.45, 56, lh * 0.55 - 70, "card: buttons") + box(56, stripBottom - 96, lw - 112, 96, "game-over card: challenge strip") + (bannerTop ? box(72, insetTop, lw - 144, 110, "replay card: Beat \u2026 (top)") : box(0, lh - 230, lw - 56, 160, "replay card: Beat \u2026")) + box(8, insetTop + 4, mic ? 110 : 64, 44, mic ? "pause pill + mic badge (play)" : "pause pill (play)");
   };
   draw();
   return draw;
+}
+var SEEK_SLICE_MS = 12;
+var SEEK_HEARTBEAT_MS = 250;
+var frameTimes = /* @__PURE__ */ new WeakMap();
+function frameAt(frames, seconds) {
+  let t = frameTimes.get(frames);
+  if (!t) {
+    t = new Float64Array(frames.length + 1);
+    for (let i = 0; i < frames.length; i++) t[i + 1] = t[i] + frames[i].dt;
+    frameTimes.set(frames, t);
+  }
+  const want = Number.isFinite(seconds) ? seconds : 0;
+  let lo = 1;
+  let hi = frames.length;
+  while (lo < hi) {
+    const mid = lo + hi >> 1;
+    if (t[mid] >= want) hi = mid;
+    else lo = mid + 1;
+  }
+  return Math.max(Math.min(lo, frames.length), Math.min(1, frames.length));
+}
+function nextPaint() {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, 32);
+    requestAnimationFrame(() => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 var dev = !hasNative && document.querySelector('meta[name="mb-dev"]') ? startDev() : null;
 async function main() {
@@ -6619,8 +6685,15 @@ async function main() {
   };
   window.addEventListener("resize", refit);
   let rt;
-  const restart = async (opts) => {
-    rt?.stop();
+  let generation = 0;
+  let switching = Promise.resolve();
+  const serially = (f) => {
+    const p = switching.then(f);
+    switching = p.catch(() => {
+    });
+    return p;
+  };
+  const newSession = async (opts) => {
     const source = opts.replay ? { kind: "replay", log: opts.replay, loop: opts.loop ?? true } : { kind: "live" };
     const next = await createSession(page2, source, opts.seed, void 0, opts.params);
     if (source.kind === "replay") {
@@ -6629,13 +6702,90 @@ async function main() {
         else next.suspend();
       };
     }
-    rt = next;
-    if (opts.hold) next.startHeld();
-    else if (opts.paused) next.startPaused();
-    else next.start();
-    post({ op: "restarted", replay: source.kind === "replay" });
+    return next;
+  };
+  let replayOpts = null;
+  const restart = (opts) => {
+    endSeek();
+    return serially(async () => {
+      rt?.stop();
+      const next = await newSession(opts);
+      rt = next;
+      replayOpts = opts.replay ? opts : null;
+      if (opts.hold) next.startHeld();
+      else if (opts.paused) next.startPaused();
+      else next.start();
+      post({ op: "restarted", replay: next.source.kind === "replay" });
+    });
+  };
+  let seekTarget = null;
+  let seeking = null;
+  let resumeAfterSeek = false;
+  const endSeek = () => {
+    generation++;
+    seekTarget = null;
+    seeking = null;
+    resumeAfterSeek = false;
+  };
+  const seek = (seconds) => {
+    if (rt?.source.kind !== "replay" || !replayOpts) return Promise.reject(new Error("mb.seek: the session isn't a replay"));
+    seekTarget = frameAt(rt.source.log.frames, seconds);
+    if (!seeking) {
+      const gen = generation;
+      const p = runSeek(gen).finally(() => {
+        if (seeking === p) seeking = null;
+      });
+      seeking = p;
+    }
+    return seeking;
+  };
+  const runSeek = async (gen) => {
+    if (!rt.held) {
+      rt.suspend();
+      resumeAfterSeek = true;
+    }
+    let beat = performance.now();
+    while (gen === generation && seekTarget !== null) {
+      const target = seekTarget;
+      if (target < rt.replayCursor) {
+        const opts = replayOpts;
+        const fresh = await serially(async () => {
+          if (gen !== generation) return false;
+          const next = await newSession(opts);
+          if (gen !== generation) {
+            next.stop();
+            return false;
+          }
+          rt.stop();
+          rt = next;
+          next.startHeld();
+          return true;
+        });
+        if (!fresh) break;
+      }
+      const there = await rt.seekStep(target, SEEK_SLICE_MS);
+      if (gen !== generation) break;
+      if (performance.now() - beat > SEEK_HEARTBEAT_MS) {
+        beat = performance.now();
+        post({ op: "heartbeat", frame: rt.replayCursor, time: rt.session.gameTime });
+      }
+      if (there && seekTarget === target) seekTarget = null;
+      else await nextPaint();
+    }
+    const log2 = rt.source.kind === "replay" ? rt.source.log : null;
+    const result = { frame: rt.replayCursor, of: log2?.frames.length ?? 0, time: rt.session.gameTime };
+    if (gen === generation) {
+      post({ op: "seeked", ...result });
+      if (resumeAfterSeek) {
+        resumeAfterSeek = false;
+        rt.resume();
+      }
+    }
+    return result;
   };
   const restore2 = async (saved, progress) => {
+    endSeek();
+    replayOpts = null;
     rt?.stop();
     const next = await createSession(page2, { kind: "live" }, void 0, saved.log);
     rt = next;
@@ -6652,8 +6802,16 @@ async function main() {
   window.mb = {
     sound: (on) => page2.audio.setPlayback(on),
     mute: (on) => page2.audio.setUserMuted(on),
-    suspend: () => rt.suspend(),
-    resume: () => rt.resume(),
+    suspend: () => {
+      resumeAfterSeek = false;
+      rt.suspend();
+    },
+    // A seek holds the session until it lands, then plays on.
+    resume: () => {
+      if (seeking) resumeAfterSeek = true;
+      else rt.resume();
+    },
+    seek: (seconds) => seek(seconds),
     snapshot: () => rt.snapshot(),
     resize: refit,
     restart: (json) => restart(JSON.parse(json)),

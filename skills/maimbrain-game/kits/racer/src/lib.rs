@@ -517,9 +517,10 @@ impl Racer {
     }
 }
 
-/// SCORES and DAILY on the results card: low in the card area, clear of the feed's overlays.
+/// SCORES and DAILY on the results card: low in its area, clear of the
+/// feed's overlays and the challenge strip.
 fn card_row(layout: &Layout) -> Vec<Rect> {
-    Rect::new(layout.card.x + 8.0, layout.card.bottom() - 48.0, layout.card.w - 16.0, 44.0).columns(2, 12.0)
+    Rect::new(layout.results.x + 8.0, layout.results.bottom() - 48.0, layout.results.w - 16.0, 44.0).columns(2, 12.0)
 }
 
 /// DAILY alone on the title card, centred.

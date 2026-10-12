@@ -87,6 +87,9 @@ function host_redraw_isolated(node, hud, plain) {
 function host_resize(width, height) {
   wasm.host_resize(width, height);
 }
+function host_set_logical(width, height) {
+  wasm.host_set_logical(width, height);
+}
 function host_set_stdlib(mb3d) {
   wasm.host_set_stdlib(mb3d);
 }
@@ -1232,15 +1235,15 @@ function __wbg_get_imports() {
       return ret;
     },
     __wbindgen_generic_0000000000000004: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__118);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119);
       return ret;
     },
     __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120);
       return ret;
     },
     __wbindgen_generic_0000000000000006: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121);
       return ret;
     },
     __wbindgen_generic_0000000000000007: function(arg0) {
@@ -1273,8 +1276,8 @@ function __wbg_get_imports() {
 function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
   wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__118(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__118(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2);
 }
 function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2) {
   const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2);
@@ -1288,14 +1291,14 @@ function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bin
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
@@ -2087,6 +2090,10 @@ var Audio = class {
   /** The page is shown and running: create (or revive) the context and start loops. */
   resume() {
     this.active = true;
+    if (this.quiet) {
+      this.quiet = false;
+      this.applyGain();
+    }
     if (!this.ctx) {
       this.createContext();
       return;
@@ -2099,13 +2106,21 @@ var Audio = class {
     }, RESUME_GRACE_MS);
   }
   /** The page is going off screen (or is a neighbour): stop holding audio.
-   *  Every voice pauses; play_at voices are rescheduled from game time on resume. */
-  suspend() {
+   *  Every voice pauses; play_at voices are rescheduled from game time on resume.
+   *  `quiet`: a pause on the current card (the player will likely be right
+   *  back): the context keeps running, silenced, so resuming needn't restart
+   *  it; on iOS restarting it reactivates the audio session, which can hold
+   *  up the app (and the controller input it forwards) for seconds. */
+  suspend(quiet = false) {
     this.active = false;
-    void this.ctx?.suspend().catch(() => {
+    this.quiet = quiet;
+    this.applyGain();
+    if (!quiet) void this.ctx?.suspend().catch(() => {
     });
     this.invalidateClock(true);
   }
+  /** Paused quietly (`suspend(true)`): silent, the context still running. */
+  quiet = false;
   /** Silences output without stopping voices (a feed neighbour prerolling). */
   setMuted(on) {
     this.muted = on;
@@ -2117,7 +2132,7 @@ var Audio = class {
     this.applyGain();
   }
   applyGain() {
-    if (this.master) this.master.gain.value = this.muted || this.userMuted ? 0 : MASTER_GAIN;
+    if (this.master) this.master.gain.value = this.muted || this.userMuted || this.quiet ? 0 : MASTER_GAIN;
   }
   /** Watch mode: a restored session runs many frames in a moment. Meanwhile
    *  mb_play one-shots are dropped (they'd all be late) and nothing starts;
@@ -2637,6 +2652,8 @@ var Input = class {
   probes = [];
   /** Probe records of the events the last `take()` returned. */
   taken = [];
+  /** Told which kind of pointer the player is using (the round's play report). */
+  activity = null;
   /** A tap at CSS pixels (the native feed forwards the tap that starts play). */
   tapAt(x, y) {
     const l = this.layout();
@@ -2645,6 +2662,7 @@ var Input = class {
     const [down, up] = this.touchDeclared || !this.mouseDeclared ? [1 /* TouchDown */, 3 /* TouchUp */] : [7 /* MouseDown */, 9 /* MouseUp */];
     const id = this.nextId++ & 255;
     const now = performance.now();
+    this.activity?.used("touch");
     this.pending.push([down, id, 0, lx, ly, 1, 0, 0], [up, id, 0, lx, ly, 0, 0, 0]);
     this.stamps.push(now, now);
   }
@@ -2697,6 +2715,7 @@ var Input = class {
     const touch = this.asTouch(e);
     if (touch ? !this.touchDeclared : !this.mouseDeclared) return;
     const id = touch ? this.nextId++ & 255 : e.button & 255;
+    this.activity?.used(e.pointerType === "mouse" ? "mouse" : "touch");
     this.owned.set(e.pointerId, id);
     this.lastMove.set(e.pointerId, { t: e.timeStamp, x: e.clientX, y: e.clientY });
     e.target.setPointerCapture?.(e.pointerId);
@@ -3243,34 +3262,240 @@ var KEY_DOWN = 5;
 var KEY_UP = 6;
 var PAD_BUTTON = 11;
 var PAD_AXIS = 12;
+var PAD_START = 9;
+var DPAD = [12, 13, 14, 15];
+var TRIGGERS = [6, 7];
+var TRIGGER_DOWN = 0.2;
+var TRIGGER_UP = 0.1;
+function buttonDown(i, v, was) {
+  if (TRIGGERS.includes(i)) return was ? v > TRIGGER_UP : v >= TRIGGER_DOWN;
+  return v > 0.5;
+}
+var PAD_STYLES = ["generic", "xbox", "playstation", "nintendo"];
+function padStyle(id) {
+  const s = id.toLowerCase();
+  if (/dualsense|dualshock|playstation|ps[345]\b|054c|backbone.*playstation/.test(s)) return 2 /* PlayStation */;
+  if (/xbox|xinput|045e|backbone|kishi|gamesir/.test(s)) return 1 /* Xbox */;
+  if (/nintendo|switch|joy-con|pro controller|057e/.test(s)) return 3 /* Nintendo */;
+  return 0 /* Generic */;
+}
+function padName(id) {
+  return id.replace(/\s*\(.*\)\s*$/, "").replace(/^[0-9a-f]{4}-[0-9a-f]{4}-/i, "").trim().slice(0, 64) || "Controller";
+}
 var Keyboard = class {
-  constructor(push) {
+  constructor(push, activity, dom) {
+    this.push = push;
+    this.activity = activity;
+    if (!dom) return;
     const on = (kind) => (e) => {
       const code = HID[e.code];
       if (code === void 0 || e.repeat) return;
       e.preventDefault();
-      push([kind, 0, 0, 0, 0, 0, 0, code], e.timeStamp);
+      this.key(kind, code, e.timeStamp);
     };
     window.addEventListener("keydown", on(KEY_DOWN));
     window.addEventListener("keyup", on(KEY_UP));
   }
+  /** Off while the game is only a feed card (`mb.inputs(false)`): no keys reach it. */
+  enabled = true;
+  /** Keys down as the game last heard. */
+  held = /* @__PURE__ */ new Set();
+  /** A key went down (`KEY_DOWN`) or up, by HID usage: the DOM's, or native's (`mb.key`). */
+  key(kind, code, stamp) {
+    if (!this.enabled || kind !== KEY_DOWN && kind !== KEY_UP || !(code > 0 && code < 256)) return;
+    if (kind === KEY_DOWN) this.held.add(code);
+    else this.held.delete(code);
+    this.activity?.used("keyboard");
+    this.push([kind, 0, 0, 0, 0, 0, 0, code], stamp);
+  }
+  /** Key-ups for every key the game still thinks is down (input turning off:
+   *  a key let go in browse would otherwise stay down in the game). */
+  releaseAll() {
+    const out = [...this.held].map((code) => [KEY_UP, 0, 0, 0, 0, 0, 0, code]);
+    this.held.clear();
+    return out;
+  }
 };
 var Gamepads = class {
+  constructor(native2, activity) {
+    this.activity = activity;
+    this.native = native2 ? [] : null;
+  }
   last = /* @__PURE__ */ new Map();
+  /** Native's latest controller state (boot `nativePads`); null: the Gamepad API. */
+  native;
+  /** The pad that last changed, for rumble (web). */
+  recent = null;
+  /** Off while the game is only a feed card (`mb.inputs(false)`): controllers don't reach it. */
+  enabled = true;
+  /** Presses the host hands over (`mb.padTap`), delivered at the next poll. */
+  taps = [];
+  /** Browse (off) or play (on). Turned on, the game hears the directions held
+   *  right now (the d-pad and the sticks: a player still holding left when
+   *  play resumes keeps walking left), but buttons held now count as already
+   *  seen, so the press that entered or resumed play doesn't act in the game
+   *  too; that press comes through `tap` when it should. */
+  setEnabled(on) {
+    if (on && !this.enabled) {
+      this.last.clear();
+      for (const pad of this.read()) {
+        const now = this.normalize(pad);
+        this.last.set(pad.index, {
+          buttons: now.buttons.map((v, i) => DPAD.includes(i) ? 0 : buttonDown(i, v, false) ? 1 : 0),
+          axes: now.axes.map(() => 0)
+        });
+      }
+    }
+    this.enabled = on;
+  }
+  /** Releases for every button the game still thinks is held and every axis
+   *  off center (input turning off: what's let go in browse would otherwise
+   *  stay held in the game). */
+  releaseAll() {
+    const out = [];
+    for (const [index, st] of this.last) {
+      const style = st.style ?? 0;
+      st.buttons.forEach((v, i) => {
+        if (v > 0.5) out.push([PAD_BUTTON, style, index, 0, 0, 0, 0, i]);
+      });
+      st.axes.forEach((v, i) => {
+        if (v !== 0) out.push([PAD_AXIS, style, index, 0, 0, 0, 0, i]);
+      });
+      this.last.set(index, { buttons: st.buttons.map(() => 0), axes: st.axes.map(() => 0), style });
+    }
+    return out;
+  }
+  /** The host's controller press that entered play (as `mb.tap` hands over a
+   *  touch): down and up of `button` on pad `index`, at the next frame. */
+  tap(button, index) {
+    if (!(button >= 0 && button < 32 && button !== PAD_START && index >= 0 && index < 16)) return;
+    const pad = this.read().find((p) => p.index === index);
+    const style = Math.max(0, PAD_STYLES.indexOf(pad?.style ?? "generic"));
+    this.taps.push([PAD_BUTTON, style, index, 0, 0, 1, 0, button], [PAD_BUTTON, style, index, 0, 0, 0, 0, button]);
+    this.recent = index;
+    this.activity?.used("gamepad", { style, name: String(pad?.name ?? "Controller").slice(0, 64) });
+  }
+  /** Every connected controller's state: native's, or the Gamepad API's. */
+  read() {
+    return this.native ?? [...navigator.getGamepads?.() ?? []].flatMap(
+      (p) => p ? [{ index: p.index, style: PAD_STYLES[padStyle(p.id)], name: padName(p.id), buttons: p.buttons.map((b) => b.value), axes: [...p.axes] }] : []
+    );
+  }
+  normalize(pad) {
+    return {
+      buttons: pad.buttons.slice(0, 32).map((b) => Math.fround(Number(b) || 0)),
+      axes: pad.axes.slice(0, 8).map((a) => Math.fround(Math.abs(Number(a) || 0) < 0.1 ? 0 : Number(a)))
+    };
+  }
+  /** Native: every connected controller's state now. */
+  setNative(pads) {
+    if (this.native !== null) this.native = pads;
+  }
   poll(push) {
-    for (const pad of navigator.getGamepads?.() ?? []) {
-      if (!pad) continue;
+    for (const e of this.taps.splice(0)) push(e);
+    if (!this.enabled) return;
+    for (const pad of this.read()) {
+      if (!(pad.index >= 0 && pad.index < 16)) continue;
+      const style = Math.max(0, PAD_STYLES.indexOf(pad.style));
       const prev = this.last.get(pad.index) ?? { buttons: [], axes: [] };
-      const buttons = pad.buttons.map((b) => Math.fround(b.value));
-      const axes = pad.axes.map((a) => Math.fround(Math.abs(a) < 0.1 ? 0 : a));
-      buttons.forEach((v, i) => {
-        if (v > 0.5 !== (prev.buttons[i] ?? 0) > 0.5) push([PAD_BUTTON, 0, pad.index, 0, 0, v, 0, i]);
+      const { buttons, axes } = this.normalize(pad);
+      let changed = false;
+      const down = buttons.map((v, i) => buttonDown(i, v, (prev.buttons[i] ?? 0) > 0.5) ? 1 : 0);
+      down.forEach((d, i) => {
+        if (i === PAD_START) return;
+        if (d !== ((prev.buttons[i] ?? 0) > 0.5 ? 1 : 0)) {
+          const v = buttons[i] ?? 0;
+          push([PAD_BUTTON, style, pad.index, 0, 0, TRIGGERS.includes(i) ? d : v, 0, i]);
+          changed = true;
+        }
       });
       axes.forEach((v, i) => {
-        if (Math.abs(v - (prev.axes[i] ?? 0)) > 0.02) push([PAD_AXIS, 0, pad.index, 0, 0, v, 0, i]);
+        if (Math.abs(v - (prev.axes[i] ?? 0)) > 0.02) {
+          push([PAD_AXIS, style, pad.index, 0, 0, v, 0, i]);
+          changed = true;
+        }
       });
-      this.last.set(pad.index, { buttons, axes });
+      this.last.set(pad.index, { buttons: down, axes, style });
+      if (changed) {
+        this.recent = pad.index;
+        this.activity?.used("gamepad", { style, name: String(pad.name).slice(0, 64) });
+      }
     }
+  }
+  /** Web: a SPEC §5.7 haptic (0 light … 3 heavy) as a rumble on the pad in
+   *  use, where the browser can. Native rumbles its own controllers. */
+  rumble(kind) {
+    if (this.native !== null || this.recent === null) return;
+    const pad = navigator.getGamepads?.()[this.recent];
+    const act = pad?.vibrationActuator;
+    const [ms, strong, weak] = [[25, 0, 0.35], [40, 0.3, 0.6], [60, 0.7, 0.9], [90, 1, 1]][kind] ?? [25, 0, 0.35];
+    act?.playEffect?.("dual-rumble", { duration: ms, strongMagnitude: strong, weakMagnitude: weak })?.catch(() => {
+    });
+  }
+};
+
+// src/play.ts
+var ACTIVE_HOLD = 1.5;
+var Play = class {
+  constructor(orientation) {
+    this.orientation = orientation;
+  }
+  /** Seconds each input was in use (credited while it's been touched within ACTIVE_HOLD). */
+  active = /* @__PURE__ */ new Map();
+  held = /* @__PURE__ */ new Map();
+  /** When each input was last used, in round seconds. */
+  lastUsed = /* @__PURE__ */ new Map();
+  pad = null;
+  seconds = 0;
+  running = false;
+  /** Used since the last frame (an input before the round starts still counts: the tap that starts it). */
+  pending = /* @__PURE__ */ new Set();
+  used(input, pad) {
+    this.pending.add(input);
+    if (pad) this.pad = pad;
+  }
+  /** `mb_round(1)`: a round starts. */
+  start() {
+    this.active.clear();
+    this.held.clear();
+    this.lastUsed.clear();
+    this.seconds = 0;
+    this.running = true;
+    for (const i of this.pending) this.lastUsed.set(i, 0);
+    this.pending.clear();
+  }
+  /** A live frame of `dt` game seconds. */
+  frame(dt) {
+    if (!this.running) return;
+    this.seconds += dt;
+    for (const i of this.pending) this.lastUsed.set(i, this.seconds);
+    this.pending.clear();
+    for (const [i, t] of this.lastUsed) {
+      if (this.seconds - t <= ACTIVE_HOLD) this.active.set(i, (this.active.get(i) ?? 0) + dt);
+    }
+    const o = this.orientation();
+    this.held.set(o, (this.held.get(o) ?? 0) + dt);
+  }
+  /** `mb_round(2)`: the round is over; its report, or null if none was running. */
+  finish() {
+    if (!this.running) return null;
+    this.running = false;
+    for (const i of this.pending) if (!this.lastUsed.has(i)) this.lastUsed.set(i, this.seconds);
+    this.pending.clear();
+    for (const i of this.lastUsed.keys()) if (!this.active.has(i)) this.active.set(i, 0);
+    const byTime = (m) => [...m.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+    const inputs = byTime(this.active);
+    const orientations = byTime(this.held);
+    if (orientations.length === 0) orientations.push(this.orientation());
+    const round = (s) => Math.round(s * 1e3) / 1e3;
+    return {
+      seconds: round(this.seconds),
+      inputs,
+      primaryInput: inputs[0] ?? null,
+      orientations,
+      primaryOrientation: orientations[0],
+      controller: inputs.includes("gamepad") && this.pad ? { style: PAD_STYLES[this.pad.style], name: this.pad.name } : null
+    };
   }
 };
 
@@ -3304,6 +3529,49 @@ async function probe() {
   }
   return out;
 }
+
+// src/replay.ts
+function heldAtEnd(log2) {
+  const touches = /* @__PURE__ */ new Map();
+  const mouse = /* @__PURE__ */ new Map();
+  const keys = /* @__PURE__ */ new Set();
+  const buttons = /* @__PURE__ */ new Map();
+  const axes = /* @__PURE__ */ new Map();
+  for (const f of log2.frames) {
+    for (const e of f.events ?? []) {
+      const [kind, id, pad, x, y, a, , code] = e;
+      if (kind === 1 || kind === 2) touches.set(id, [4, id, pad, x, y, 0, 0, code]);
+      else if (kind === 3 || kind === 4) touches.delete(id);
+      else if (kind === 5) keys.add(code);
+      else if (kind === 6) keys.delete(code);
+      else if (kind === 7) mouse.set(code, [9, id, pad, x, y, 0, 0, code]);
+      else if (kind === 8) for (const [b, m] of mouse) mouse.set(b, [9, m[1], m[2], x, y, 0, 0, b]);
+      else if (kind === 9) mouse.delete(code);
+      else if (kind === 11) {
+        if (a > 0.5) buttons.set(`${pad}:${code}`, [11, id, pad, 0, 0, 0, 0, code]);
+        else buttons.delete(`${pad}:${code}`);
+      } else if (kind === 12) {
+        if (a !== 0) axes.set(`${pad}:${code}`, [12, id, pad, 0, 0, 0, 0, code]);
+        else axes.delete(`${pad}:${code}`);
+      }
+    }
+  }
+  return [...touches.values(), ...mouse.values(), ...[...keys].map((code) => [6, 0, 0, 0, 0, 0, 0, code]), ...buttons.values(), ...axes.values()];
+}
+var Recorder = class {
+  log;
+  constructor(header) {
+    this.log = { version: 1, ...header, frames: [] };
+  }
+  frame(dt, events, assets, sensors, calls = [], lost = 0) {
+    const f = { dt, ...sensors };
+    if (lost > 0) f.lost = lost;
+    if (events.length) f.events = events;
+    if (assets.length) f.assets = assets;
+    if (calls.length) f.calls = calls;
+    this.log.frames.push(f);
+  }
+};
 
 // src/abi.json
 var abi_default = {
@@ -4958,6 +5226,8 @@ var TEXT_MAX_BYTES = 4096;
 var MESH_MAX_BYTES = 64 * 1024 * 1024;
 var STORE_QUOTA = 256 * 1024;
 var STORE_KEY_MAX = 64;
+var PROGRESS_PREFIX = "progress/";
+var PROGRESS_QUOTA = 64 * 1024;
 function declared(req, m) {
   if (!req) return true;
   if (req.stdlib) return (m.stdlib[req.stdlib] ?? 0) >= (req.version ?? 1);
@@ -4982,6 +5252,7 @@ function buildImports(s, host, m) {
     new Uint8Array(host.memory.buffer, at, data.length).set(data);
   };
   const boards = new Set((m.scores ?? []).map((b) => b.board));
+  const progress = m.capabilities.includes("progress");
   let f32 = new Float32Array(0);
   const floats = (ptr, n) => {
     const buf = s.memory().buffer;
@@ -5032,7 +5303,10 @@ function buildImports(s, host, m) {
       if (state < 0 || state > 2 || state === s.round) return;
       s.round = state;
       s.observer?.round(state);
-      if (!s.replaying) post({ op: "round", state });
+      if (s.replaying || s.fastForwarding) return;
+      if (state === 1) s.play?.start();
+      const play = state === 2 ? s.play?.finish() ?? null : null;
+      post(play ? { op: "round", state, play } : { op: "round", state });
     }),
     mb_player_id: ((ptr) => {
       bytes().set(s.playerId, ptr);
@@ -5311,7 +5585,10 @@ function buildImports(s, host, m) {
     mb_loudness: (() => s.loudness ?? -1),
     // Output only, so it never affects determinism; the native side decides whether to play it.
     mb_haptic: ((kind) => {
-      if (kind >= 0 && kind <= 3 && !s.replaying) post({ op: "haptic", kind });
+      if (kind >= 0 && kind <= 3 && !s.replaying && !s.fastForwarding) {
+        post({ op: "haptic", kind });
+        s.onHaptic?.(kind);
+      }
     }),
     // 5.8 store
     mb_store_get: ((kp, kl, bp, cap) => {
@@ -5327,6 +5604,10 @@ function buildImports(s, host, m) {
       const old = s.store.get(key);
       const size = s.storeBytes() - (old ? key.length + old.length : 0) + (vl ? key.length + vl : 0);
       if (size > STORE_QUOTA) return -4 /* Quota */;
+      if (progress && key.startsWith(PROGRESS_PREFIX)) {
+        const p = s.storeBytes(PROGRESS_PREFIX) - (old ? key.length + old.length : 0) + (vl ? key.length + vl : 0);
+        if (p > PROGRESS_QUOTA) return -4 /* Quota */;
+      }
       if (vl === 0) s.store.delete(key);
       else s.store.set(key, value);
       if (!s.replaying) {
@@ -5340,18 +5621,18 @@ function buildImports(s, host, m) {
     mb_score_submit: ((board, value) => {
       if (!boards.has(board)) return -3 /* NotDeclared */;
       s.observer?.score(board, value);
-      if (!s.replaying) post({ op: "score_submit", board, value: value.toString() });
+      if (!s.replaying && !s.fastForwarding) post({ op: "score_submit", board, value: value.toString() });
       return 0;
     }),
     mb_score_show: ((board) => {
-      if (boards.has(board) && !s.replaying) post({ op: "score_show", board });
+      if (boards.has(board) && !s.replaying && !s.fastForwarding) post({ op: "score_show", board });
     }),
     // 5.9 links: always through the platform's interstitial.
     mb_link_open: ((ptr, len) => {
       if (len > 2048) return -2 /* InvalidArgument */;
       const url = str(ptr, len);
       if (!/^https?:\/\/[^\s]+$/i.test(url)) return -2 /* InvalidArgument */;
-      if (!s.replaying) post({ op: "link_open", url });
+      if (!s.replaying && !s.fastForwarding) post({ op: "link_open", url });
       return 0;
     })
   };
@@ -5375,22 +5656,6 @@ function buildImports(s, host, m) {
   }
   return imports;
 }
-
-// src/replay.ts
-var Recorder = class {
-  log;
-  constructor(header) {
-    this.log = { version: 1, ...header, frames: [] };
-  }
-  frame(dt, events, assets, sensors, calls = [], lost = 0) {
-    const f = { dt, ...sensors };
-    if (lost > 0) f.lost = lost;
-    if (events.length) f.events = events;
-    if (assets.length) f.assets = assets;
-    if (calls.length) f.calls = calls;
-    this.log.frames.push(f);
-  }
-};
 
 // src/session.ts
 var NOTES_PER_FRAME = 8;
@@ -5419,6 +5684,9 @@ var Session = class {
   store = /* @__PURE__ */ new Map();
   /** Replays never persist or submit anything. */
   replaying = false;
+  /** Running through a left run's frames to pick it up (`mb.restart({ resume })`): what it
+   *  saves and reports still counts, but nothing reaches the player (haptics, overlays). */
+  fastForwarding = false;
   /** Called when saved data changes (key, base64 value or null). */
   onStore = null;
   /** What the game reports, replay or not: the headless runner's (`mb replay`)
@@ -5426,6 +5694,10 @@ var Session = class {
   observer = null;
   /** Last SPEC §5.1 round state the game reported (0 idle, 1 playing, 2 over). */
   round = 0;
+  /** Live sessions on a page: how each round is played, reported with its end. */
+  play = null;
+  /** A haptic the game played (web: rumbles the controller in use). */
+  onHaptic = null;
   /** This frame's sensor snapshot (SPEC §5.7); null before the first sample. */
   tilt = null;
   motion = null;
@@ -5441,10 +5713,10 @@ var Session = class {
   /** Debug parameters (SPEC §5.1 `mb_param`): the preview tools' `--param`,
    *  fixed for the session and recorded in its log; always empty on a device. */
   params = /* @__PURE__ */ new Map();
-  /** Total bytes of keys + values, for the 256 KB quota. */
-  storeBytes() {
+  /** Total bytes of keys + values (those starting with `prefix`), for the quotas. */
+  storeBytes(prefix = "") {
     let n = 0;
-    for (const [k, v] of this.store) n += k.length + v.length;
+    for (const [k, v] of this.store) if (k.startsWith(prefix)) n += k.length + v.length;
     return n;
   }
   /** Starts a frame: delivers its events and sensor snapshot, advances game
@@ -5465,6 +5737,7 @@ var Session = class {
     if (sensors.motion !== void 0) this.motion = sensors.motion;
     if (sensors.att !== void 0) this.attitude = sensors.att;
     if (sensors.loud !== void 0) this.loudness = sensors.loud;
+    if (sensors.screen?.length === this.screen.length) this.screen.set(sensors.screen);
     this.frameEvents = events;
     let last = prev;
     this.frameTimes = events.map((ev) => {
@@ -5588,10 +5861,11 @@ var PREROLL_MIN_FRAMES = 6;
 var PREROLL_MAX_MS = 3e3;
 var GPU_WAIT_MAX_MS = 1e3;
 var MAX_DT = 0.1;
+var RESIZE = 14;
 var TOP_OVER = 8;
 var MAX_FRAME_HASHES = 216e3;
 var Runtime = class _Runtime {
-  constructor(guest, session, input, recorder, gamepads, sensors, stats, latency, source) {
+  constructor(guest, session, input, recorder, gamepads, sensors, stats, latency, source, view = null, play = null) {
     this.guest = guest;
     this.session = session;
     this.input = input;
@@ -5601,6 +5875,8 @@ var Runtime = class _Runtime {
     this.stats = stats;
     this.latency = latency;
     this.source = source;
+    this.view = view;
+    this.play = play;
   }
   running = false;
   suspended = false;
@@ -5689,15 +5965,32 @@ var Runtime = class _Runtime {
     };
     frame();
   }
+  /** When the last resume happened (ms), until the first controller input after it is
+   *  delivered: logged, to see how soon a resumed game hears the controller. */
+  resumedAt = null;
+  /** Live frames run since that resume. */
+  framesSinceResume = 0;
+  /** Input turned on for play (`mb.inputs(true)`): time the first controller input from
+   *  there, not from the card's resume, which came while it was browsed. */
+  inputsOn() {
+    this.resumedAt = performance.now();
+    this.framesSinceResume = 0;
+  }
   /** Running silently ahead of being shown (startPaused). */
   prerolling = false;
   /** False while prerolling: frames render without being presented. */
   presenting = true;
-  suspend() {
-    if (this.suspended || this.stopped) return;
+  /** `quiet`: a pause the player will likely come straight back from (the
+   *  current card): audio is silenced rather than stopped (Audio.suspend). */
+  suspend(quiet = false) {
+    if (this.stopped) return;
+    if (this.suspended) {
+      if (!quiet) this.session.audio.suspend(false);
+      return;
+    }
     this.suspended = true;
     cancelFrame(this.raf);
-    this.session.audio.suspend();
+    this.session.audio.suspend(quiet);
     if (this.source.kind === "live") {
       this.lifecycle("suspend");
       this.calls.push("suspend");
@@ -5723,6 +6016,8 @@ var Runtime = class _Runtime {
       this.calls.push("resume");
     }
     post({ op: "resumed" });
+    this.resumedAt = performance.now();
+    this.framesSinceResume = 0;
     this.raf = requestAnimationFrame((t) => this.tick(t));
   }
   lifecycle(c) {
@@ -5755,10 +6050,24 @@ var Runtime = class _Runtime {
   /** A live frame. With `clock` (a real display frame), events get their own
    *  times within it; without (prerolling, stepping), the frame's time. */
   liveFrame(dt, clock, lost = 0) {
+    for (const e of this.view?.pending?.splice(0) ?? []) this.input.push(e);
     this.gamepads?.poll((e) => this.input.push(e));
     const events = this.input.take(clock);
     const assets = this.session.assets.publishArrived();
     const sensors = this.sampleSensors();
+    const screen2 = this.view?.adaptive ? this.view.screen : null;
+    if (screen2 && screen2.some((v, i) => v !== this.session.screen[i])) {
+      sensors.screen = Array.from(screen2);
+      events.unshift([RESIZE, 0, 0, screen2[0], screen2[1], 0, 0, 0]);
+    }
+    this.play?.frame(dt);
+    if (this.resumedAt !== null) {
+      this.framesSinceResume++;
+      if (events.some((e) => e[0] === 11 || e[0] === 12)) {
+        post({ op: "log", level: 0, msg: `runtime: first controller input ${Math.round(performance.now() - this.resumedAt)} ms (${this.framesSinceResume} frames) after resume or input on` });
+        this.resumedAt = null;
+      }
+    }
     this.latency.deliver(this.input.taken, this.frames + 1, this.frameNow);
     this.recorder.frame(dt, events, assets, sensors, this.calls.splice(0), lost);
     return this.step(dt, events, sensors, [], lost);
@@ -5900,6 +6209,7 @@ var Runtime = class _Runtime {
     for (const c of calls ?? []) this.lifecycle(c);
     if (this.stopped) return null;
     this.session.beginFrame(dt, events, sensors, lost);
+    if (sensors?.screen) host_set_logical(this.session.screen[0], this.session.screen[1]);
     host_step(dt);
     this.session.audio.frame(this.frameNow ?? performance.now(), this.session.gameTime, this.source.kind === "live" ? _Runtime.timeScale : 1);
     const update = this.timed("mb_update", () => this.guest.mb_update(dt));
@@ -5981,6 +6291,7 @@ var Runtime = class _Runtime {
   async fastForward(frames, expected, progress) {
     this.presenting = false;
     this.session.audio.fastForward(true);
+    this.session.fastForwarding = true;
     let firstMismatch = expected.length > 0 && this.hashes[0] !== expected[0] ? 0 : null;
     let missingAssets = 0;
     let slice = performance.now();
@@ -5997,6 +6308,7 @@ var Runtime = class _Runtime {
         if (f.motion !== void 0) sensors.motion = f.motion;
         if (f.att !== void 0) sensors.att = f.att;
         if (f.loud !== void 0) sensors.loud = f.loud;
+        if (f.screen !== void 0) sensors.screen = f.screen;
         this.recorder.frame(f.dt, f.events ?? [], assets, sensors, f.calls ?? [], f.lost ?? 0);
         this.step(f.dt, f.events ?? [], sensors, f.calls, f.lost);
         if (firstMismatch === null && i + 1 < expected.length && this.hashes[i + 1] !== expected[i + 1]) firstMismatch = i + 1;
@@ -6009,6 +6321,7 @@ var Runtime = class _Runtime {
     } finally {
       this.presenting = true;
       this.session.audio.fastForward(false);
+      this.session.fastForwarding = false;
     }
     if (!this.stopped) present(host_end_frame);
     return { frames: this.frames, of: frames.length, firstMismatch, compared: Math.min(expected.length, this.frames + 1), missingAssets };
@@ -6113,14 +6426,20 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
   const store = log2?.store ?? { ...page2.store };
   const playerId = log2?.playerId ?? boot.playerId;
   const locale = log2?.locale ?? boot.locale;
-  const screen2 = log2 ? new Float32Array(log2.screen) : page2.screen;
+  const screen2 = new Float32Array(log2 ? log2.screen : page2.screen);
   host_new_session();
   host_set_stdlib(boot.manifest.stdlib.mb3d ?? 0);
+  host_set_logical(screen2[0], screen2[1]);
   page2.audio.newSession();
   const session = new Session(page2.audio, seed, dailySeed, hexBytes(playerId), locale, screen2, page2.gameBase, store, page2.assets);
   session.replaying = source.kind === "replay";
   for (const [k, v] of Object.entries(params)) session.params.set(k, v);
   session.observer = page2.observer ?? null;
+  const live = source.kind === "live";
+  if (live) {
+    session.play = page2.play ?? null;
+    session.onHaptic = (k) => page2.gamepads?.rumble(k);
+  }
   session.onStore = (key, value) => {
     if (value === null) delete page2.store[key];
     else page2.store[key] = value;
@@ -6140,7 +6459,8 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
     screen: Array.from(screen2),
     ...Object.keys(params).length ? { params } : {}
   });
-  const rt = new Runtime(guest, session, page2.input, recorder, page2.gamepads, page2.sensors, page2.stats, page2.latency, source);
+  const view = source.kind === "live" ? { screen: page2.screen, adaptive: page2.adaptive === true, pending: page2.pending } : null;
+  const rt = new Runtime(guest, session, page2.input, recorder, page2.gamepads, page2.sensors, page2.stats, page2.latency, source, view, live ? page2.play ?? null : null);
   rt.init();
   return rt;
 }
@@ -6562,30 +6882,55 @@ var Ui = class {
 
 // src/main.ts
 var TOP_STATS = 8;
-function fit(canvas, boot) {
-  const [lw, lh] = boot.manifest.logical_size;
+var MAX_FILL_ASPECT = 2.4;
+function isAdaptive(boot) {
+  const m = boot.manifest;
+  return (m.orientation === "landscape" || m.orientation === "any" || m.fit === "fill") && !builtBefore08(boot.sdk);
+}
+function builtBefore08(sdk) {
+  if (sdk === void 0) return false;
+  const [major, minor] = (sdk ?? "0.0").split(".").map((n) => parseInt(n, 10) || 0);
+  return (major ?? 0) === 0 && (minor ?? 0) < 8;
+}
+function viewOrientation() {
+  return window.innerWidth > window.innerHeight ? "landscape" : "portrait";
+}
+var adaptiveLandscape = false;
+function fit(canvas, m, view) {
+  let [lw, lh] = m.logical_size;
+  if (m.orientation === "any" && viewOrientation() === "landscape") [lw, lh] = [lh, lw];
+  if (m.orientation === "landscape" && viewOrientation() === "portrait" && adaptiveLandscape) [lw, lh] = [lh, lw];
   const cssW = window.innerWidth;
   const cssH = window.innerHeight;
-  const scale = Math.min(cssW / lw, cssH / lh) || 1;
+  let scale = Math.min(cssW / lw, cssH / lh) || 1;
+  if (m.fit === "fill" && cssW > 0 && cssH > 0) {
+    let w = cssW / scale;
+    let h = cssH / scale;
+    if (w / h > MAX_FILL_ASPECT) w = h * MAX_FILL_ASPECT;
+    if (h / w > MAX_FILL_ASPECT) h = w * MAX_FILL_ASPECT;
+    lw = Math.min(4096, Math.max(lw, Math.round(w)));
+    lh = Math.min(4096, Math.max(lh, Math.round(h)));
+    scale = Math.min(cssW / lw, cssH / lh) || 1;
+  }
   const offsetX = (cssW - lw * scale) / 2;
   const offsetY = (cssH - lh * scale) / 2;
   const k = Math.min(window.devicePixelRatio || 1, 2 / scale);
   const size = [Math.max(1, Math.round(cssW * k)), Math.max(1, Math.round(cssH * k))];
   canvas.width = size[0];
   canvas.height = size[1];
-  const ins = boot.insets;
+  const ins = view.insets;
   const toLogical = (css, off) => Math.max(0, css - off) / scale;
   const screen2 = new Float32Array([
     lw,
     lh,
     toLogical(ins.top, offsetY),
     toLogical(ins.right, offsetX),
-    toLogical(Math.max(ins.bottom, boot.stripHeight), offsetY),
+    toLogical(Math.max(ins.bottom, view.stripHeight), offsetY),
     toLogical(ins.left, offsetX),
     k * scale,
     0
   ]);
-  return { layout: { scale, offsetX, offsetY, height: cssH, stripHeight: boot.stripHeight }, screen: screen2, size };
+  return { layout: { scale, offsetX, offsetY, height: cssH, stripHeight: view.stripHeight }, screen: screen2, size };
 }
 function drawOverlays(layout, screen2, mic, bannerTop) {
   const root = document.createElement("div");
@@ -6638,13 +6983,18 @@ async function main() {
   const boot = await loadBoot();
   const m = boot.manifest;
   const canvas = document.getElementById("game");
-  let { layout, screen: screen2 } = fit(canvas, boot);
+  const view = { insets: { ...boot.insets }, stripHeight: boot.stripHeight };
+  const adaptive = isAdaptive(boot);
+  adaptiveLandscape = adaptive;
+  let { layout, screen: screen2 } = fit(canvas, m, view);
   const host = await __wbg_init({ module_or_path: new URL("mb_host_bg.wasm", import.meta.url) });
-  await host_init(canvas, m.logical_size[0], m.logical_size[1]);
+  await host_init(canvas, screen2[0], screen2[1]);
   const gameBase = boot.gameBase ?? "../game/";
   const module = await WebAssembly.compile(await (await fetch(`${gameBase}game.wasm`)).arrayBuffer());
   const input = new Input(canvas, () => layout, m.inputs.includes("touch"), m.inputs.includes("mouse"));
-  if (m.inputs.includes("keyboard")) new Keyboard((e, stamp) => input.push(e, stamp));
+  const play = new Play(viewOrientation);
+  input.activity = play;
+  const keyboard = m.inputs.includes("keyboard") ? new Keyboard((e, stamp) => input.push(e, stamp), play, boot.nativeKeys !== true) : null;
   const page2 = {
     boot,
     manifest: m,
@@ -6653,7 +7003,7 @@ async function main() {
     host,
     audio: new Audio(),
     input,
-    gamepads: m.inputs.includes("gamepad") ? new Gamepads() : null,
+    gamepads: m.inputs.includes("gamepad") ? new Gamepads(boot.nativePads === true, play) : null,
     sensors: ["tilt", "motion", "attitude", "loudness"].some((x) => m.sensors.includes(x)) ? new Sensors(
       {
         tilt: m.sensors.includes("tilt"),
@@ -6670,21 +7020,39 @@ async function main() {
     assets: /* @__PURE__ */ new Map(),
     stats: new Stats(!hasNative),
     latency: new Latency(),
-    params: hasNative ? {} : checkParams(Object.fromEntries(new URLSearchParams(location.search).getAll("param").map((p) => [p.split("=")[0] ?? "", p.slice(p.indexOf("=") + 1)])))
+    params: hasNative ? {} : checkParams(Object.fromEntries(new URLSearchParams(location.search).getAll("param").map((p) => [p.split("=")[0] ?? "", p.slice(p.indexOf("=") + 1)]))),
+    adaptive,
+    play,
+    pending: []
   };
   input.latency = page2.latency;
   const sampleKind = m.sensors.includes("attitude") ? "attitude" : "tilt";
   if (page2.sensors) page2.sensors.onEmulatedTilt = (stamp) => page2.latency.tilt(stamp, performance.now(), sampleKind);
   let drawOverlayLayer = null;
   const refit = () => {
-    const f = fit(canvas, boot);
+    const f = fit(canvas, m, view);
     layout = f.layout;
+    if (adaptive) page2.screen.set(f.screen);
     host_resize(f.size[0], f.size[1]);
     present(host_redraw);
     drawOverlayLayer?.();
   };
   window.addEventListener("resize", refit);
   let rt;
+  let lagWorst = 0;
+  let lagCount = 0;
+  let lagLogged = 0;
+  const padLag = (ms) => {
+    if (ms <= 50) return;
+    lagWorst = Math.max(lagWorst, ms);
+    lagCount++;
+    const now = performance.now();
+    if (now - lagLogged < 1e3) return;
+    lagLogged = now;
+    post({ op: "log", level: 1, msg: `runtime: controller state reached the page ${Math.round(lagWorst)} ms after native sent it (${lagCount} late)` });
+    lagWorst = 0;
+    lagCount = 0;
+  };
   let generation = 0;
   let switching = Promise.resolve();
   const serially = (f) => {
@@ -6707,6 +7075,11 @@ async function main() {
   let replayOpts = null;
   const restart = (opts) => {
     endSeek();
+    if (opts.resume) {
+      const log2 = opts.resume;
+      replayOpts = null;
+      return serially(() => resumeRun(log2, opts.hold ?? true));
+    }
     return serially(async () => {
       rt?.stop();
       const next = await newSession(opts);
@@ -6783,6 +7156,18 @@ async function main() {
     }
     return result;
   };
+  const resumeRun = async (log2, hold) => {
+    rt?.stop();
+    const next = await createSession(page2, { kind: "live" }, void 0, log2);
+    rt = next;
+    const r = await next.fastForward(log2.frames, []);
+    if (rt !== next) return;
+    page2.pending?.push(...heldAtEnd(log2));
+    if (next.session.round === 1) next.session.play?.start();
+    if (hold) next.startHeld();
+    else next.start();
+    post({ op: "restarted", replay: false, resumed: { frames: r.frames, of: r.of, missingAssets: r.missingAssets } });
+  };
   const restore2 = async (saved, progress) => {
     endSeek();
     replayOpts = null;
@@ -6794,6 +7179,9 @@ async function main() {
       if (saved.held) next.startHeld();
       else next.start();
       post({ op: "restarted", replay: false });
+      const round = next.session.round;
+      if (round === 1) next.session.play?.start();
+      if (round !== 0) post({ op: "round", state: round });
     }
     return result;
   };
@@ -6802,9 +7190,9 @@ async function main() {
   window.mb = {
     sound: (on) => page2.audio.setPlayback(on),
     mute: (on) => page2.audio.setUserMuted(on),
-    suspend: () => {
+    suspend: (opts) => {
       resumeAfterSeek = false;
-      rt.suspend();
+      rt.suspend(opts?.quiet === true);
     },
     // A seek holds the session until it lands, then plays on.
     resume: () => {
@@ -6813,7 +7201,24 @@ async function main() {
     },
     seek: (seconds) => seek(seconds),
     snapshot: () => rt.snapshot(),
-    resize: refit,
+    resize: (json) => {
+      const v = typeof json === "string" ? JSON.parse(json) : json ?? {};
+      if (v.insets) view.insets = { ...view.insets, ...v.insets };
+      if (typeof v.stripHeight === "number") view.stripHeight = v.stripHeight;
+      refit();
+    },
+    pads: (json, sentAt) => {
+      if (typeof sentAt === "number") padLag(Date.now() - sentAt);
+      page2.gamepads?.setNative(typeof json === "string" ? JSON.parse(json) : json);
+    },
+    key: (down, code) => keyboard?.key(down ? 5 : 6, code, performance.now()),
+    inputs: (on) => {
+      if (!on) page2.pending?.push(...keyboard?.releaseAll() ?? [], ...page2.gamepads?.releaseAll() ?? []);
+      page2.gamepads?.setEnabled(on);
+      if (keyboard) keyboard.enabled = on;
+      if (on) rt?.inputsOn();
+    },
+    padTap: (button = 0, index = 0) => page2.gamepads?.tap(button, index),
     restart: (json) => restart(JSON.parse(json)),
     tap: (x, y) => input.tapAt(x, y),
     sensors: (...a) => {

@@ -1101,9 +1101,12 @@ fn feed(bundles: &[PathBuf], out: &Path) -> Result<(), String> {
             "creator": m.creator,
             "icon": format!("icons/{}.png", m.id),
             "orientation": m.orientation,
+            "fit": m.fit,
             "inputs": m.inputs,
+            "requires": m.requires,
             "needs": m.needs,
             "perf_tier": m.perf_tier,
+            "sdk_version": b.file("game.wasm").and_then(mb_format::wasm::sdk_version),
             "likes": 0,
             "remix_of": if m.remix.parent.is_empty() { serde_json::Value::Null } else { m.remix.parent.clone().into() },
         }));

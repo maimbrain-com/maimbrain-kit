@@ -68,6 +68,9 @@ function host_redraw_isolated(node, hud, plain) {
   const ret = wasm.host_redraw_isolated(node, hud, plain);
   return ret !== 0;
 }
+function host_set_logical(width, height) {
+  wasm.host_set_logical(width, height);
+}
 function host_set_stdlib(mb3d) {
   wasm.host_set_stdlib(mb3d);
 }
@@ -1210,15 +1213,15 @@ function __wbg_get_imports() {
       return ret;
     },
     __wbindgen_generic_0000000000000004: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__118);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119);
       return ret;
     },
     __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120);
       return ret;
     },
     __wbindgen_generic_0000000000000006: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121);
       return ret;
     },
     __wbindgen_generic_0000000000000007: function(arg0) {
@@ -1251,8 +1254,8 @@ function __wbg_get_imports() {
 function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
   wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__118(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__118(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2);
 }
 function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2) {
   const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2);
@@ -1266,14 +1269,14 @@ function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bin
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__119(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2);
+function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
@@ -1966,6 +1969,10 @@ var Audio = class {
   /** The page is shown and running: create (or revive) the context and start loops. */
   resume() {
     this.active = true;
+    if (this.quiet) {
+      this.quiet = false;
+      this.applyGain();
+    }
     if (!this.ctx) {
       this.createContext();
       return;
@@ -1978,13 +1985,21 @@ var Audio = class {
     }, RESUME_GRACE_MS);
   }
   /** The page is going off screen (or is a neighbour): stop holding audio.
-   *  Every voice pauses; play_at voices are rescheduled from game time on resume. */
-  suspend() {
+   *  Every voice pauses; play_at voices are rescheduled from game time on resume.
+   *  `quiet`: a pause on the current card (the player will likely be right
+   *  back): the context keeps running, silenced, so resuming needn't restart
+   *  it; on iOS restarting it reactivates the audio session, which can hold
+   *  up the app (and the controller input it forwards) for seconds. */
+  suspend(quiet = false) {
     this.active = false;
-    void this.ctx?.suspend().catch(() => {
+    this.quiet = quiet;
+    this.applyGain();
+    if (!quiet) void this.ctx?.suspend().catch(() => {
     });
     this.invalidateClock(true);
   }
+  /** Paused quietly (`suspend(true)`): silent, the context still running. */
+  quiet = false;
   /** Silences output without stopping voices (a feed neighbour prerolling). */
   setMuted(on) {
     this.muted = on;
@@ -1996,7 +2011,7 @@ var Audio = class {
     this.applyGain();
   }
   applyGain() {
-    if (this.master) this.master.gain.value = this.muted || this.userMuted ? 0 : MASTER_GAIN;
+    if (this.master) this.master.gain.value = this.muted || this.userMuted || this.quiet ? 0 : MASTER_GAIN;
   }
   /** Watch mode: a restored session runs many frames in a moment. Meanwhile
    *  mb_play one-shots are dropped (they'd all be late) and nothing starts;
@@ -4394,6 +4409,8 @@ var TEXT_MAX_BYTES = 4096;
 var MESH_MAX_BYTES = 64 * 1024 * 1024;
 var STORE_QUOTA = 256 * 1024;
 var STORE_KEY_MAX = 64;
+var PROGRESS_PREFIX = "progress/";
+var PROGRESS_QUOTA = 64 * 1024;
 function declared(req, m) {
   if (!req) return true;
   if (req.stdlib) return (m.stdlib[req.stdlib] ?? 0) >= (req.version ?? 1);
@@ -4418,6 +4435,7 @@ function buildImports(s, host, m) {
     new Uint8Array(host.memory.buffer, at, data.length).set(data);
   };
   const boards = new Set((m.scores ?? []).map((b) => b.board));
+  const progress = m.capabilities.includes("progress");
   let f32 = new Float32Array(0);
   const floats = (ptr, n) => {
     const buf = s.memory().buffer;
@@ -4468,7 +4486,10 @@ function buildImports(s, host, m) {
       if (state < 0 || state > 2 || state === s.round) return;
       s.round = state;
       s.observer?.round(state);
-      if (!s.replaying) post({ op: "round", state });
+      if (s.replaying || s.fastForwarding) return;
+      if (state === 1) s.play?.start();
+      const play = state === 2 ? s.play?.finish() ?? null : null;
+      post(play ? { op: "round", state, play } : { op: "round", state });
     }),
     mb_player_id: ((ptr) => {
       bytes().set(s.playerId, ptr);
@@ -4747,7 +4768,10 @@ function buildImports(s, host, m) {
     mb_loudness: (() => s.loudness ?? -1),
     // Output only, so it never affects determinism; the native side decides whether to play it.
     mb_haptic: ((kind) => {
-      if (kind >= 0 && kind <= 3 && !s.replaying) post({ op: "haptic", kind });
+      if (kind >= 0 && kind <= 3 && !s.replaying && !s.fastForwarding) {
+        post({ op: "haptic", kind });
+        s.onHaptic?.(kind);
+      }
     }),
     // 5.8 store
     mb_store_get: ((kp, kl, bp, cap) => {
@@ -4763,6 +4787,10 @@ function buildImports(s, host, m) {
       const old = s.store.get(key);
       const size = s.storeBytes() - (old ? key.length + old.length : 0) + (vl ? key.length + vl : 0);
       if (size > STORE_QUOTA) return -4 /* Quota */;
+      if (progress && key.startsWith(PROGRESS_PREFIX)) {
+        const p = s.storeBytes(PROGRESS_PREFIX) - (old ? key.length + old.length : 0) + (vl ? key.length + vl : 0);
+        if (p > PROGRESS_QUOTA) return -4 /* Quota */;
+      }
       if (vl === 0) s.store.delete(key);
       else s.store.set(key, value);
       if (!s.replaying) {
@@ -4776,18 +4804,18 @@ function buildImports(s, host, m) {
     mb_score_submit: ((board, value) => {
       if (!boards.has(board)) return -3 /* NotDeclared */;
       s.observer?.score(board, value);
-      if (!s.replaying) post({ op: "score_submit", board, value: value.toString() });
+      if (!s.replaying && !s.fastForwarding) post({ op: "score_submit", board, value: value.toString() });
       return 0;
     }),
     mb_score_show: ((board) => {
-      if (boards.has(board) && !s.replaying) post({ op: "score_show", board });
+      if (boards.has(board) && !s.replaying && !s.fastForwarding) post({ op: "score_show", board });
     }),
     // 5.9 links: always through the platform's interstitial.
     mb_link_open: ((ptr, len) => {
       if (len > 2048) return -2 /* InvalidArgument */;
       const url = str(ptr, len);
       if (!/^https?:\/\/[^\s]+$/i.test(url)) return -2 /* InvalidArgument */;
-      if (!s.replaying) post({ op: "link_open", url });
+      if (!s.replaying && !s.fastForwarding) post({ op: "link_open", url });
       return 0;
     })
   };
@@ -4871,6 +4899,9 @@ var Session = class {
   store = /* @__PURE__ */ new Map();
   /** Replays never persist or submit anything. */
   replaying = false;
+  /** Running through a left run's frames to pick it up (`mb.restart({ resume })`): what it
+   *  saves and reports still counts, but nothing reaches the player (haptics, overlays). */
+  fastForwarding = false;
   /** Called when saved data changes (key, base64 value or null). */
   onStore = null;
   /** What the game reports, replay or not: the headless runner's (`mb replay`)
@@ -4878,6 +4909,10 @@ var Session = class {
   observer = null;
   /** Last SPEC §5.1 round state the game reported (0 idle, 1 playing, 2 over). */
   round = 0;
+  /** Live sessions on a page: how each round is played, reported with its end. */
+  play = null;
+  /** A haptic the game played (web: rumbles the controller in use). */
+  onHaptic = null;
   /** This frame's sensor snapshot (SPEC §5.7); null before the first sample. */
   tilt = null;
   motion = null;
@@ -4893,10 +4928,10 @@ var Session = class {
   /** Debug parameters (SPEC §5.1 `mb_param`): the preview tools' `--param`,
    *  fixed for the session and recorded in its log; always empty on a device. */
   params = /* @__PURE__ */ new Map();
-  /** Total bytes of keys + values, for the 256 KB quota. */
-  storeBytes() {
+  /** Total bytes of keys + values (those starting with `prefix`), for the quotas. */
+  storeBytes(prefix = "") {
     let n = 0;
-    for (const [k, v] of this.store) n += k.length + v.length;
+    for (const [k, v] of this.store) if (k.startsWith(prefix)) n += k.length + v.length;
     return n;
   }
   /** Starts a frame: delivers its events and sensor snapshot, advances game
@@ -4917,6 +4952,7 @@ var Session = class {
     if (sensors.motion !== void 0) this.motion = sensors.motion;
     if (sensors.att !== void 0) this.attitude = sensors.att;
     if (sensors.loud !== void 0) this.loudness = sensors.loud;
+    if (sensors.screen?.length === this.screen.length) this.screen.set(sensors.screen);
     this.frameEvents = events;
     let last = prev;
     this.frameTimes = events.map((ev) => {
@@ -5040,10 +5076,11 @@ var PREROLL_MIN_FRAMES = 6;
 var PREROLL_MAX_MS = 3e3;
 var GPU_WAIT_MAX_MS = 1e3;
 var MAX_DT = 0.1;
+var RESIZE = 14;
 var TOP_OVER = 8;
 var MAX_FRAME_HASHES = 216e3;
 var Runtime = class _Runtime {
-  constructor(guest, session, input, recorder, gamepads, sensors, stats, latency, source) {
+  constructor(guest, session, input, recorder, gamepads, sensors, stats, latency, source, view = null, play = null) {
     this.guest = guest;
     this.session = session;
     this.input = input;
@@ -5053,6 +5090,8 @@ var Runtime = class _Runtime {
     this.stats = stats;
     this.latency = latency;
     this.source = source;
+    this.view = view;
+    this.play = play;
   }
   running = false;
   suspended = false;
@@ -5141,15 +5180,32 @@ var Runtime = class _Runtime {
     };
     frame();
   }
+  /** When the last resume happened (ms), until the first controller input after it is
+   *  delivered: logged, to see how soon a resumed game hears the controller. */
+  resumedAt = null;
+  /** Live frames run since that resume. */
+  framesSinceResume = 0;
+  /** Input turned on for play (`mb.inputs(true)`): time the first controller input from
+   *  there, not from the card's resume, which came while it was browsed. */
+  inputsOn() {
+    this.resumedAt = performance.now();
+    this.framesSinceResume = 0;
+  }
   /** Running silently ahead of being shown (startPaused). */
   prerolling = false;
   /** False while prerolling: frames render without being presented. */
   presenting = true;
-  suspend() {
-    if (this.suspended || this.stopped) return;
+  /** `quiet`: a pause the player will likely come straight back from (the
+   *  current card): audio is silenced rather than stopped (Audio.suspend). */
+  suspend(quiet = false) {
+    if (this.stopped) return;
+    if (this.suspended) {
+      if (!quiet) this.session.audio.suspend(false);
+      return;
+    }
     this.suspended = true;
     cancelFrame(this.raf);
-    this.session.audio.suspend();
+    this.session.audio.suspend(quiet);
     if (this.source.kind === "live") {
       this.lifecycle("suspend");
       this.calls.push("suspend");
@@ -5175,6 +5231,8 @@ var Runtime = class _Runtime {
       this.calls.push("resume");
     }
     post({ op: "resumed" });
+    this.resumedAt = performance.now();
+    this.framesSinceResume = 0;
     this.raf = requestAnimationFrame((t) => this.tick(t));
   }
   lifecycle(c) {
@@ -5207,10 +5265,24 @@ var Runtime = class _Runtime {
   /** A live frame. With `clock` (a real display frame), events get their own
    *  times within it; without (prerolling, stepping), the frame's time. */
   liveFrame(dt, clock, lost = 0) {
+    for (const e of this.view?.pending?.splice(0) ?? []) this.input.push(e);
     this.gamepads?.poll((e) => this.input.push(e));
     const events = this.input.take(clock);
     const assets = this.session.assets.publishArrived();
     const sensors = this.sampleSensors();
+    const screen = this.view?.adaptive ? this.view.screen : null;
+    if (screen && screen.some((v, i) => v !== this.session.screen[i])) {
+      sensors.screen = Array.from(screen);
+      events.unshift([RESIZE, 0, 0, screen[0], screen[1], 0, 0, 0]);
+    }
+    this.play?.frame(dt);
+    if (this.resumedAt !== null) {
+      this.framesSinceResume++;
+      if (events.some((e) => e[0] === 11 || e[0] === 12)) {
+        post({ op: "log", level: 0, msg: `runtime: first controller input ${Math.round(performance.now() - this.resumedAt)} ms (${this.framesSinceResume} frames) after resume or input on` });
+        this.resumedAt = null;
+      }
+    }
     this.latency.deliver(this.input.taken, this.frames + 1, this.frameNow);
     this.recorder.frame(dt, events, assets, sensors, this.calls.splice(0), lost);
     return this.step(dt, events, sensors, [], lost);
@@ -5352,6 +5424,7 @@ var Runtime = class _Runtime {
     for (const c of calls ?? []) this.lifecycle(c);
     if (this.stopped) return null;
     this.session.beginFrame(dt, events, sensors, lost);
+    if (sensors?.screen) host_set_logical(this.session.screen[0], this.session.screen[1]);
     host_step(dt);
     this.session.audio.frame(this.frameNow ?? performance.now(), this.session.gameTime, this.source.kind === "live" ? _Runtime.timeScale : 1);
     const update = this.timed("mb_update", () => this.guest.mb_update(dt));
@@ -5433,6 +5506,7 @@ var Runtime = class _Runtime {
   async fastForward(frames, expected, progress) {
     this.presenting = false;
     this.session.audio.fastForward(true);
+    this.session.fastForwarding = true;
     let firstMismatch = expected.length > 0 && this.hashes[0] !== expected[0] ? 0 : null;
     let missingAssets = 0;
     let slice = performance.now();
@@ -5449,6 +5523,7 @@ var Runtime = class _Runtime {
         if (f.motion !== void 0) sensors.motion = f.motion;
         if (f.att !== void 0) sensors.att = f.att;
         if (f.loud !== void 0) sensors.loud = f.loud;
+        if (f.screen !== void 0) sensors.screen = f.screen;
         this.recorder.frame(f.dt, f.events ?? [], assets, sensors, f.calls ?? [], f.lost ?? 0);
         this.step(f.dt, f.events ?? [], sensors, f.calls, f.lost);
         if (firstMismatch === null && i + 1 < expected.length && this.hashes[i + 1] !== expected[i + 1]) firstMismatch = i + 1;
@@ -5461,6 +5536,7 @@ var Runtime = class _Runtime {
     } finally {
       this.presenting = true;
       this.session.audio.fastForward(false);
+      this.session.fastForwarding = false;
     }
     if (!this.stopped) present(host_end_frame);
     return { frames: this.frames, of: frames.length, firstMismatch, compared: Math.min(expected.length, this.frames + 1), missingAssets };
@@ -5565,14 +5641,20 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
   const store = log2?.store ?? { ...page2.store };
   const playerId = log2?.playerId ?? boot.playerId;
   const locale = log2?.locale ?? boot.locale;
-  const screen = log2 ? new Float32Array(log2.screen) : page2.screen;
+  const screen = new Float32Array(log2 ? log2.screen : page2.screen);
   host_new_session();
   host_set_stdlib(boot.manifest.stdlib.mb3d ?? 0);
+  host_set_logical(screen[0], screen[1]);
   page2.audio.newSession();
   const session = new Session(page2.audio, seed, dailySeed, hexBytes(playerId), locale, screen, page2.gameBase, store, page2.assets);
   session.replaying = source.kind === "replay";
   for (const [k, v] of Object.entries(params)) session.params.set(k, v);
   session.observer = page2.observer ?? null;
+  const live = source.kind === "live";
+  if (live) {
+    session.play = page2.play ?? null;
+    session.onHaptic = (k) => page2.gamepads?.rumble(k);
+  }
   session.onStore = (key, value) => {
     if (value === null) delete page2.store[key];
     else page2.store[key] = value;
@@ -5592,7 +5674,8 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
     screen: Array.from(screen),
     ...Object.keys(params).length ? { params } : {}
   });
-  const rt = new Runtime(guest, session, page2.input, recorder, page2.gamepads, page2.sensors, page2.stats, page2.latency, source);
+  const view = source.kind === "live" ? { screen: page2.screen, adaptive: page2.adaptive === true, pending: page2.pending } : null;
+  const rt = new Runtime(guest, session, page2.input, recorder, page2.gamepads, page2.sensors, page2.stats, page2.latency, source, view, live ? page2.play ?? null : null);
   rt.init();
   return rt;
 }
@@ -5651,7 +5734,9 @@ async function replay(job) {
   const end = await rt.replayAll((n) => {
     frame = n;
   });
-  return { frames: end.frames, of: log2.frames.length, hash: end.hash, time: end.time, scores, rounds, error, missingAssets: end.missingAssets, ms: Math.round(performance.now() - t0) };
+  const progress = {};
+  for (const [k, v] of rt.session.store) if (k.startsWith(PROGRESS_PREFIX)) progress[k] = base64(v);
+  return { frames: end.frames, of: log2.frames.length, hash: end.hash, time: end.time, scores, rounds, error, progress, missingAssets: end.missingAssets, ms: Math.round(performance.now() - t0) };
 }
 async function cli() {
   console.log = console.error;

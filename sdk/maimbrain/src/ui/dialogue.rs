@@ -1257,7 +1257,8 @@ impl Dialogue {
             return false;
         }
         let pointer = !matches!(e.kind(), Kind::PadAxis | Kind::MouseWheel | Kind::Text | Kind::Unknown);
-        if !(e.is_press() || e.kind() == Kind::KeyDown || e.kind() == Kind::PadButton) {
+        // A pad button's press advances; its release (also a PadButton event) doesn't.
+        if !(e.is_press() || e.kind() == Kind::KeyDown || e.pad_pressed().is_some()) {
             return pointer;
         }
         let t = e.time.max(self.now);

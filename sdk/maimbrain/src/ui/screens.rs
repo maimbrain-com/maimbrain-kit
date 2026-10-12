@@ -201,6 +201,11 @@ pub struct ResultsCard {
     /// Lower scores are better (times).
     pub lower_is_better: bool,
     area: Rect,
+    /// Where the card lays out at full size, and the scale that fits it in
+    /// `area`: 1 (and `area`) unless the area is too short for it, as on a
+    /// landscape screen, where the whole card shrinks about its top center.
+    virt: Rect,
+    fit: f32,
     counter: Counter,
     t: f32,
     fx: Particles,
@@ -230,6 +235,8 @@ impl ResultsCard {
             panel: true,
             lower_is_better: false,
             area: layout.results,
+            virt: layout.results,
+            fit: 1.0,
             counter: Counter::new(0),
             t: 0.0,
             fx: Particles::new(seed),
@@ -282,9 +289,47 @@ impl ResultsCard {
         self
     }
 
-    /// The panel's rect (or the floating block's).
+    /// The panel's rect (or the floating block's), on the screen.
     pub fn panel_rect(&self) -> Rect {
-        super::layouts::results_rect(&self.layout_theme(), self.area)
+        let p = self.full_panel();
+        let (x, y) = self.to_screen(p.x, p.y);
+        Rect::new(x, y, p.w * self.fit, p.h * self.fit)
+    }
+
+    /// The screen changed (`input::Kind::Resize`): lay the card out again in it.
+    pub fn relayout(&mut self, layout: &Layout) {
+        self.area = layout.results;
+        self.place();
+    }
+
+    /// The panel's rect at full size, in `virt`.
+    fn full_panel(&self) -> Rect {
+        super::layouts::results_rect(&self.layout_theme(), self.virt)
+    }
+
+    /// A point of the full-size card, on the screen.
+    fn to_screen(&self, x: f32, y: f32) -> (f32, f32) {
+        (self.area.cx() + (x - self.virt.cx()) * self.fit, self.area.y + (y - self.virt.y) * self.fit)
+    }
+
+    /// Fits the card to `area`: the full-size card reaches down to its retry
+    /// button (and an extra button under it); an area too short for that
+    /// gets the card scaled down to fit.
+    fn fit_area(&mut self) {
+        let bottom = |c: &Self, area: Rect| {
+            let lt = c.layout_theme();
+            let p = super::layouts::results_rect(&lt, area);
+            let (_, cy) = super::layouts::retry_center(&lt, p);
+            p.bottom().max(cy + 34.0).max(if c.extra.is_some() { cy + 100.0 } else { 0.0 })
+        };
+        self.virt = self.area;
+        self.fit = 1.0;
+        let need = bottom(self, self.area) - self.area.y;
+        if need > self.area.h && self.area.h > 0.0 {
+            let k = (self.area.h / need).max(0.4);
+            self.virt = Rect::new(self.area.x, self.area.y, self.area.w, self.area.h / k);
+            self.fit = k;
+        }
     }
 
     /// The theme with `floating()` applied to its results layout.
@@ -297,19 +342,23 @@ impl ResultsCard {
     }
 
     fn place(&mut self) {
+        self.fit_area();
         if self.state_only {
             return;
         }
-        let p = self.panel_rect();
+        let k = self.fit;
+        let p = self.full_panel();
         let (cx, cy) = super::layouts::retry_center(&self.layout_theme(), p);
-        let mut retry = Button::icon(cx, cy, 68.0, Icon::RESTART);
+        let (rx, ry) = self.to_screen(cx, cy);
+        let mut retry = Button::icon(rx, ry, 68.0 * k, Icon::RESTART);
         if let Some(old) = &self.retry {
             retry.haptic = old.haptic;
         }
         self.retry = Some(retry);
+        let w = 150.0;
+        let (ex, ey) = self.to_screen(cx.max(p.x + w / 2.0), cy + 34.0 + 18.0 + 26.0);
         if let Some(e) = &mut self.extra {
-            let w = 150.0;
-            e.rect = Rect::centered(cx.max(p.x + w / 2.0), cy + 34.0 + 18.0 + 26.0, w, 44.0);
+            e.rect = Rect::centered(ex, ey, w * k, 44.0 * k);
         }
     }
 
@@ -396,7 +445,8 @@ impl ResultsCard {
     }
 
     /// The card's whole input rule: its buttons, and once `retry_ready`, a
-    /// press anywhere else retries. Feed it every event while it's up.
+    /// press anywhere else retries, as does a controller's A, Enter or Space
+    /// (`Event::is_confirm`). Feed it every event while it's up.
     pub fn input(&mut self, e: &Event) -> Option<ResultsAction> {
         if !self.retry_ready() {
             return None;
@@ -404,7 +454,7 @@ impl ResultsCard {
         if let Some(a) = self.handle(e) {
             return Some(a);
         }
-        (e.is_press() && !self.claims(e.x, e.y)).then_some(ResultsAction::Retry)
+        ((e.is_press() && !self.claims(e.x, e.y)) || e.is_confirm()).then_some(ResultsAction::Retry)
     }
 
     /// Feeds an input event to the buttons (only: `input` adds the
@@ -451,8 +501,9 @@ impl ResultsCard {
             if self.is_new_best() {
                 self.stamp.target = 1.0;
                 self.flash.fire();
-                let p = self.panel_rect();
-                self.fx.celebrate(p.cx(), p.y + 100.0, &self.theme);
+                let p = self.full_panel();
+                let (fx, fy) = self.to_screen(p.cx(), p.y + 100.0);
+                self.fx.celebrate(fx, fy, &self.theme);
                 self.fx.confetti_cannons(Rect::new(self.area.x - 40.0, self.area.y, self.area.w + 80.0, self.area.h + 40.0), 60, &self.theme.confetti);
                 ev = Some(ResultsEvent::NewBest);
             } else {
@@ -483,9 +534,11 @@ impl ResultsCard {
                 landed: self.finished(),
                 stamp: self.stamp.value,
                 t: self.t,
-                area: self.area,
+                area: self.virt,
             };
+            self.push_fit();
             super::layouts::results(&lt, &a);
+            gfx2d::pop();
             let ba = ((self.t - 0.6) / 0.3).clamp(0.0, 1.0);
             for b in self.retry.iter().chain(self.extra.iter()) {
                 if ba > 0.0 {
@@ -495,8 +548,9 @@ impl ResultsCard {
             self.fx.draw();
             return;
         }
-        let p = self.panel_rect();
+        let p = self.full_panel();
         let panel = lt.style.results == super::style::ResultsLayout::Panel;
+        self.push_fit();
         let enter = th.style.motion.enter((self.t / th.style.motion.duration().max(0.3)).min(1.0));
         let a = (self.t / 0.2).min(1.0);
         gfx2d::push();
@@ -570,6 +624,7 @@ impl ResultsCard {
             }
         }
         gfx2d::pop();
+        gfx2d::pop();
         let ba = ((self.t - 0.6) / 0.3).clamp(0.0, 1.0);
         for b in self.retry.iter().chain(self.extra.iter()) {
             if ba > 0.0 {
@@ -577,6 +632,16 @@ impl ResultsCard {
             }
         }
         self.fx.draw();
+    }
+}
+
+impl ResultsCard {
+    /// Draws what follows as the full-size card (`virt`), fitted to `area`.
+    fn push_fit(&self) {
+        gfx2d::push();
+        gfx2d::translate(self.area.cx(), self.area.y);
+        gfx2d::scale(self.fit, self.fit);
+        gfx2d::translate(-self.virt.cx(), -self.virt.y);
     }
 }
 
@@ -769,6 +834,23 @@ mod tests {
         assert!(e.bottom() <= layout.results.bottom() && e.x >= layout.results.x, "{e:?}");
         let r2 = ResultsCard::new(50, 100, Theme::night(), &layout, 1);
         assert!(!r2.is_new_best());
+    }
+
+    #[test]
+    fn a_turned_results_card_still_keeps_the_strip_clear() {
+        // A landscape game's game-over card turns from the vertical feed card to
+        // landscape and back (a Resize): its buttons stay out of the strip's band.
+        let screen = |width, height| crate::sys::Screen { width, height, inset_bottom: 20.0, dpr: 2.0, ..Default::default() };
+        let mut r = ResultsCard::new(50, 100, Theme::night(), &Layout::from_screen(&screen(360.0, 640.0)), 1);
+        for (w, h) in [(640.0, 360.0), (360.0, 640.0)] {
+            let layout = Layout::from_screen(&screen(w, h));
+            r.relayout(&layout);
+            let (b, p) = (r.retry.as_ref().unwrap().rect, r.panel_rect());
+            assert!(b.bottom() <= layout.results.bottom() + 0.01 && b.right() <= layout.results.right(), "{w}×{h}: {b:?}");
+            assert!(p.y >= layout.results.y && p.bottom() <= layout.results.bottom() + 0.01 && p.x >= layout.results.x, "{w}×{h}: {p:?}");
+            // Upright, the card has room: full size, as before.
+            assert_eq!(r.fit == 1.0, h > w, "{w}×{h}: scaled {}", r.fit);
+        }
     }
 
     #[test]

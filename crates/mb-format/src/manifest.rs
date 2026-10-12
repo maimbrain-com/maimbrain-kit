@@ -16,8 +16,18 @@ pub struct Manifest {
     pub version: String,
     pub creator: String,
     pub orientation: Orientation,
+    /// In the game's natural orientation: `[640, 360]` for a landscape game;
+    /// an `any` game gives its portrait size, swapped when it's turned.
     pub logical_size: [u32; 2],
+    /// How the logical size meets the screen (SPEC §2).
+    #[serde(default)]
+    pub fit: Fit,
+    /// Every input the game can be played with.
     pub inputs: Vec<Input>,
+    /// Inputs the game can't be played without (a subset of `inputs`). The
+    /// feed only offers the game where one is connected.
+    #[serde(default)]
+    pub requires: Vec<Input>,
     pub perf_tier: PerfTier,
     /// Host engines and their versions, e.g. `{ mb2d = 1 }`.
     #[serde(default)]
@@ -89,6 +99,32 @@ pub enum ScoreFormat {
 pub enum Orientation {
     Portrait,
     Landscape,
+    /// Either way up: the game follows how the phone is held, relaying out
+    /// when it turns (SPEC §5.2 `Resize`).
+    Any,
+}
+
+impl Orientation {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Orientation::Portrait => "portrait",
+            Orientation::Landscape => "landscape",
+            Orientation::Any => "any",
+        }
+    }
+}
+
+/// How the logical size meets a screen of another shape (SPEC §2).
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Fit {
+    /// Exactly `logical_size`, scaled to fit, with bars on the other sides:
+    /// every player sees the same playfield.
+    #[default]
+    Letterbox,
+    /// `logical_size` is the least the game gets: the screen grows along
+    /// whichever side has room, to the device's own shape, with no bars.
+    Fill,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -98,6 +134,17 @@ pub enum Input {
     Mouse,
     Keyboard,
     Gamepad,
+}
+
+impl Input {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Input::Touch => "touch",
+            Input::Mouse => "mouse",
+            Input::Keyboard => "keyboard",
+            Input::Gamepad => "gamepad",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -150,6 +197,10 @@ pub enum Capability {
     TextInput,
     Links,
     Net,
+    /// Saved data under `progress/` is the player's progress, which the
+    /// platform verifies by replaying each run and keeps with their account
+    /// (SPEC §5.8). Needs `store`.
+    Progress,
 }
 
 impl Capability {
@@ -160,6 +211,7 @@ impl Capability {
             Capability::TextInput => "text_input",
             Capability::Links => "links",
             Capability::Net => "net",
+            Capability::Progress => "progress",
         }
     }
 }
@@ -217,11 +269,34 @@ impl Manifest {
         if self.logical_size.iter().any(|&d| !(64..=4096).contains(&d)) {
             err(format!("logical_size {:?}: each side must be 64–4096", self.logical_size));
         }
+        let [w, h] = self.logical_size;
+        match self.orientation {
+            Orientation::Landscape if w < h => err(format!("logical_size {:?}: a landscape game is at least as wide as it is tall (e.g. [640, 360])", self.logical_size)),
+            Orientation::Portrait | Orientation::Any if w > h => err(format!(
+                "logical_size {:?}: a{} {} game gives its portrait size, no wider than it is tall (e.g. [360, 640])",
+                self.logical_size,
+                if self.orientation == Orientation::Any { "n" } else { "" },
+                self.orientation.as_str()
+            )),
+            _ => {}
+        }
         if self.inputs.is_empty() {
             err("inputs must list at least one of touch, mouse, keyboard, gamepad".into());
         }
-        if has_dupes(&self.inputs) || has_dupes(&self.sensors) || has_dupes(&self.needs) || has_dupes(&self.capabilities) {
-            err("inputs, sensors, needs and capabilities must not repeat entries".into());
+        if has_dupes(&self.inputs) || has_dupes(&self.requires) || has_dupes(&self.sensors) || has_dupes(&self.needs) || has_dupes(&self.capabilities) {
+            err("inputs, requires, sensors, needs and capabilities must not repeat entries".into());
+        }
+        for i in &self.requires {
+            if !self.inputs.contains(i) {
+                err(format!("requires = [\"{0}\"] also needs inputs = [\"{0}\"]", i.as_str()));
+            }
+        }
+        // Phones have touch; a game that can't use it has to say what it needs instead.
+        if !self.inputs.contains(&Input::Touch) && self.requires.is_empty() {
+            err("a game without touch in inputs must say what it can't be played without: requires = [\"gamepad\"] (or keyboard, mouse)".into());
+        }
+        if self.requires.contains(&Input::Touch) {
+            err("requires: touch is always there on a phone; list only what a player has to connect (gamepad, keyboard, mouse)".into());
         }
         for s in &self.needs {
             if *s == Sensor::Haptics {
@@ -254,6 +329,9 @@ impl Manifest {
             (true, true) => err("capability \"score\" needs at least one [[scores]] board".into()),
             (false, false) => err("[[scores]] boards need capabilities = [\"score\"]".into()),
             _ => {}
+        }
+        if self.capabilities.contains(&Capability::Progress) && !self.capabilities.contains(&Capability::Store) {
+            err("capability \"progress\" also needs \"store\" (progress is saved data under progress/)".into());
         }
         if self.capabilities.contains(&Capability::Net) {
             err("capability \"net\" is reserved and not available in v0".into());

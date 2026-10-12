@@ -167,7 +167,9 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// Reads `sys::screen()` (constant for the session: call once in init).
+    /// Reads `sys::screen()`: once in init, and again on an
+    /// `input::Kind::Resize` (an `any`, `landscape` or `fill` game's screen
+    /// changed; a portrait letterboxed game's never does).
     pub fn new() -> Layout {
         Layout::from_screen(&crate::sys::screen())
     }

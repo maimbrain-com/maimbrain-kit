@@ -42,6 +42,7 @@ pub mod music;
 pub mod physics2d;
 #[cfg(feature = "physics3d")]
 pub mod physics3d;
+pub mod progress;
 pub mod rounds;
 pub mod sensors;
 pub mod store;

@@ -174,6 +174,47 @@ fn needs_must_be_declared_input_sensors() {
 }
 
 #[test]
+fn orientation_fit_and_logical_size_agree() {
+    use mb_format::manifest::{Fit, Orientation};
+    let wasm = || module(EXPORTS);
+    let landscape = MANIFEST.replace("\"portrait\"", "\"landscape\"").replace("[360, 640]", "[640, 360]");
+    assert!(errors(&landscape, wasm()).is_empty(), "{:?}", errors(&landscape, wasm()));
+    let any = format!("{}fit = \"fill\"\n", MANIFEST.replace("\"portrait\"", "\"any\""));
+    assert!(errors(&any, wasm()).is_empty(), "{:?}", errors(&any, wasm()));
+    let m = mb_format::Manifest::parse(&any).unwrap();
+    assert_eq!((m.orientation, m.fit), (Orientation::Any, Fit::Fill));
+    assert_eq!(mb_format::Manifest::parse(MANIFEST).unwrap().fit, Fit::Letterbox);
+
+    assert_error(&errors(&MANIFEST.replace("\"portrait\"", "\"landscape\""), wasm()), "a landscape game is at least as wide");
+    assert_error(&errors(&any.replace("[360, 640]", "[640, 360]"), wasm()), "an any game gives its portrait size");
+    assert_error(&errors(&MANIFEST.replace("[360, 640]", "[640, 360]"), wasm()), "a portrait game gives its portrait size");
+    assert_error(&errors(&format!("{MANIFEST}fit = \"stretch\"\n"), wasm()), "fit");
+}
+
+#[test]
+fn progress_needs_store() {
+    let wasm = || module(EXPORTS);
+    let ok = format!("{MANIFEST}capabilities = [\"store\", \"progress\"]\n");
+    assert!(errors(&ok, wasm()).is_empty(), "{:?}", errors(&ok, wasm()));
+    assert_error(&errors(&format!("{MANIFEST}capabilities = [\"progress\"]\n"), wasm()), "also needs \"store\"");
+}
+
+#[test]
+fn requires_lists_inputs_a_player_must_connect() {
+    let wasm = || module(EXPORTS);
+    let with_inputs = |inputs: &str, extra: &str| format!("{}{extra}", MANIFEST.replace("inputs = [\"touch\"]", inputs));
+    let pad_only = with_inputs("inputs = [\"gamepad\", \"keyboard\"]", "requires = [\"gamepad\"]\n");
+    assert!(errors(&pad_only, wasm()).is_empty(), "{:?}", errors(&pad_only, wasm()));
+    let either = with_inputs("inputs = [\"touch\", \"gamepad\"]", "");
+    assert!(errors(&either, wasm()).is_empty(), "{:?}", errors(&either, wasm()));
+
+    assert_error(&errors(&with_inputs("inputs = [\"gamepad\"]", ""), wasm()), "a game without touch in inputs must say");
+    assert_error(&errors(&with_inputs("inputs = [\"touch\"]", "requires = [\"gamepad\"]\n"), wasm()), "also needs inputs = [\"gamepad\"]");
+    assert_error(&errors(&with_inputs("inputs = [\"touch\"]", "requires = [\"touch\"]\n"), wasm()), "touch is always there");
+    assert_error(&errors(&with_inputs("inputs = [\"gamepad\"]", "requires = [\"gamepad\", \"gamepad\"]\n"), wasm()), "must not repeat");
+}
+
+#[test]
 fn enforces_memory_maximum_by_tier() {
     let unbounded = EXPORTS.replace("1 2048", "1");
     assert_error(&errors(MANIFEST, module(&unbounded)), "must declare a maximum");

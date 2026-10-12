@@ -319,6 +319,15 @@ impl Rounds {
     /// Feeds one input event to the round flow; what it means for the game.
     /// Call it for every event in `update`, before anything else sees it.
     pub fn input(&mut self, e: &Event) -> Input {
+        // The screen turned or changed shape: the cards follow it, and the
+        // game hears of it too (to lay out its own world).
+        if e.is_resize() {
+            self.layout = Layout::new();
+            if let Some(c) = &mut self.results {
+                c.relayout(&self.layout);
+            }
+            return Input::Play;
+        }
         if self.phase == Stage::Over {
             // The card sees everything: its buttons click on release.
             return match self.results.as_mut().and_then(|c| c.input(e)) {
@@ -333,11 +342,12 @@ impl Rounds {
                     Input::Taken
                 }
                 Some(ResultsAction::Extra) => Input::Extra,
-                None if e.is_press() => Input::Taken,
+                None if e.is_press() || e.is_confirm() => Input::Taken,
                 None => Input::Play,
             };
         }
-        if !e.is_press() {
+        // A controller's A or Start, or Enter, starts a round as a tap does.
+        if !(e.is_press() || (self.phase != Stage::Playing && e.is_confirm())) {
             return Input::Play;
         }
         match self.phase {
@@ -600,6 +610,26 @@ mod tests {
         assert_eq!(g.rounds.stage(), Stage::Title);
         assert_eq!(*host.rounds().last().unwrap(), Round::Idle);
         assert_eq!(g.rounds.best(), 0);
+    }
+
+    #[test]
+    fn a_controller_starts_and_retries_without_touching_the_screen() {
+        use crate::input::{Event, pad};
+        let host = Host::start(5);
+        let mut g: Five = host.init();
+        let button = |code, down: bool, t: f64| Event { kind: Kind::PadButton as u8, id: 2, code, a: if down { 1.0 } else { 0.0 }, time: t, ..Event::default() };
+        // B isn't a "go"; A is.
+        host.push([button(pad::B, true, 0.1), button(pad::B, false, 0.15)]);
+        host.run(&mut g, 0.3, DT);
+        assert_eq!(g.rounds.stage(), Stage::Title);
+        host.push([button(pad::A, true, host.now() + 1e-4), button(pad::A, false, host.now() + 0.05)]);
+        host.run(&mut g, 0.2, DT);
+        assert_eq!((g.rounds.stage(), g.starts), (Stage::Playing, 1));
+        host.run(&mut g, 5.0, DT);
+        assert_eq!(g.rounds.stage(), Stage::Over);
+        host.push([button(pad::A, true, host.now() + 1e-4)]);
+        host.run(&mut g, 0.1, DT);
+        assert_eq!((g.rounds.stage(), g.starts), (Stage::Playing, 2), "A retries from the card");
     }
 
     #[test]

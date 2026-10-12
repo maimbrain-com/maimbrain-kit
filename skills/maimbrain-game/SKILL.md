@@ -21,6 +21,7 @@ Then, as the game needs them:
 - **[3d.md](3d.md)** for a 3D game (mb3d): the template, budgets, meshes, models, characters, looks, lighting, effects, previewing. `docs/MB3D.md` is the reference.
 - **[audio.md](audio.md)** when sound has to follow the game: music that reacts to danger and progress (`music::Director`), foley from motion, rhythm games.
 - **`docs/PHYSICS.md`** if the game has things that stack, topple, bounce, roll, swing or break (see [Physics](#physics)).
+- **[landscape-controllers.md](landscape-controllers.md)** for a game held sideways (`orientation = "landscape"`), one that turns with the phone (`"any"`) or fills the screen's shape (`fit = "fill"`), and for controller or keyboard play: resizes, pad buttons and prompts, touch sticks.
 - **[publish.md](publish.md)** when the user asks to publish, update or describe a game, and before working on one that's already published.
 
 ## Start from a kit
@@ -154,7 +155,7 @@ Write down what you couldn't verify without a phone (feel of tilt, haptics, audi
 - **Sound is off for many players** (ringer switch). Everything must read without audio. Sound and haptics confirm what the eye already saw.
 - **Haptics** only play in play mode and are capped at ~30/s; never use them as the only signal.
 - **Assets load asynchronously**, including `startup_assets`. The first frame must draw something good even with nothing loaded (shapes, gradients, text), then swap in sprites when `Asset::state()` is ready.
-- **The screen** is your `logical_size` letterboxed to the phone; 360×640 portrait is the norm. Thumb-reachable area is the lower-middle; the top is for score.
+- **The screen** is your `logical_size` letterboxed to the phone; 360×640 portrait is the norm (landscape, `any` and `fill` games: [landscape-controllers.md](landscape-controllers.md)). Thumb-reachable area is the lower-middle; the top is for score.
 - **Motion controls**: read `sensors::tilt()` and use `Tilt::roll()` for tipping left/right (it works held upright, slumped or flat).
   - **Calibrate**: take a reference when play starts, at each new level, and after a pause, but only while the phone is still (motion near zero). A reference taken mid-shake is garbage. Let the reference follow the player when they tip back past it, so a player still tipped from the last level isn't stuck.
   - **Amplify**: physical actions often need more rotation than a comfortable ~45° of phone. Multiply (gains of 2–3 are typical) and make the on-screen object show the amplified angle, so what the player sees is what they're doing.

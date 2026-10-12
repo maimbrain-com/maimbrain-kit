@@ -1,5 +1,36 @@
 # Creator kit changelog
 
+## 0.8.0
+
+Games can be held sideways, turn with the phone, fill any screen's shape, and be played with a real controller or keyboard on the phone and on the web. The manifest declares all of it, and the feed uses what's declared.
+
+- **`orientation = "landscape"` and `"any"`.**
+  - A landscape game gives its `logical_size` wide (`[640, 360]`). As a feed card it gets a portrait Screen (`[360, 640]`) and draws its title and game-over screens as a full vertical card. Tapping in turns the app to landscape (a `Resize`) and holds the game behind a "Turn your phone → Ready" prompt, so play starts sideways and ready.
+  - An `any` game gives its portrait size and turns with the phone mid-round.
+  - The validator checks `logical_size` matches the orientation.
+- **`fit = "fill"`.** The declared size is the least a game gets. Its Screen grows to the view's shape in whole units (up to 2.4 : 1): 360×780 on a modern iPhone, a wide stage in a desktop browser. `fit = "letterbox"` is the default and keeps today's behavior.
+- **`input::Kind::Resize`.** An `any`, `landscape` or `fill` game's Screen can change at a frame boundary. That frame's first event is a `Resize`: read `sys::screen()` again (`Screen::is_landscape()`) and lay out for it. It's recorded, so replays and `mb.verify()` match. A portrait letterboxed game's Screen stays fixed for the session, as before.
+- **`requires`.**
+  - `inputs` lists what a game can be played with; `requires` lists what a player has to connect (`requires = ["gamepad"]`).
+  - Touch is no longer mandatory, but a game without it must declare `requires`.
+  - The feed offers a game only where its requirements are met. With a controller connected, it puts games that declare `gamepad` first (landscape and `any` ahead of portrait) and leaves out touch-only ones.
+- **Real controllers on the phone.** The app reads controllers through iOS's GameController framework (Xbox, PlayStation, Switch, MFi, and docks like Backbone and Razer Kishi) and hardware keyboards through UIKit. Games get the same `PadButton` / `PadAxis` / `KeyDown` events as on the web.
+  - A controller's rumble plays the game's haptics while it's in use.
+  - Start/Menu is the platform's pause: games never receive it.
+  - The triggers (L2/R2, LT/RT, ZL/ZR) press from a fifth of their travel, like a click, instead of needing a half-way squeeze.
+  - In the feed, the d-pad moves between games and A plays.
+  - With a controller connected and the phone sideways, the whole app goes landscape: portrait games built with 0.8.0 show upright with bars at the sides.
+- **Button prompts that match the controller.** Pad events carry the controller's style; `e.pad_style().label(pad::A)` is "A", "✕" or "B".
+  - `input::pad` names the standard-mapping buttons and axes, and `input::key` the common HID codes.
+  - New helpers: `e.pad_pressed()`, `e.pad_released()`.
+  - `ui::pad_button(style, button, x, y, size)` draws a prompt badge with the controller's own mark and colors. `ui::pad_button_width(style, button, size)` is how wide it draws (a shoulder button's "RB" or "R1" is a pill wider than `size`): set the words beside it from that, centred on the badge's `cy`. Library fonts have no ✕ ○ □ △, so it draws them as shapes. `style.word(b)` gives "CROSS" or "A" for a sentence.
+- **`ResultsCard` fits a landscape screen.** A game-over card that doesn't fit its area (`Layout::results` on a landscape screen leaves about 186 units) shrinks as a whole, buttons too, instead of running into the challenge strip and the title. It lays out again on a `Resize`. Upright cards are unchanged.
+- **`Rounds` starts and retries on A, Enter or Space** (`Event::is_confirm()`), so a controller or keyboard player never has to touch the screen. Results cards retry on them too.
+- **The platform records how each round was played:** inputs used, orientation, controller, client and device. It's for statistics; games do nothing, and leaderboards don't change.
+- **SKILL.md's new [landscape-controllers.md](skills/maimbrain-game/landscape-controllers.md)** covers picking a shape, handling a resize, pad buttons and prompts, and floating-stick touch controls for controller-style games.
+
+Games made before 0.8.0 behave exactly as they did: portrait, never pillarboxed, with raw tilt. A portrait game that drew itself sideways from the tilt sensor to fake landscape should move to `orientation = "landscape"` when it updates.
+
 ## 0.7.8
 
 Game-over cards leave room for the feed's challenge strip.

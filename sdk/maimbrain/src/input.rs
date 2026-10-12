@@ -2,6 +2,10 @@
 //! in `update`. Coordinates are logical units. `time` is the game time the
 //! event itself happened: within the span since the previous update
 //! (`sys::time() - dt ..= sys::time()`), in order, never ahead of `sys::time()`.
+//!
+//! Controllers use the W3C standard mapping: [`pad`] names its buttons and
+//! axes, and every pad event says which kind of controller sent it
+//! ([`Event::pad_style`]), so prompts can show ✕ or A.
 
 use crate::ffi;
 
@@ -21,7 +25,142 @@ pub enum Kind {
     PadButton = 11,
     PadAxis = 12,
     Text = 13,
+    /// The screen changed (an `orientation = "any"` game turned, a `fill`
+    /// game's screen changed shape; SPEC §5.2): read [`crate::sys::screen`]
+    /// again and lay out for it. `x` and `y` are the new width and height.
+    /// It comes first in its frame. Never sent to a portrait letterboxed game.
+    Resize = 14,
     Unknown = 255,
+}
+
+/// Which face buttons a controller has (SPEC §5.2), from a pad event's `id`.
+/// The buttons are the same standard-mapping indices either way; only what's
+/// printed on them differs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum PadStyle {
+    /// Unknown: say "A" / "B", or draw the button's position.
+    #[default]
+    Generic,
+    /// A B X Y (Xbox, Backbone, Razer Kishi and most phone docks).
+    Xbox,
+    /// ✕ ○ □ △ (DualShock, DualSense, Backbone PlayStation Edition).
+    PlayStation,
+    /// B A Y X, east and south swapped in name (Switch Pro, Joy-Con).
+    Nintendo,
+}
+
+impl PadStyle {
+    /// What's printed on a standard-mapping face button (`pad::A` … `pad::Y`),
+    /// for prompts: `"A"`, `"✕"`, `"B"`. Other buttons get their usual names
+    /// (`"LB"`, `"L1"`, `"L"`; `"START"`, `"OPTIONS"`, `"+"`).
+    pub fn label(self, button: u32) -> &'static str {
+        use PadStyle::*;
+        match (self, button) {
+            (PlayStation, pad::A) => "✕",
+            (PlayStation, pad::B) => "○",
+            (PlayStation, pad::X) => "□",
+            (PlayStation, pad::Y) => "△",
+            (PlayStation, pad::LB) => "L1",
+            (PlayStation, pad::RB) => "R1",
+            (PlayStation, pad::LT) => "L2",
+            (PlayStation, pad::RT) => "R2",
+            (PlayStation, pad::START) => "OPTIONS",
+            (Nintendo, pad::A) => "B",
+            (Nintendo, pad::B) => "A",
+            (Nintendo, pad::X) => "Y",
+            (Nintendo, pad::Y) => "X",
+            (Nintendo, pad::LB) => "L",
+            (Nintendo, pad::RB) => "R",
+            (Nintendo, pad::LT) => "ZL",
+            (Nintendo, pad::RT) => "ZR",
+            (Nintendo, pad::START) => "+",
+            (Nintendo, pad::SELECT) => "-",
+            (_, pad::A) => "A",
+            (_, pad::B) => "B",
+            (_, pad::X) => "X",
+            (_, pad::Y) => "Y",
+            (_, pad::LB) => "LB",
+            (_, pad::RB) => "RB",
+            (_, pad::LT) => "LT",
+            (_, pad::RT) => "RT",
+            (_, pad::SELECT) => "VIEW",
+            (_, pad::START) => "MENU",
+            (_, pad::UP) => "↑",
+            (_, pad::DOWN) => "↓",
+            (_, pad::LEFT) => "←",
+            (_, pad::RIGHT) => "→",
+            _ => "?",
+        }
+    }
+
+    /// The button's name as a word, for sentences and for fonts without
+    /// ✕ ○ □ △ (most pixel fonts): "CROSS", "CIRCLE", "SQUARE", "TRIANGLE"
+    /// on a PlayStation controller, [`label`](Self::label) otherwise.
+    /// `ui::pad_button` draws the shapes instead.
+    pub fn word(self, button: u32) -> &'static str {
+        match (self, button) {
+            (PadStyle::PlayStation, pad::A) => "CROSS",
+            (PadStyle::PlayStation, pad::B) => "CIRCLE",
+            (PadStyle::PlayStation, pad::X) => "SQUARE",
+            (PadStyle::PlayStation, pad::Y) => "TRIANGLE",
+            _ => self.label(button),
+        }
+    }
+}
+
+/// W3C standard-mapping button indices (`Event::code` of a `PadButton`) and
+/// axes (of a `PadAxis`; −1 is left/up, a 0.1 dead zone is already applied).
+pub mod pad {
+    /// Bottom face button (A / ✕ / Switch B).
+    pub const A: u32 = 0;
+    /// Right face button (B / ○ / Switch A).
+    pub const B: u32 = 1;
+    /// Left face button (X / □ / Switch Y).
+    pub const X: u32 = 2;
+    /// Top face button (Y / △ / Switch X).
+    pub const Y: u32 = 3;
+    pub const LB: u32 = 4;
+    pub const RB: u32 = 5;
+    /// Triggers: `a` is how far they're pulled, 0–1.
+    pub const LT: u32 = 6;
+    pub const RT: u32 = 7;
+    pub const SELECT: u32 = 8;
+    /// Start / Menu / Options: the platform's pause (it does what the pause
+    /// pill does), so in the app and the web player games never receive it.
+    pub const START: u32 = 9;
+    /// Stick clicks.
+    pub const LS: u32 = 10;
+    pub const RS: u32 = 11;
+    pub const UP: u32 = 12;
+    pub const DOWN: u32 = 13;
+    pub const LEFT: u32 = 14;
+    pub const RIGHT: u32 = 15;
+    /// Axes.
+    pub const LX: u32 = 0;
+    pub const LY: u32 = 1;
+    pub const RX: u32 = 2;
+    pub const RY: u32 = 3;
+}
+
+/// HID usage codes (`Event::code` of a key event) for the keys games use most.
+pub mod key {
+    pub const ENTER: u32 = 40;
+    pub const ESCAPE: u32 = 41;
+    pub const SPACE: u32 = 44;
+    pub const RIGHT: u32 = 79;
+    pub const LEFT: u32 = 80;
+    pub const DOWN: u32 = 81;
+    pub const UP: u32 = 82;
+    /// Letters: `A + (letter − 'a')`, so W is `A + 22`.
+    pub const A: u32 = 4;
+    pub const W: u32 = 26;
+    pub const S: u32 = 22;
+    pub const D: u32 = 7;
+    pub const J: u32 = 13;
+    pub const K: u32 = 14;
+    pub const L: u32 = 15;
+    pub const Z: u32 = 29;
+    pub const X: u32 = 27;
 }
 
 /// One input event, exactly as the host writes it (32 bytes).
@@ -64,6 +203,7 @@ impl Event {
             11 => Kind::PadButton,
             12 => Kind::PadAxis,
             13 => Kind::Text,
+            14 => Kind::Resize,
             _ => Kind::Unknown,
         }
     }
@@ -71,6 +211,43 @@ impl Event {
     /// True for a touch or mouse press.
     pub fn is_press(&self) -> bool {
         matches!(self.kind(), Kind::TouchDown | Kind::MouseDown)
+    }
+
+    /// True for a "go" that isn't a pointer: Enter or Space going down, or a
+    /// controller's A (✕) pressed. Title cards and game-over cards
+    /// take it as a tap ([`crate::rounds`] does), so a game played with a
+    /// controller or keyboard never needs the screen touched.
+    pub fn is_confirm(&self) -> bool {
+        match self.kind() {
+            Kind::KeyDown => self.code == key::ENTER || self.code == key::SPACE,
+            Kind::PadButton => self.a > 0.5 && self.code == pad::A,
+            _ => false,
+        }
+    }
+
+    /// A pad button pressed (not released): `Some(button)`.
+    pub fn pad_pressed(&self) -> Option<u32> {
+        (self.kind() == Kind::PadButton && self.a > 0.5).then_some(self.code)
+    }
+
+    /// A pad button released: `Some(button)`.
+    pub fn pad_released(&self) -> Option<u32> {
+        (self.kind() == Kind::PadButton && self.a <= 0.5).then_some(self.code)
+    }
+
+    /// For pad events, which kind of controller sent it (for button prompts).
+    pub fn pad_style(&self) -> PadStyle {
+        match (self.kind(), self.id) {
+            (Kind::PadButton | Kind::PadAxis, 1) => PadStyle::Xbox,
+            (Kind::PadButton | Kind::PadAxis, 2) => PadStyle::PlayStation,
+            (Kind::PadButton | Kind::PadAxis, 3) => PadStyle::Nintendo,
+            _ => PadStyle::Generic,
+        }
+    }
+
+    /// The screen changed: lay out again for [`crate::sys::screen`].
+    pub fn is_resize(&self) -> bool {
+        self.kind() == Kind::Resize
     }
 
     /// True for a touch or mouse moving (a drag, or the mouse hovering in
@@ -254,6 +431,9 @@ pub mod synth {
 
     impl AimPath {
         pub(crate) fn new(from: (f32, f32), to: (f32, f32), t0: f64, duration: f64, overshoot: f32, tremor: f32, rng: &mut crate::rng::Rng) -> AimPath {
+            // 6.28, not TAU: changing it would change every seeded bot's hand, and the
+            // games' committed bot reports with it.
+            #[allow(clippy::approx_constant)]
             let phases = [rng.range(0.0, 6.28), rng.range(0.0, 6.28), rng.range(0.0, 6.28), rng.range(0.0, 6.28)];
             AimPath { from, to, t0, duration: duration.max(0.01), overshoot, tremor, phases }
         }
@@ -401,4 +581,40 @@ pub fn poll() -> Vec<Event> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ev(kind: Kind, id: u8, code: u32, a: f32) -> Event {
+        Event { kind: kind as u8, id, code, a, ..Event::default() }
+    }
+
+    #[test]
+    fn confirm_is_enter_space_or_a_going_down() {
+        assert!(ev(Kind::KeyDown, 0, key::ENTER, 0.0).is_confirm());
+        assert!(ev(Kind::KeyDown, 0, key::SPACE, 0.0).is_confirm());
+        assert!(!ev(Kind::KeyUp, 0, key::ENTER, 0.0).is_confirm());
+        assert!(ev(Kind::PadButton, 1, pad::A, 1.0).is_confirm());
+        assert!(!ev(Kind::PadButton, 1, pad::START, 1.0).is_confirm(), "Start is the platform's pause");
+        assert!(!ev(Kind::PadButton, 1, pad::A, 0.0).is_confirm(), "a release isn't a go");
+        assert!(!ev(Kind::PadButton, 1, pad::B, 1.0).is_confirm());
+        assert!(!ev(Kind::TouchDown, 0, 0, 1.0).is_confirm(), "touches are presses, not confirms");
+    }
+
+    #[test]
+    fn pad_events_say_which_controller_and_label_its_buttons() {
+        assert_eq!(ev(Kind::PadButton, 2, pad::A, 1.0).pad_style(), PadStyle::PlayStation);
+        assert_eq!(ev(Kind::PadAxis, 3, pad::LX, 0.5).pad_style(), PadStyle::Nintendo);
+        assert_eq!(ev(Kind::TouchDown, 2, 0, 1.0).pad_style(), PadStyle::Generic, "a touch's id is its finger");
+        assert_eq!(PadStyle::PlayStation.label(pad::A), "✕");
+        assert_eq!(PadStyle::Nintendo.label(pad::A), "B");
+        assert_eq!(PadStyle::Xbox.label(pad::START), "MENU");
+        assert_eq!(PadStyle::PlayStation.word(pad::Y), "TRIANGLE");
+        assert_eq!(PadStyle::Xbox.word(pad::Y), "Y");
+        assert_eq!(ev(Kind::PadButton, 1, pad::X, 1.0).pad_pressed(), Some(pad::X));
+        assert_eq!(ev(Kind::PadButton, 1, pad::X, 0.0).pad_released(), Some(pad::X));
+        assert_eq!(Event { kind: 14, ..Event::default() }.kind(), Kind::Resize);
+    }
 }

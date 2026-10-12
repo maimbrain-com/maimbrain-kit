@@ -114,7 +114,11 @@ pub fn round(state: Round) {
     unsafe { ffi::mb_round(state as u32) }
 }
 
-/// Screen geometry in logical units.
+/// Screen geometry in logical units. A portrait letterboxed game's is the
+/// same all session; an `orientation = "any"`, `"landscape"` or
+/// `fit = "fill"` game's can change at a frame boundary, and an
+/// [`input::Kind::Resize`](crate::input::Kind::Resize) event says when
+/// (SPEC §5.2): read it again then rather than keeping a copy from `init`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
 pub struct Screen {
@@ -129,6 +133,13 @@ pub struct Screen {
     /// Device pixels per logical unit.
     pub dpr: f32,
     pub _reserved: f32,
+}
+
+impl Screen {
+    /// Wider than it is tall: an `any` game turned sideways, or a landscape game.
+    pub fn is_landscape(&self) -> bool {
+        self.width > self.height
+    }
 }
 
 /// Assets load asynchronously; readiness changes only at frame boundaries.

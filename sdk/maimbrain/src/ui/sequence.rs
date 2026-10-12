@@ -374,7 +374,7 @@ impl Sequence {
         }
         match e.kind() {
             Kind::TouchUp | Kind::TouchCancel | Kind::MouseUp => self.down = None,
-            _ if (e.is_press() || e.kind() == Kind::KeyDown || e.kind() == Kind::PadButton) && self.t >= GUARD => {
+            _ if (e.is_press() || e.kind() == Kind::KeyDown || e.pad_pressed().is_some()) && self.t >= GUARD => {
                 if e.is_press() {
                     self.down = Some(0.0);
                 }

@@ -53,6 +53,14 @@ pub struct ShotArgs {
     /// How long --at mark:… waits for the game to mark, in game seconds.
     #[arg(long, default_value_t = 60.0, value_name = "SECS")]
     mark_wait: f64,
+    /// An `orientation = "any"` game held sideways: the phone is emulated landscape (the
+    /// logical size's width and height swapped), as when it's turned.
+    #[arg(long)]
+    landscape: bool,
+    /// A landscape game as a card in the portrait feed: the phone is emulated upright (the
+    /// logical size swapped), so the shot shows the vertical card it draws there.
+    #[arg(long, conflicts_with = "landscape")]
+    portrait: bool,
     #[command(flatten)]
     script: Script,
     /// Print the game's log lines (`sys::log`) at this level and up, each with its frame and game
@@ -545,7 +553,19 @@ pub fn run(a: ShotArgs) -> Result<(), String> {
     if a.name.is_empty() || a.name.starts_with('.') || !a.name.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b)) {
         return Err(format!("--name {:?}: use letters, digits, - _ .", a.name));
     }
-    let manifest = game_manifest(&a.path)?;
+    let mut manifest = game_manifest(&a.path)?;
+    if a.landscape {
+        if manifest.orientation != mb_format::manifest::Orientation::Any {
+            return Err(format!("--landscape is for orientation = \"any\" games; this one is {}", manifest.orientation.as_str()));
+        }
+        manifest.logical_size.swap(0, 1);
+    }
+    if a.portrait {
+        if manifest.orientation != mb_format::manifest::Orientation::Landscape {
+            return Err(format!("--portrait is for orientation = \"landscape\" games (their feed card); this one is {}", manifest.orientation.as_str()));
+        }
+        manifest.logical_size.swap(0, 1);
+    }
     let size = manifest.logical_size;
     let plan = Plan::shoot(&a.script, &a.at, a.mark_wait, size)?;
     plan.check_sensors(&manifest)?;

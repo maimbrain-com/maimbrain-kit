@@ -4486,6 +4486,7 @@ function buildImports(s, host, m) {
       if (state < 0 || state > 2 || state === s.round) return;
       s.round = state;
       s.observer?.round(state);
+      s.onRound?.(state);
       if (s.replaying || s.fastForwarding) return;
       if (state === 1) s.play?.start();
       const play = state === 2 ? s.play?.finish() ?? null : null;
@@ -4843,8 +4844,22 @@ function buildImports(s, host, m) {
 // src/replay.ts
 var Recorder = class {
   log;
+  /** Frames before the round being played started, until it ends. */
+  starting = null;
   constructor(header) {
     this.log = { version: 1, ...header, frames: [] };
+  }
+  /** The game's round state changed (from mb_update, after its frame was
+   *  recorded): a round that ends becomes where the log is watched from. Only
+   *  at its end, so a snapshot taken just after the next round starts still
+   *  points at the one that scored. */
+  round(state) {
+    if (state === 1) this.starting = Math.max(0, this.log.frames.length - 1);
+    else if (state === 2 && this.starting !== null) {
+      if (this.starting > 0) this.log.start = this.starting;
+      else delete this.log.start;
+      this.starting = null;
+    }
   }
   frame(dt, events, assets, sensors, calls = [], lost = 0) {
     const f = { dt, ...sensors };
@@ -4909,6 +4924,8 @@ var Session = class {
   observer = null;
   /** Last SPEC §5.1 round state the game reported (0 idle, 1 playing, 2 over). */
   round = 0;
+  /** Told each change of `round`, catching up included (the recorder marks where rounds start). */
+  onRound = null;
   /** Live sessions on a page: how each round is played, reported with its end. */
   play = null;
   /** A haptic the game played (web: rumbles the controller in use). */
@@ -5071,11 +5088,13 @@ var Assets = class {
 var INIT_BUDGET_MS = 500;
 var CALLBACK_BUDGET_MS = 250;
 var HEARTBEAT_EVERY = 15;
+var DISPLAY_FRAME_MS = 1e3 / 60;
 var FUEL_PER_CALLBACK = 3e8;
 var PREROLL_MIN_FRAMES = 6;
 var PREROLL_MAX_MS = 3e3;
 var GPU_WAIT_MAX_MS = 1e3;
 var MAX_DT = 0.1;
+var SKIP_SLICE_MS = 12;
 var RESIZE = 14;
 var TOP_OVER = 8;
 var MAX_FRAME_HASHES = 216e3;
@@ -5092,6 +5111,15 @@ var Runtime = class _Runtime {
     this.source = source;
     this.view = view;
     this.play = play;
+    if (source.kind === "replay") {
+      const frames = source.log.frames;
+      const start = source.log.start;
+      if (typeof start === "number" && Number.isInteger(start) && start > 0 && start < frames.length) {
+        let time = 0;
+        for (let i = 0; i < start; i++) time += frames[i].dt;
+        this.origin = { frames: start, time };
+      }
+    }
   }
   running = false;
   suspended = false;
@@ -5118,9 +5146,16 @@ var Runtime = class _Runtime {
   frameNow = null;
   /** rAF to rAF (ms) for the frame being run, for `mb.stats()`; null outside a display frame. */
   frameInterval = null;
+  /** Since the last heartbeat: the longest frame interval (ms) and the display frames missed. */
+  beatWorst = 0;
+  beatDropped = 0;
   /** Sensor readings last handed to the guest (recorded only when they change). */
   seen = { tilt: "", motion: "", att: "", loud: null };
   onReplayEnd = null;
+  /** Where a replay is watched from (ReplayLog.start): the frames before its
+   *  scoring round and their game time. Its clock (heartbeats, `mb.seek`)
+   *  counts from there. Zero for a live session or a log without one. */
+  origin = { frames: 0, time: 0 };
   /** Preview only (SPEC §9): multiplies live dt, for watching fast moments slowly. */
   static timeScale = 1;
   /** The SPEC §3 wall-clock budgets apply (a phone, a browser). The headless
@@ -5171,6 +5206,7 @@ var Runtime = class _Runtime {
       n++;
       const loaded = this.session.assets.allArrived() && n >= PREROLL_MIN_FRAMES;
       if (loaded || performance.now() > deadline) {
+        post({ op: "log", level: 0, msg: `runtime: prerolled ${n} frames in ${Math.round(performance.now() - (deadline - PREROLL_MAX_MS))} ms${loaded ? "" : " (assets still loading)"}` });
         this.prerolling = false;
         this.session.audio.setMuted(false);
         if (!this.stopped) present(host_end_frame);
@@ -5242,7 +5278,11 @@ var Runtime = class _Runtime {
   tick(now) {
     if (!this.running || this.suspended || this.stopped) return;
     this.frameInterval = this.lastShown !== null ? now - this.lastShown : null;
-    if (this.frameInterval !== null) host_frame_time(this.frameInterval);
+    if (this.frameInterval !== null) {
+      host_frame_time(this.frameInterval);
+      this.beatWorst = Math.max(this.beatWorst, this.frameInterval);
+      this.beatDropped += Math.max(0, Math.round(this.frameInterval / DISPLAY_FRAME_MS) - 1);
+    }
     this.lastShown = now;
     this.frameNow = now;
     if (this.source.kind === "replay") {
@@ -5258,7 +5298,9 @@ var Runtime = class _Runtime {
     this.frameNow = null;
     this.frameInterval = null;
     if (++this.ticks % HEARTBEAT_EVERY === 0) {
-      post({ op: "heartbeat", frame: this.ticks, time: this.session.gameTime });
+      post({ op: "heartbeat", frame: this.ticks, time: this.session.gameTime - this.origin.time, worst: Math.round(this.beatWorst), dropped: this.beatDropped });
+      this.beatWorst = 0;
+      this.beatDropped = 0;
     }
     if (!this.stopped) this.raf = requestAnimationFrame((t) => this.tick(t));
   }
@@ -5471,10 +5513,11 @@ var Runtime = class _Runtime {
       f();
     } catch (e) {
       this.stop();
+      const stack = e instanceof Error ? e.stack : void 0;
       if (this.guest.__mb_fuel.value === 0) {
-        post({ op: "watchdog", callback: `${name} (loop fuel exhausted)`, ms: performance.now() - t });
+        post({ op: "watchdog", callback: `${name} (loop fuel exhausted)`, ms: performance.now() - t, stack });
       } else {
-        post({ op: "error", message: `${name} trapped: ${e instanceof Error ? e.message : String(e)}` });
+        post({ op: "error", message: `${name} trapped: ${e instanceof Error ? e.message : String(e)}`, stack });
       }
       return performance.now() - t;
     }
@@ -5550,8 +5593,8 @@ var Runtime = class _Runtime {
    *  silent and unpresented, for at most `budgetMs`, then shows the last
    *  one. Resolves to whether it got there. Sound picks up where it would
    *  be once the session plays on: one-shots set off on the way are skipped,
-   *  as watch mode's restore does. */
-  async seekStep(target, budgetMs) {
+   *  as watch mode's restore does. `show` false: nothing is presented. */
+  async seekStep(target, budgetMs, show = true) {
     if (this.source.kind !== "replay") throw new Error("seekStep needs a replay session");
     const frames = this.source.log.frames;
     const end = Math.min(target, frames.length);
@@ -5571,11 +5614,22 @@ var Runtime = class _Runtime {
       this.presenting = true;
       this.session.audio.fastForward(false);
     }
-    if (ran > 0 && !this.stopped) {
+    if (show && ran > 0 && !this.stopped) {
       present(host_prepare);
       present(host_end_frame);
     }
     return this.cursor >= end;
+  }
+  /** A fresh replay session watched from its scoring round (`origin`): runs
+   *  the rounds before it silently and unpresented, a slice at a time so the
+   *  page keeps answering, telling `beat` after each. Done before it starts,
+   *  so its first frame shown is that round's first. */
+  async skipToOrigin(beat) {
+    while (this.cursor < this.origin.frames && !this.stopped) {
+      await this.seekStep(this.origin.frames, SKIP_SLICE_MS, false);
+      beat?.();
+      if (this.cursor < this.origin.frames) await yieldTask();
+    }
   }
   /** Headless (`mb replay`): plays a replay session's whole log as fast as it
    *  can, unpresented, waiting for each asset the run saw arrive. `onFrame`
@@ -5674,6 +5728,7 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
     screen: Array.from(screen),
     ...Object.keys(params).length ? { params } : {}
   });
+  if (live) session.onRound = (state) => recorder.round(state);
   const view = source.kind === "live" ? { screen: page2.screen, adaptive: page2.adaptive === true, pending: page2.pending } : null;
   const rt = new Runtime(guest, session, page2.input, recorder, page2.gamepads, page2.sensors, page2.stats, page2.latency, source, view, live ? page2.play ?? null : null);
   rt.init();

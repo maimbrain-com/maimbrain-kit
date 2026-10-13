@@ -266,16 +266,16 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
             if let Some(reason) = not_sent {
                 eprintln!("  {reason}");
             }
-            eprintln!("  It's a private draft: only you can see it.");
+            eprintln!("  It's a private draft: only you and your testers can play it.");
             Err(format!("{name} was not submitted; to submit it: {submit_command}"))
         }
         "draft" => {
-            eprintln!("✓ {name} passed validation. It's a private draft: only you can see it.");
+            eprintln!("✓ {name} passed validation. It's a private draft: only you and your testers can play it.");
             fixes_summary(&v, fixes, source);
-            eprintln!("  Test it on your phone: open Maimbrain → Account → My games (it's also first in your feed).");
+            eprintln!("  Test it on your phone: open Maimbrain → Account → My Game Studio (it's also first in your feed).");
             eprintln!("  Fix something? Run mb publish again; the new upload replaces the draft.");
             eprintln!("  When it's ready, submit it for review:  {submit_command}");
-            eprintln!("  (or tap Submit for review in the app, or at {}/create)", c.server);
+            eprintln!("  (or tap Submit in My Game Studio in the app, or at {}/create)", c.server);
             Ok(())
         }
         "pending" => {

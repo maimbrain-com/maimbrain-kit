@@ -1,5 +1,14 @@
 # Creator kit changelog
 
+## 0.8.1
+
+A best run's replay starts at the round that set it. A game that plays again within one session (a retry on its game-over screen) records every round of that session, so a run's log used to replay every try before the one that scored. Games do nothing for this: it comes from `mb_round`, which `Rounds` already calls.
+
+- **The log marks the round.** A run's replay log records where the last round that finished began (`start` in its header). The log still holds the whole session, since a run only replays from `mb_init`.
+- **Watching starts there.** A replay (`mb.restart({ replay })`, a replay card, the replay viewer) catches up through the rounds before it silently, then plays from that round. `mb.seek` seconds, its `time` and the timeline count from there.
+- **Frame numbers still count from `mb_init`.** `mb.step`, `mb.verify()`, `mb serve --replay <log> --at <frame>` (a tester's moment) and `mb replay` play the whole log.
+- On the phone and on leaderboards, runs saved before this are watched from their scoring round too.
+
 ## 0.8.0
 
 Games can be held sideways, turn with the phone, fill any screen's shape, and be played with a real controller or keyboard on the phone and on the web. The manifest declares all of it, and the feed uses what's declared.

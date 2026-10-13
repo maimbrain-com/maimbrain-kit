@@ -37,7 +37,7 @@ for e in input::poll() {
 
 ## Controllers
 
-Declare `inputs = ["touch", "gamepad"]` (add `"keyboard"` for desktop players). A controller-only game also declares `requires = ["gamepad"]`; the feed then shows it only while one is connected. Touch-first games should still say `gamepad` when they play well with one: with a controller connected, the feed leaves out games that don't.
+Declare `inputs = ["touch", "gamepad"]` (add `"keyboard"` for desktop players). A controller-only game also declares `requires = ["gamepad"]`; the feed then shows it only while one is connected. Touch-first games should still say `gamepad` when they play well with one: with a controller connected, the feed puts them ahead of games that don't.
 
 Buttons use the W3C standard mapping; `input::pad` names them:
 

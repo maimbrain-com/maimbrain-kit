@@ -186,6 +186,8 @@ impl Trivia {
         self.popped = false;
         self.last = None;
         self.idle = 0.0;
+        // The how-to hint shows every round, gone at the first answer.
+        self.answered_once = false;
         self.smoke.clear();
         self.host = Host::new();
         self.host.rest = Mood::Think;

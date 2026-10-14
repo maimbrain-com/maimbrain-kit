@@ -566,7 +566,7 @@ pub mod synth {
     }
 }
 
-/// All events queued for this frame.
+/// All events queued for this frame. Each one also updates [`held`].
 pub fn poll() -> Vec<Event> {
     let mut out = Vec::new();
     let mut buf = [Event::default(); 32];
@@ -580,7 +580,114 @@ pub fn poll() -> Vec<Event> {
             break;
         }
     }
+    HELD.with(|h| {
+        let mut h = h.borrow_mut();
+        for e in &out {
+            h.feed(e);
+        }
+    });
     out
+}
+
+thread_local! {
+    static HELD: std::cell::RefCell<Held> = std::cell::RefCell::new(Held::default());
+}
+
+/// What's down right now (fingers, mouse buttons, keys, pad buttons), from
+/// every event [`poll`] has handed out, whoever took it: a cutscene, a
+/// dialogue or a menu that swallowed a release can't leave it held here.
+/// Ask it, rather than a flag of your own, whether the finger that started
+/// a hold is still down:
+/// ```ignore
+/// if self.running && !input::held().pointer(self.finger) { self.running = false }
+/// ```
+pub fn held() -> Held {
+    HELD.with(|h| h.borrow().clone())
+}
+
+/// What's held, built from events: [`held`] is the SDK's own, fed by every
+/// [`poll`]; a pure `control.rs` (and a bot) can keep one of its own with
+/// [`feed`](Held::feed). A release (`TouchUp`, `TouchCancel`, `MouseUp`,
+/// `KeyUp`, a pad button let go) always clears what it releases.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Held {
+    /// (mouse?, id, x, y): touches by finger id, mouse buttons by button.
+    pointers: Vec<(bool, u8, f32, f32)>,
+    keys: Vec<u32>,
+    /// (pad index, button).
+    pads: Vec<(u16, u32)>,
+}
+
+impl Held {
+    pub fn feed(&mut self, e: &Event) {
+        let mouse = matches!(e.kind(), Kind::MouseDown | Kind::MouseUp | Kind::MouseMove);
+        let at = |p: &(bool, u8, f32, f32)| p.0 == mouse && p.1 == e.id;
+        match e.kind() {
+            Kind::TouchDown | Kind::MouseDown => {
+                self.pointers.retain(|p| !at(p));
+                self.pointers.push((mouse, e.id, e.x, e.y));
+            }
+            Kind::TouchMove | Kind::MouseMove => {
+                if let Some(p) = self.pointers.iter_mut().find(|p| at(p)) {
+                    (p.2, p.3) = (e.x, e.y);
+                }
+            }
+            Kind::TouchUp | Kind::TouchCancel | Kind::MouseUp => self.pointers.retain(|p| !at(p)),
+            Kind::KeyDown if !self.keys.contains(&e.code) => self.keys.push(e.code),
+            Kind::KeyUp => self.keys.retain(|k| *k != e.code),
+            Kind::PadButton => {
+                self.pads.retain(|p| *p != (e.pad, e.code));
+                if e.a > 0.5 {
+                    self.pads.push((e.pad, e.code));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Whether touch `id` (or, for a mouse, button `id`) is down.
+    pub fn pointer(&self, id: u8) -> bool {
+        self.pointers.iter().any(|p| p.1 == id)
+    }
+
+    /// Where a held pointer is now (its last position).
+    pub fn pointer_at(&self, id: u8) -> Option<(f32, f32)> {
+        self.pointers.iter().find(|p| p.1 == id).map(|p| (p.2, p.3))
+    }
+
+    /// How many fingers (and mouse buttons) are down.
+    pub fn pointers(&self) -> usize {
+        self.pointers.len()
+    }
+
+    /// Where each held pointer is, oldest press first.
+    pub fn pointer_positions(&self) -> impl Iterator<Item = (f32, f32)> + '_ {
+        self.pointers.iter().map(|p| (p.2, p.3))
+    }
+
+    pub fn key(&self, code: u32) -> bool {
+        self.keys.contains(&code)
+    }
+
+    /// Whether `button` is down on any controller.
+    pub fn pad(&self, button: u32) -> bool {
+        self.pads.iter().any(|p| p.1 == button)
+    }
+
+    /// Nothing at all is down.
+    pub fn is_empty(&self) -> bool {
+        self.pointers.is_empty() && self.keys.is_empty() && self.pads.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        *self = Held::default();
+    }
+}
+
+/// Forgets what's held (a new native test session: `sys::test::reset`).
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn reset_held() {
+    HELD.with(|h| h.borrow_mut().clear());
 }
 
 #[cfg(test)]
@@ -589,6 +696,48 @@ mod tests {
 
     fn ev(kind: Kind, id: u8, code: u32, a: f32) -> Event {
         Event { kind: kind as u8, id, code, a, ..Event::default() }
+    }
+
+    #[test]
+    fn held_follows_every_event_poll_hands_out() {
+        use crate::sys::test::Host;
+        let host = Host::start(1);
+        let mut h = Held::default();
+        h.feed(&ev(Kind::TouchDown, 3, 0, 0.0));
+        h.feed(&ev(Kind::KeyDown, 0, key::SPACE, 0.0));
+        h.feed(&ev(Kind::PadButton, 1, pad::A, 1.0));
+        assert!(h.pointer(3) && h.key(key::SPACE) && h.pad(pad::A) && h.pointers() == 1);
+        h.feed(&Event { x: 50.0, ..ev(Kind::TouchMove, 3, 0, 0.0) });
+        assert_eq!(h.pointer_at(3), Some((50.0, 0.0)));
+        h.feed(&ev(Kind::TouchCancel, 3, 0, 0.0));
+        h.feed(&ev(Kind::KeyUp, 0, key::SPACE, 0.0));
+        h.feed(&ev(Kind::PadButton, 1, pad::A, 0.0));
+        assert!(h.is_empty());
+        // The SDK's own: whoever takes the events after `poll`, it saw them.
+        host.push(synth::hold(10.0, 10.0, 0.01, 0.5));
+        crate::sys::test::advance(0.1);
+        let _ = poll_for_test(&host);
+        assert!(held().pointer(0), "down");
+        crate::sys::test::advance(0.5);
+        let _ = poll_for_test(&host);
+        assert!(held().is_empty(), "let go, though nobody looked at the release");
+    }
+
+    /// One frame's events, as `Host::frame` hands them to `update`.
+    fn poll_for_test(host: &crate::sys::test::Host) -> Vec<Event> {
+        struct Poll(Vec<Event>);
+        impl crate::Game for Poll {
+            fn init() -> Self {
+                Poll(Vec::new())
+            }
+            fn update(&mut self, _dt: f32) {
+                self.0 = poll();
+            }
+            fn render(&self) {}
+        }
+        let mut g = Poll(Vec::new());
+        host.frame(&mut g, 0.0);
+        g.0
     }
 
     #[test]

@@ -5037,6 +5037,25 @@ var Assets = class {
   allArrived() {
     return this.list.every((a) => a.state !== 0 || a.arrived !== void 0);
   }
+  /** Stepping a held session (`mb.step`): resolves once every asset asked for so far has
+   *  arrived, or after `ms`, so each becomes visible at the earliest frame it could (as on a
+   *  fast phone) however slowly the tool steps. Arrival is still recorded at that frame, so
+   *  replays are unchanged. One still on its way then isn't waited for again. */
+  async arrival(ms) {
+    const waiting = this.list.filter((a) => a.state === 0 && !a.arrived && !a.late);
+    if (waiting.length === 0) return;
+    let timer;
+    const late = new Promise((r) => {
+      timer = setTimeout(r, ms);
+    });
+    await Promise.race([Promise.all(waiting.map((a) => a.fetching)), late]);
+    clearTimeout(timer);
+    for (const a of waiting) if (!a.arrived) a.late = true;
+  }
+  /** What the game asked for and can't see yet, each once. */
+  loading() {
+    return [...new Set(this.list.filter((a) => a.state === 0).map((a) => a.path))];
+  }
   /** Live play: publishes everything that has arrived; returns the handles. */
   publishArrived() {
     const out = [];
@@ -5093,6 +5112,7 @@ var FUEL_PER_CALLBACK = 3e8;
 var PREROLL_MIN_FRAMES = 6;
 var PREROLL_MAX_MS = 3e3;
 var GPU_WAIT_MAX_MS = 1e3;
+var STEP_ASSET_WAIT_MS = 8e3;
 var MAX_DT = 0.1;
 var SKIP_SLICE_MS = 12;
 var RESIZE = 14;
@@ -5341,8 +5361,13 @@ var Runtime = class _Runtime {
    *  the game doesn't have.
    *
    *  `until` stops early, after the first frame whose marks (`mb_mark`)
-   *  include one of these labels (`mb shot --at mark:<label>`). */
-  stepFrames(n, paced = true, dt = 1 / 60, until) {
+   *  include one of these labels (`mb shot --at mark:<label>`).
+   *
+   *  Before each live frame it waits up to `waitAssets` ms for the assets
+   *  the game has asked for to arrive (each waited for once), so they're
+   *  visible at the earliest frame they could be, as on a fast phone, however
+   *  slowly the tool steps; 0 doesn't wait (`mb measure`'s real-time run). */
+  stepFrames(n, paced = true, dt = 1 / 60, until, waitAssets = STEP_ASSET_WAIT_MS) {
     if (!(dt > 0 && dt <= MAX_DT)) return Promise.reject(new Error(`mb.step: dt ${dt} is not seconds in (0, ${MAX_DT}]`));
     const frameDt = Math.fround(dt);
     const run = async () => {
@@ -5351,6 +5376,8 @@ var Runtime = class _Runtime {
       for (let i = 0; i < n && this.suspended && !this.stopped; i++) {
         let stat;
         if (this.source.kind === "live") {
+          if (waitAssets > 0) await this.session.assets.arrival(waitAssets);
+          if (!this.suspended || this.stopped) break;
           stat = this.liveFrame(frameDt);
         } else {
           const f = this.source.log.frames[this.cursor];

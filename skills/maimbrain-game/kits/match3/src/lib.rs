@@ -74,7 +74,8 @@ struct Poppets {
     time: f32,
     play_t: f32,
     idle: f32,
-    /// The player has made a match (the swipe hint stops showing on its own).
+    /// The player has made a match this round (the swipe hint stops showing
+    /// on its own). Every round teaches again: never remembered.
     taught: bool,
     theme: Theme,
     hud: Hud,
@@ -112,6 +113,8 @@ impl Poppets {
         self.hud.reset(self.rounds.best());
         self.play_t = 0.0;
         self.idle = 0.0;
+        // The directions show every round, gone at the first match.
+        self.taught = false;
         self.selected = None;
         self.touch = None;
         self.banner = None;

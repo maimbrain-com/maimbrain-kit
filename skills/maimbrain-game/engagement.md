@@ -22,6 +22,8 @@ The title screen isn't a menu. It's the feed card: an advertisement playing live
   - A pulsing outline marks what to touch; an arrow shows the direction to swipe or tilt.
   - A live indicator mirrors the control (a needle, a tilting glass, a power bar), so the player sees their input's effect even before it matters.
   - Hints persist until the player performs the action once, then fade. Bring them back if the player stalls (no input for ~3 s).
+  - **A hint is an order the player will follow exactly**: HOLD means hold until LET GO. Never let doing what it says hurt (a KEEP HOLDING that suffocates the flame mid-gust), and never let a prop's hint hide a threat's ("TAP TAP TAP" on a chair over "TAP HER" as the witch lunges). `ui::Hints` ranks them (`.threat()` over teaching over `.ambient()`) and `bot::Literal` checks them (SKILL.md "Write a bot").
+  - **Slow motion to teach is capped**: ≤ 2–3 s at about 30%, then back to full speed whether or not the player acted, the prompt staying up. Slow-mo that waits for the move (up to 15 s of a crawling world for a player who didn't get it) reads as a freeze on a phone. `ui::Lesson::new("TAP TO JUMP")` does this (`teach()`, step the world by what `update(dt)` returns, `learned()`, `draw`); `ui::SlowMo` is the capped slow motion alone, for near misses.
 - **≤ 5 words of text at a time**, big (pixel font 16+), with a dark shadow or panel behind it. Verbs, not explanations: "TILT TO POUR", "TAP TO JUMP".
 - **The first 3 seconds always succeed.** The opening is a no-fail warm-up: generous timing, slow pace, a guaranteed early win (first coin, first sip, first block placed) with a reward burst. The player should feel competent before they feel challenged.
   - **Easy isn't slow, and fast isn't frantic.** In anything about speed (runners, racers, flyers), the opening must *feel* fast from the first second while staying forgiving. Get the feeling from the camera and the world, not raw velocity: a low camera, a field of view that opens with speed, `speed_blur`, streaks, things whipping past close to the camera, a rising whoosh. Bound the real speed by reading time: at any speed, a hazard must be visible and recognizable at least ~1.0 s (early game ~1.5 s) before the player has to act, plus the time the action itself takes. If testers say it's "unhinged" or they die to things they never saw, it's too fast: slow it and add sensation instead.
@@ -48,6 +50,7 @@ Juice is the feedback layered on an action so it feels physical. It's the differ
 ## 5. The loop: short rounds, instant retry, constant novelty
 
 - **Round length**: a first-time player's first round ends in 20–45 s; a good player's lasts 1–3 min. Sessions are a few rounds, not one long one.
+- **No event on a metronome.** Wind every 5 s, a wave every 10 s: regular or near-constant events feel "constant and annoying" even when the difficulty is right. Space them at random within a range, give them lulls, vary their strength; tag them for the bot (`Outcome::event`) and it flags the constant ones.
 - **Escalate fast.** Every ~10–15 s something gets faster, narrower or new. A new element (obstacle, shape, enemy, rule) every 15–30 s keeps people watching *and* players playing.
 - **The world changes as you get further.** Progress has to be visible in the place itself, not only in the score: new zones or biomes every ~30–60 s (the canal opens into a lake, the town gives way to bamboo, the city to a festival), the time of day or the weather turning (dusk → night → dawn, rain coming in), landmarks that mark distance (the big gate at 500 m), and music that moves with it. A world that looks the same at 3 minutes as at 3 seconds tells the player they've seen everything. **Zones must be unmistakably different**, not the same scene re-tinted: each gets its own palette and sky (time of day, weather, clouds), its own signature props and silhouettes on the skyline, its own ambient life, its own hazard or twist, and its own music variation. The test: shown one screenshot from mid-zone, a stranger can name the zone.
 - **A cold open sets the stakes.** In a chase or a quest, the first 1–2 s after the entering tap tell the story without text: a different camera angle shows what the player wants and what's after them (Temple Run's idol grab and the demons bursting out), then the camera swings behind the player and control begins. Never longer than ~2 s, and any input skips it. On later runs it can be shorter, but keep the beat that shows the threat.
@@ -65,7 +68,7 @@ The platform turns three screens into feed cards, all shown live but untouchable
 
 ## 7. Phone ergonomics
 
-- One thumb, portrait. Tap targets ≥ 44 pt (≈ 44 logical units at 360 wide). Primary actions in the lower-middle, never under the card overlays (bottom ~70 pt, right ~56 pt) or the pause pill (top-left).
+- One thumb, portrait. Tap targets ≥ 44 pt (≈ 44 logical units at 360 wide), covering everything drawn of the thing, head included (`ground::Figure::hit`), and never counting only under a condition the player can't see (inside a shrinking circle of light, in a hidden window). Primary actions in the lower-middle, never under the card overlays (bottom ~70 pt, right ~56 pt) or the pause pill (top-left).
 - Don't make players cover what they need to see: put the action above the thumb, or let a tap anywhere count.
 - **Motion controls**:
   - Calibrate relative to how the phone is held when play starts (and after a pause), so it works standing, slumped or in bed.
@@ -109,6 +112,7 @@ Many players have sound off, so it never carries the game. For those who have it
 
 - **A character with a face beats an abstract shape.** Faces react to everything: delight on success, worry near danger, horror on failure.
 - **Humor** lands through animation timing (anticipation, overreaction, a beat of stillness before the payoff), not text.
+- **Voices take turns with play.** Story lines go in quiet stretches, never over busy play or a level change: `dialogue.narration` tells them when it's calm (`set_busy` while a threat is on), timed from the length table `mb voice` writes (`src/vo_lengths.rs`; keep the spawner quiet for `narration.left()`), and a floor's last line is told on the stairs, which last until it's done. A reaction to the player's own action cuts in at once (`barks.react`) instead of queueing behind the story (UI.md "Talking portraits and dialogue").
 - **Characters who talk are funny, not banal.** Specific jokes about what just happened beat generic taunts; each character's humor comes from their want and flaw, with one running gag that pays off; setups and callbacks across a run; the funny word last; short. The hero is the cool one (quiet confidence, dry one-liners), the opponents are loud. ([assets.md, "Voice and characters"](assets.md#voice-and-characters) has the rules and examples.)
 - **No inside baseball.** A player never needs a name they haven't seen on screen: about five proper nouns in the whole game, at most one new one per scene, none for factions or lore; describe by what's visible ("the big guy with the crane"). The test: could a 10-year-old retell the story after one play, in one sentence?
 - **Cartoon slapstick and puns**, when the game is a comedy (not every game is: a tense, eerie or earnest one keeps its tone): the setup is on screen (the arm just fell off), the bark is the punchline with the pun as its last word, and the mech or portrait shows it (a beat of stillness, then the collapse; smug to horrified on the punchline).
@@ -150,14 +154,15 @@ Keep it watchable and skippable: lines short (a sentence each, voiced with `mb v
 
 **First ten seconds**
 - [ ] Every input gets a visible response the same frame, plus sound and (in play) haptics.
-- [ ] Hints show where and which way, persist until performed, and return if the player stalls.
+- [ ] Hints show where and which way, persist until performed, and return if the player stalls; teaching slow motion ends by itself within ~3 s (`ui::Lesson`).
 - [ ] The opening seconds can't be failed, and there's an early win with a reward burst.
 - [ ] No text block over 5 words; key text is ≥ 16 px with a shadow or panel.
 
 **Tension and failure**
 - [ ] Every fail state has a visible ramp (face, color, shake, meter) before it triggers.
 - [ ] The cause of failure is shown clearly; the fail animation is a 1–2 s payoff.
-- [ ] Difficulty escalates every ~10–15 s, with something new every 15–30 s; the bot confirms a first-timer's round lasts 20–45 s.
+- [ ] Difficulty escalates every ~10–15 s, with something new every 15–30 s; the bot confirms a first-timer's round lasts 20–45 s, and no tagged event reads CONSTANT or DOMINANT.
+- [ ] No single miss costs more than about half a life (no HARSH misses), and the bot that does exactly what the hints say loses nothing to them.
 
 **Why play**
 - [ ] A stranger can say who the character is and what's after them within 5 s of play.
@@ -173,6 +178,9 @@ Keep it watchable and skippable: lines short (a sentence each, voiced with `mb v
 - [ ] Something besides the player moves in every part of the screen.
 - [ ] The world visibly changes as the player progresses (zones, time of day, landmarks), not only the obstacles.
 - [ ] The hero is a recognizable, living character (generated or organically built and animated), not primitives.
+- [ ] Reactions to the player's actions are heard at once (`barks.react`); story lines play in quiet stretches, never over a fight or cut by a level change (`dialogue.narration`).
+- [ ] An intro or directions play every run with a visible skip, never remembered as seen.
+- [ ] Every character who speaks beside voiced ones is voiced (`mb build` and the runtime log name the ones shown as subtitles only).
 - [ ] Characters who talk: every line read aloud is specific to its moment (no generic taunts), each character has a running gag that pays off, the hero is cool rather than loud, the story fits in one sentence, and a multi-fight game turns from light to dramatic for its finale and ends on a small release.
 - [ ] No inside baseball: every name a line uses was on screen first (≤ ~5 proper nouns in the game, no faction or lore names), and a 10-year-old could retell the story in one sentence.
 - [ ] Jokes land in two seconds: the setup is on screen, the pun or punchline is the last word, and the character's body or face shows it.

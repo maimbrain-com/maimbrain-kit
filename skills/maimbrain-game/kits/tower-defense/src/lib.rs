@@ -151,6 +151,9 @@ impl Keep {
     fn start(&mut self) {
         self.sim = Sim::new(self.rounds.seed());
         self.idle = 0.0;
+        // The build and upgrade hints show every round, gone once done.
+        self.taught_build = false;
+        self.taught_upgrade = false;
         self.sel = Sel::None;
         self.banner = None;
         self.fx.clear();

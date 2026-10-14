@@ -26,7 +26,7 @@ use serde_json::{Value, json};
 
 use crate::cdp::Chrome;
 use crate::generate::img::Image;
-use crate::{budget, cdp, devbuild, fonts, readability, serve, smooth};
+use crate::{budget, cdp, devbuild, fonts, grounding, readability, serve, smooth};
 
 /// The display rates --hz takes: down to 1/MAX_DT (the runtime's longest frame), up to a ProMotion display and then some.
 const HZ_RANGE: std::ops::RangeInclusive<f64> = 10.0..=240.0;
@@ -55,11 +55,11 @@ pub struct ShotArgs {
     mark_wait: f64,
     /// An `orientation = "any"` game held sideways: the phone is emulated landscape (the
     /// logical size's width and height swapped), as when it's turned.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "screen")]
     landscape: bool,
     /// A landscape game as a card in the portrait feed: the phone is emulated upright (the
     /// logical size swapped), so the shot shows the vertical card it draws there.
-    #[arg(long, conflicts_with = "landscape")]
+    #[arg(long, conflicts_with_all = ["landscape", "screen"])]
     portrait: bool,
     #[command(flatten)]
     script: Script,
@@ -95,6 +95,21 @@ pub struct ShotArgs {
     /// `Node::raw()`), instead of the one it marks.
     #[arg(long, value_name = "NODE", requires = "readability")]
     subject: Option<u32>,
+    /// Print what stands on what under each shot: the figures the game stands with
+    /// `maimbrain::ground::Figure` and the floors under them. The check runs without this too
+    /// (unless --no-grounding), warning under a shot where a figure floats above its floor, is
+    /// cut off, has no contact shadow, stands in another or is drawn in the wrong order, or where
+    /// a tap area (`ground::tap_area`) misses part of the figure it's for.
+    #[arg(long, conflicts_with = "no_grounding")]
+    grounding: bool,
+    /// Draw the tap targets over the shots (the `mb.taps` debug parameter): each tap area the
+    /// game declares with `ground::tap_area` in magenta, each figure's `Figure::hit` in cyan, and
+    /// print their sizes under each shot. Check by eye that a tap on the head counts.
+    #[arg(long, conflicts_with = "no_grounding")]
+    taps: bool,
+    /// Run the game without the grounding check's reports (the `mb.ground` debug parameter).
+    #[arg(long)]
+    no_grounding: bool,
     /// Check that the mb3d camera moves smoothly: run the script again at twice --hz and report
     /// the frames where its position, direction or field of view jumps, kinks or depends on the
     /// frame rate (and where its near or far plane steps).
@@ -159,6 +174,12 @@ pub struct Script {
     /// whose motion depends on the frame rate looks different, or plays differently).
     #[arg(long, default_value_t = 60.0, value_name = "FPS")]
     pub hz: f64,
+    /// The phone's screen in points, for a `fit = "fill"` game, whose Screen grows to its shape:
+    /// WxH (--screen 360x780; wider than tall is the phone held sideways) or an iPhone: se
+    /// (375x667), mini (375x812), iphone (393x852), pro-max (440x956). The page is emulated at
+    /// the Screen the game gets there; a letterboxed game keeps its own size (with bars).
+    #[arg(long, value_name = "WxH|se|mini|iphone|pro-max")]
+    pub screen: Option<String>,
 }
 
 /// `sys::log`'s levels, lowest first.
@@ -547,8 +568,15 @@ fn secs(t: f64) -> String {
     format!("{t}")
 }
 
-pub fn run(a: ShotArgs) -> Result<(), String> {
+pub fn run(mut a: ShotArgs) -> Result<(), String> {
     let started = Instant::now();
+    if !a.no_grounding {
+        // The SDK's ground::Figure reports where it stands while this is set (grounding.rs).
+        a.script.param.push(format!("{}=1", grounding::PARAM));
+        if a.taps {
+            a.script.param.push(format!("{}=1", grounding::TAPS_PARAM));
+        }
+    }
     let is_dir = a.path.is_dir();
     if a.name.is_empty() || a.name.starts_with('.') || !a.name.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b)) {
         return Err(format!("--name {:?}: use letters, digits, - _ .", a.name));
@@ -565,6 +593,9 @@ pub fn run(a: ShotArgs) -> Result<(), String> {
             return Err(format!("--portrait is for orientation = \"landscape\" games (their feed card); this one is {}", manifest.orientation.as_str()));
         }
         manifest.logical_size.swap(0, 1);
+    }
+    if let Some(spec) = &a.script.screen {
+        eprintln!("{}", fit_screen(&mut manifest, spec)?);
     }
     let size = manifest.logical_size;
     let plan = Plan::shoot(&a.script, &a.at, a.mark_wait, size)?;
@@ -645,6 +676,65 @@ fn sheet_text(game: &str, shots: &[Shot], logs: &[String]) -> String {
         out += &format!("  {l}\n");
     }
     out
+}
+
+/// `--screen`'s phones, upright, in points.
+const SCREENS: &[(&str, [u32; 2])] = &[("se", [375, 667]), ("mini", [375, 812]), ("iphone", [393, 852]), ("pro-max", [440, 956])];
+/// How far a `fill` game's Screen grows, long side over short (runtime/src/main.ts `MAX_FILL_ASPECT`).
+const MAX_FILL_ASPECT: f64 = 2.4;
+
+/// `--screen`'s value: a preset or WxH, in points.
+fn parse_screen(spec: &str) -> Result<[u32; 2], String> {
+    let s = spec.to_ascii_lowercase();
+    if let Some((_, size)) = SCREENS.iter().find(|(n, _)| *n == s) {
+        return Ok(*size);
+    }
+    let names = SCREENS.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ");
+    let bad = || format!("--screen {spec}: expected WxH in points (360x780) or one of {names}");
+    let (w, h) = s.split_once(['x', '×']).ok_or_else(bad)?;
+    let (w, h) = (w.trim().parse::<u32>().map_err(|_| bad())?, h.trim().parse::<u32>().map_err(|_| bad())?);
+    if !(100..=4096).contains(&w) || !(100..=4096).contains(&h) {
+        return Err(format!("--screen {spec}: each side is 100 to 4096 points"));
+    }
+    Ok([w, h])
+}
+
+/// `--screen`: the Screen the game gets on a phone of that size (SPEC §2 "Orientation and
+/// fit", as runtime/src/main.ts `fit` works it out), which becomes the manifest's logical
+/// size so the page is emulated at it, 2 device pixels per unit like any phone (a bigger
+/// phone shows the same picture larger). Returns a line saying what the game gets there.
+pub(crate) fn fit_screen(m: &mut Manifest, spec: &str) -> Result<String, String> {
+    use mb_format::manifest::{Fit, Orientation};
+    let [w, h] = parse_screen(spec)?;
+    let sideways = w > h;
+    let [mut lw, mut lh] = m.logical_size;
+    match m.orientation {
+        Orientation::Portrait if sideways => {
+            return Err(format!("--screen {w}x{h} is a phone held sideways, and a portrait game is played upright: give it as {h}x{w}"));
+        }
+        // An `any` game turns with the phone; a landscape one upright is its feed card.
+        Orientation::Any if sideways => std::mem::swap(&mut lw, &mut lh),
+        Orientation::Landscape if !sideways => std::mem::swap(&mut lw, &mut lh),
+        _ => {}
+    }
+    if m.fit != Fit::Fill {
+        m.logical_size = [lw, lh];
+        return Ok(format!("screen {w}x{h}: this game letterboxes (fit = \"letterbox\"), so it gets its own {lw}x{lh} there, with bars; shot at {lw}x{lh}"));
+    }
+    let scale = (w as f64 / lw as f64).min(h as f64 / lh as f64);
+    let (mut gw, mut gh) = (w as f64 / scale, h as f64 / scale);
+    let capped = gw / gh > MAX_FILL_ASPECT || gh / gw > MAX_FILL_ASPECT;
+    if gw / gh > MAX_FILL_ASPECT {
+        gw = gh * MAX_FILL_ASPECT;
+    }
+    if gh / gw > MAX_FILL_ASPECT {
+        gh = gw * MAX_FILL_ASPECT;
+    }
+    // Whole units, never less than declared.
+    let size = [(gw.round() as u32).clamp(lw, 4096), (gh.round() as u32).clamp(lh, 4096)];
+    m.logical_size = size;
+    let bars = if capped { format!(" (a fill game grows to {MAX_FILL_ASPECT} : 1 and no further: bars beyond)") } else { String::new() };
+    Ok(format!("screen {w}x{h}: the game's Screen is {}x{}{bars}", size[0], size[1]))
 }
 
 /// The manifest of a game directory or .mbx.
@@ -795,7 +885,7 @@ fn capture(exe: &Path, url: &str, m: &Manifest, plan: &Plan, a: &ShotArgs, out: 
     let mut shots = Vec::new();
     // GPU-paced stepping only buys --stats its GPU times: a shot's pixels are the same either way.
     let paced = a.stats.is_some();
-    let (poses, timings) = play(&mut chrome, &sid, m, plan, &a.script, a.track_node, paced, |chrome, b, t, mark, marked_subject| {
+    let (poses, timings) = play(&mut chrome, &sid, m, plan, &a.script, a.track_node, paced, |chrome, b, t, mark, marked_subject, ground| {
         let png = screenshot(chrome, &sid)?;
         let file = match mark {
             Some(m) => format!("{}-{}.png", a.name, file_safe(m)),
@@ -824,12 +914,29 @@ fn capture(exe: &Path, url: &str, m: &Manifest, plan: &Plan, a: &ShotArgs, out: 
         if let Some(w) = frames.last().and_then(|last| budget::warning(last, &frames, &st["budgets"])) {
             eprintln!("         {}", w.replace('\n', "\n         "));
         }
+        // Stepping waits for what the game asks for (`mb.step`): this one didn't come in time.
+        for p in st["loading"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+            eprintln!("         warning: {p} not loaded at {} s", secs(t));
+        }
         if a.readability {
             let subject = a.subject.or(marked_subject);
             // A frame without mb3d is all HUD: measure it as shown, with no subject.
             let three_d = st["triangles"].is_number();
             for l in check_readability(chrome, &sid, &png, subject.filter(|_| three_d), three_d, st["retro"].is_object(), &path)? {
                 eprintln!("         {l}");
+            }
+        }
+        if !a.no_grounding
+            && let Ok(img) = Image::decode(&png)
+        {
+            let (lines, warnings) = grounding::check(ground, &img, m.logical_size);
+            if a.grounding || a.taps {
+                for l in lines.into_iter().filter(|l| a.grounding || l.starts_with("tap area")) {
+                    eprintln!("         {l}");
+                }
+            }
+            for w in warnings {
+                eprintln!("         warning: {w}");
             }
         }
         shots.push(Shot { t, mark: mark.map(str::to_string), path, frame: b, png });
@@ -840,7 +947,7 @@ fn capture(exe: &Path, url: &str, m: &Manifest, plan: &Plan, a: &ShotArgs, out: 
         return Ok((shots, None, logs));
     }
     let twice = Script { hz: a.script.hz * 2.0, ..a.script.clone() };
-    let (again, _) = play(&mut chrome, &sid, m, &Plan::shoot(&twice, &a.at, a.mark_wait, m.logical_size)?, &twice, a.track_node, paced, |_, _, _, _, _| Ok(()))?;
+    let (again, _) = play(&mut chrome, &sid, m, &Plan::shoot(&twice, &a.at, a.mark_wait, m.logical_size)?, &twice, a.track_node, paced, |_, _, _, _, _, _| Ok(()))?;
     let lo = smooth::Run { hz: a.script.hz, poses };
     Ok((shots, Some(smooth::check(&lo, &smooth::Run { hz: twice.hz, poses: again }, a.track_node)), logs))
 }
@@ -857,7 +964,7 @@ fn play(
     script: &Script,
     track: Option<u32>,
     paced: bool,
-    mut shot: impl FnMut(&mut Chrome, u32, f64, Option<&str>, Option<u32>) -> Result<(), String>,
+    mut shot: impl FnMut(&mut Chrome, u32, f64, Option<&str>, Option<u32>, &grounding::Ground) -> Result<(), String>,
 ) -> Result<(Vec<smooth::Pose>, Vec<Value>), String> {
     let hz = script.hz;
     let mut player = Player::start(chrome, sid, m, plan, script, track)?;
@@ -888,7 +995,7 @@ fn play(
             let (b, t, mark) = due.remove(i);
             // A mark's shot is labelled with its game time, to the millisecond.
             let t = if mark.is_some() { (now as f64 / hz * 1000.0).round() / 1000.0 } else { t };
-            shot(chrome, b.max(now), t, mark.as_deref(), readability::marked_subject(&player.timings))?;
+            shot(chrome, b.max(now), t, mark.as_deref(), readability::marked_subject(&player.timings), &grounding::of_last_frame(&player.timings))?;
         }
         if now >= plan.mark_wait && !waiting.is_empty() {
             return Err(missing_marks(&waiting, &player.timings, plan.mark_wait as f64 / hz));
@@ -937,7 +1044,7 @@ fn check_readability(chrome: &mut Chrome, sid: &str, png: &[u8], subject: Option
 fn missing_marks(waiting: &[MarkShot], timings: &[Value], secs_waited: f64) -> String {
     let mut seen: Vec<String> = Vec::new();
     for t in timings {
-        for m in t["marks"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+        for m in t["marks"].as_array().into_iter().flatten().filter_map(Value::as_str).filter(|m| !grounding::is_ground(m)) {
             if !seen.iter().any(|s| s == m) {
                 seen.push(m.to_string());
             }
@@ -1618,5 +1725,64 @@ mod tests {
         let lit = img.px.iter().filter(|p| p[0] == 255).count();
         assert!(lit > 20, "glyphs were drawn ({lit} pixels)");
         assert!("0123456789.s".chars().all(|c| glyph(c).is_some()));
+    }
+
+    fn manifest(orientation: &str, size: [u32; 2], fit: &str) -> Manifest {
+        let text = format!(
+            "abi = 0\nid = \"com.maimbrain.test.fit\"\nname = \"Fit\"\nversion = \"0.1.0\"\ncreator = \"@test\"\norientation = \"{orientation}\"\nlogical_size = [{}, {}]\nfit = \"{fit}\"\ninputs = [\"touch\"]\nperf_tier = \"lite\"\nstdlib = {{ mb2d = 1 }}\n",
+            size[0], size[1]
+        );
+        Manifest::parse(&text).unwrap()
+    }
+
+    fn screen(m: &Manifest, spec: &str) -> Result<[u32; 2], String> {
+        let mut m = m.clone();
+        fit_screen(&mut m, spec).map(|_| m.logical_size)
+    }
+
+    #[test]
+    fn a_fill_game_grows_to_the_screens_shape() {
+        let m = manifest("portrait", [360, 640], "fill");
+        assert_eq!(screen(&m, "360x780"), Ok([360, 780]));
+        // A bigger phone: the same Screen, larger (393×852 is 1.09 points a unit).
+        assert_eq!(screen(&m, "iphone"), Ok([360, 780]));
+        assert_eq!(screen(&m, "SE"), Ok([360, 640]));
+        assert_eq!(screen(&m, "pro-max"), Ok([360, 782]));
+        // Never less than declared, and no further than 2.4 : 1.
+        assert_eq!(screen(&m, "320x480"), Ok([427, 640]));
+        assert_eq!(screen(&m, "200x900"), Ok([360, 864]));
+        let mut capped = m.clone();
+        assert!(fit_screen(&mut capped, "200x900").unwrap().contains("no further"));
+    }
+
+    #[test]
+    fn a_screen_follows_the_games_orientation() {
+        let any = manifest("any", [360, 640], "fill");
+        assert_eq!(screen(&any, "780x360"), Ok([780, 360]), "turned sideways");
+        let land = manifest("landscape", [640, 360], "fill");
+        assert_eq!(screen(&land, "852x393"), Ok([780, 360]));
+        assert_eq!(screen(&land, "393x852"), Ok([360, 780]), "upright: its feed card");
+        let e = screen(&manifest("portrait", [360, 640], "fill"), "780x360").unwrap_err();
+        assert!(e.contains("held sideways") && e.contains("360x780"), "{e}");
+    }
+
+    #[test]
+    fn a_letterboxed_game_keeps_its_size_and_says_so() {
+        let mut m = manifest("portrait", [360, 640], "letterbox");
+        let note = fit_screen(&mut m, "pro-max").unwrap();
+        assert_eq!(m.logical_size, [360, 640]);
+        assert!(note.contains("letterbox") && note.contains("bars"), "{note}");
+    }
+
+    #[test]
+    fn bad_screens_say_what_was_expected() {
+        let m = manifest("portrait", [360, 640], "fill");
+        assert!(screen(&m, "big").unwrap_err().contains("pro-max"));
+        assert!(screen(&m, "360by780").unwrap_err().contains("WxH"));
+        assert!(screen(&m, "36x78").unwrap_err().contains("100 to 4096"));
+        assert_eq!(screen(&m, "360×780"), Ok([360, 780]));
+        // Not with the flags that turn the phone themselves.
+        assert!(Cli::try_parse_from(["mb", "g", "--screen", "se", "--landscape"]).is_err());
+        assert!(Cli::try_parse_from(["mb", "g", "--screen", "se", "--portrait"]).is_err());
     }
 }

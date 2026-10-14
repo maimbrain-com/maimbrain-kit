@@ -16,7 +16,8 @@
 //!     mb serve frogger/screenshots/fb-build-3.mbx --replay frogger/screenshots/fb-7-ann.json --at 6180
 //!     mb shot frogger --autoplay --sheet   # screenshots at 0.5, 2, 5 and 10 s, and a sheet of them
 //!     mb measure frogger --autoplay   # 10 s live: frame times, GPU ms, input latency, mb.verify()
-//!     mb doctor                       # check the toolchain
+//!     mb doctor                       # check the toolchain (and for a newer mb)
+//!     mb upgrade frogger              # move a game to this kit's SDK, and what it can adopt
 //!     mb art sprite frogger hero "a frog in a tiny knight's helmet"   # generated art (mb art --help)
 //!     mb music frogger music "bouncy marimba and claps" --bars 8      # a seamless loop
 //!     mb sfx frogger croak "a short wet croak"                        # a sound effect
@@ -40,6 +41,7 @@ mod devbuild;
 mod fonts;
 mod generate;
 mod glyphs;
+mod grounding;
 mod live;
 mod measure;
 mod packnotes;
@@ -51,6 +53,8 @@ mod scaffold;
 mod serve;
 mod shot;
 mod smooth;
+mod upgrade;
+mod voicecheck;
 mod watch;
 
 /// `mb --version`: the version, the commit it was built from ("dev" when that
@@ -170,8 +174,15 @@ enum Cmd {
         #[arg(long, conflicts_with_all = ["text", "file"])]
         clear: bool,
     },
-    /// Check that the toolchain for building games is installed.
+    /// Check that the toolchain for building games is installed, and whether a newer mb is out
+    /// (at most once a day; MB_NO_UPDATE_CHECK=1 turns that off).
     Doctor,
+    /// Bring a game made with an older kit up to this one: say which SDK it builds with, move its
+    /// Cargo.lock to this kit's (--apply), print the upgrade notes of every newer release
+    /// (Required, Recommended, Available) and check the game's code and manifest for what it can
+    /// adopt. --apply makes only safe, mechanical changes; it never adopts a capability or changes
+    /// how the game plays or looks.
+    Upgrade(upgrade::UpgradeArgs),
     /// Preview a game in a desktop browser (rebuilds on reload when files change; with
     /// --watch, rebuilds on save and updates the open preview by itself).
     Serve {
@@ -479,6 +490,7 @@ fn run() -> ExitCode {
             Err(format!("--{l} needs --submit: it says what kind of release you're submitting"))
         }
         Cmd::Publish { path, out, submit, model, level, fixes } => {
+            upgrade::nudge(&path);
             let hint = path.display().to_string();
             let level = level.level();
             // Before building, so a missing --model or a placeholder icon fails fast.
@@ -512,7 +524,9 @@ fn run() -> ExitCode {
             description_text(&game, text, file.as_deref(), clear).and_then(|d| submit_target(&game).and_then(|t| remote::describe(&t.query, d.as_deref())))
         }
         Cmd::Doctor => doctor(),
+        Cmd::Upgrade(a) => upgrade::run(a),
         Cmd::Serve { path, port, out, watch, replay, at } => {
+            upgrade::nudge(&path);
             let pin = replay.map(|log| replay_pin(&path, &log, at, watch)).transpose();
             pin.and_then(|pin| {
                 if watch {
@@ -524,7 +538,10 @@ fn run() -> ExitCode {
         }
         Cmd::Shot(a) => shot::run(a),
         Cmd::Measure(a) => measure::run(a),
-        Cmd::Build { dir, out } => build_and_pack(&dir, &out).map(|_| ()),
+        Cmd::Build { dir, out } => {
+            upgrade::nudge(&dir);
+            build_and_pack(&dir, &out).map(|_| ())
+        }
         Cmd::Pack { dir, wasm, out } => pack(&dir, &wasm, &out).map(|_| ()),
         Cmd::Validate { bundle, json, icon } => validate(&bundle, json, icon.as_deref()),
         Cmd::Unpack { bundle, out } => unpack(&bundle, &out).map(|_| ()),
@@ -723,6 +740,10 @@ fn build(dir: &Path) -> Result<PathBuf, String> {
         eprintln!("warning: {w}");
     }
     if let Some(w) = glyphs::warning(dir, &rust_sources(&dir.join("src"))) {
+        eprintln!("warning: {w}");
+    }
+    // Lines that would be shown but not heard.
+    for w in voicecheck::warnings(dir, &rust_sources(&dir.join("src"))) {
         eprintln!("warning: {w}");
     }
     let max_memory = manifest.perf_tier.max_memory_pages() * 65536;
@@ -979,6 +1000,10 @@ fn doctor() -> Result<(), String> {
     // Or Maimbrain's keys, for accounts the Maimbrain team has given access.
     let (allowed, line) = generate::maimbrain::describe(&generate::maimbrain::Live);
     check(&line, allowed, false, "optional: without a key of your own, generation uses these");
+    // A newer mb (and kit), from the kit's releases, at most once a day.
+    if let Some((current, line, fix)) = upgrade::release::doctor_line() {
+        check(&line, current, false, &fix);
+    }
     if ok { Ok(()) } else { Err("install the missing required tools above".into()) }
 }
 

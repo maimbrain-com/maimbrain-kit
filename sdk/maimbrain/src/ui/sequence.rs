@@ -37,12 +37,17 @@
 //! ends, not at the next frame, so a sequence lands on the same frames at 30
 //! or 120 Hz. `.meanwhile()` after a step lets the next start with it (a
 //! camera move under a line). A tap hurries a line (as in [`Dialogue`]) or
-//! cuts a camera move, wait or title short; holding a finger down for 0.7 s
-//! skips the rest (the cues still arrive, so the game ends up where the scene
-//! would have left it).
+//! cuts a camera move, wait or title short; holding a finger down (or a
+//! controller's A, Enter or Space) for 0.7 s skips the rest (the cues still
+//! arrive, so the game ends up where the scene would have left it). "HOLD TO
+//! SKIP" stays on screen the whole time.
+//!
+//! Build the intro afresh and play it every run, skip and all: never store
+//! that it was seen. A player who knows it holds to skip; one who doesn't
+//! (or forgot, or is showing a friend) gets the story.
 
 use super::color::{rgba, with_alpha};
-use super::dialogue::{Dialogue, DialogueEvent, LineBox, Portrait, VoiceLine};
+use super::dialogue::{Dialogue, DialogueEvent, LineBox, Portrait, VoiceLine, is_letting_go};
 use super::layout::{Layout, Rect};
 use super::shape::{arc, ring};
 use super::text::text;
@@ -52,6 +57,15 @@ use crate::gfx2d;
 use crate::gfx3d::{Camera, Vec3};
 use crate::input::{Event, Kind};
 use crate::motion::Ease;
+
+/// A controller's A, Enter or Space let go (the end of a held confirm).
+fn is_confirm_up(e: &Event) -> bool {
+    use crate::input::{key, pad};
+    match e.kind() {
+        Kind::KeyUp => e.code == key::ENTER || e.code == key::SPACE,
+        _ => e.pad_released() == Some(pad::A),
+    }
+}
 
 /// Seconds a finger must stay down to skip the whole sequence.
 pub const HOLD_TO_SKIP: f32 = 0.7;
@@ -365,27 +379,33 @@ impl Sequence {
         self.fade.at(self.t)
     }
 
-    /// Feeds one input event. True while the sequence runs (it takes every
-    /// touch, click and key): a press hurries a line or cuts the step showing
-    /// short; holding it [`HOLD_TO_SKIP`] seconds skips the rest.
+    /// Feeds one input event. True while the sequence runs and takes it
+    /// (every press, move and key down): a press hurries a line or cuts the
+    /// step showing short; holding it (a finger, or a controller's A, Enter
+    /// or Space) [`HOLD_TO_SKIP`] seconds skips the rest. Releases are never taken (false): give them to the game, which
+    /// may be holding something since before the sequence (the tap that
+    /// started the round and the intro).
     pub fn input(&mut self, e: &Event) -> bool {
         if self.finished {
             return false;
         }
-        match e.kind() {
-            Kind::TouchUp | Kind::TouchCancel | Kind::MouseUp => self.down = None,
-            _ if (e.is_press() || e.kind() == Kind::KeyDown || e.pad_pressed().is_some()) && self.t >= GUARD => {
-                if e.is_press() {
-                    self.down = Some(0.0);
-                }
-                if self.talk.active() {
-                    self.talk.input(e);
-                } else if let Some(Hold::Until(end)) = self.hold {
-                    // Cut short: the clock jumps to the step's end, so everything lands where it would have.
-                    self.t = self.t.max(end);
-                }
+        if is_letting_go(e) {
+            if e.is_release() || is_confirm_up(e) {
+                self.down = None;
             }
-            _ => {}
+            return false;
+        }
+        if (e.is_press() || e.kind() == Kind::KeyDown || e.pad_pressed().is_some()) && self.t >= GUARD {
+            // A finger, or a controller's A (Enter, Space), held down skips.
+            if e.is_press() || (e.is_confirm() && self.down.is_none()) {
+                self.down = Some(0.0);
+            }
+            if self.talk.active() {
+                self.talk.input(e);
+            } else if let Some(Hold::Until(end)) = self.hold {
+                // Cut short: the clock jumps to the step's end, so everything lands where it would have.
+                self.t = self.t.max(end);
+            }
         }
         true
     }
@@ -527,7 +547,8 @@ impl Sequence {
             let r = Rect::new(s.right() - 58.0, bar.max(layout.safe.y) + 8.0, 44.0, 44.0);
             let (cx, cy) = (r.cx(), r.cy());
             let held = self.held() / HOLD_TO_SKIP;
-            let hint = if self.down.is_some() { 1.0 } else { (1.0 - (self.t as f32 - 2.5) / 0.5).clamp(0.0, 0.6) };
+            // Bright for the first seconds, then dimmer but always there.
+            let hint = if self.down.is_some() { 1.0 } else { (1.0 - (self.t as f32 - 2.5) / 0.5).clamp(0.35, 0.6) };
             if hint > 0.0 {
                 // A dark backing so it reads over a bright sky.
                 super::shape::rrect(Rect::new(cx - 98.0, cy - 16.0, 116.0, 32.0), 16.0, rgba(0, 0, 0, (140.0 * hint) as u8));
@@ -648,10 +669,28 @@ mod tests {
         // A tap during the long wait ends it.
         let tap = synth::tap(180.0, 300.0, sys::time());
         assert!(s.input(&tap[0]));
-        assert!(s.input(&tap[tap.len() - 1]));
+        assert!(!s.input(&tap[tap.len() - 1]), "a release always goes on to the game");
         let ev = run(&mut s, 0.1, 60.0);
         assert!(ev.iter().any(|e| e.1 == SeqEvent::Cue("end".into())), "{ev:?}");
         assert!(s.finished() && s.age() - after >= 5.0 - 1e-6, "the clock jumped to the wait's end");
+    }
+
+    #[test]
+    fn a_release_reaches_the_game_even_mid_sequence() {
+        // The tap that started the round and the intro is still down when the
+        // intro begins: its release (or a cancel, a key up, a pad button let
+        // go) belongs to the game, never to the sequence.
+        sys::test::reset();
+        let mut s = scene();
+        run(&mut s, 1.0, 60.0);
+        let t = sys::time();
+        for kind in [Kind::TouchUp, Kind::TouchCancel, Kind::MouseUp, Kind::KeyUp] {
+            assert!(!s.input(&synth::touch(kind, 180.0, 300.0, t)), "{kind:?}");
+        }
+        let pad_up = Event { kind: Kind::PadButton as u8, code: crate::input::pad::A, a: 0.0, ..Event::default() };
+        assert!(!s.input(&pad_up));
+        assert!(s.input(&synth::touch(Kind::TouchMove, 180.0, 300.0, t)), "moves and presses are the sequence's");
+        assert!(!s.finished());
     }
 
     #[test]
@@ -666,6 +705,25 @@ mod tests {
         assert_eq!(names, [SeqEvent::Skipped, SeqEvent::Cue("boom".into()), SeqEvent::Finished]);
         assert!(s.skipped() && s.shot_now() == Some(b()) && s.fade() == 1.0);
         assert!(!s.input(&down), "done: the game gets its input back");
+    }
+
+    #[test]
+    fn holding_a_controllers_a_skips_too() {
+        use crate::input::pad;
+        sys::test::reset();
+        let mut s = scene();
+        run(&mut s, 0.5, 60.0);
+        let a = |down: bool| Event { kind: Kind::PadButton as u8, code: pad::A, a: if down { 1.0 } else { 0.0 }, time: sys::time(), ..Event::default() };
+        // A press let go at once hurries; it doesn't skip.
+        assert!(s.input(&a(true)));
+        run(&mut s, 0.2, 60.0);
+        assert!(!s.input(&a(false)));
+        run(&mut s, HOLD_TO_SKIP, 60.0);
+        assert!(!s.finished());
+        // Held: skipped.
+        assert!(s.input(&a(true)));
+        let ev = run(&mut s, HOLD_TO_SKIP + 0.05, 60.0);
+        assert!(s.skipped() && ev.iter().any(|e| e.1 == SeqEvent::Skipped));
     }
 
     #[test]

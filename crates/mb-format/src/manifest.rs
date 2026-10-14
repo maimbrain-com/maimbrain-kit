@@ -74,6 +74,10 @@ pub struct ScoreBoard {
     pub order: ScoreOrder,
     #[serde(default)]
     pub format: ScoreFormat,
+    /// A daily board: played on `mb_daily_seed`, its standings starting over
+    /// each UTC day (SPEC §5.8).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub daily: bool,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -332,6 +336,13 @@ impl Manifest {
         }
         if self.capabilities.contains(&Capability::Progress) && !self.capabilities.contains(&Capability::Store) {
             err("capability \"progress\" also needs \"store\" (progress is saved data under progress/)".into());
+        }
+        let daily: Vec<u32> = self.scores.iter().filter(|b| b.daily).map(|b| b.board).collect();
+        if daily.contains(&0) {
+            err("scores: board 0 can't be daily (it's the game's main board; give the daily run a board of its own)".into());
+        }
+        if daily.len() > 1 {
+            err("scores: at most one board can be daily".into());
         }
         if self.capabilities.contains(&Capability::Net) {
             err("capability \"net\" is reserved and not available in v0".into());

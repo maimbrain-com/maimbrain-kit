@@ -1685,6 +1685,26 @@ function present(draw) {
   }
   if (!ok) void restore();
 }
+async function bootGpu(init) {
+  let why = "";
+  for (const wait of [0, ...RETRY_MS]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try {
+      await init();
+      if (why) log(1, "gpu: device ready");
+      return;
+    } catch (e) {
+      if (typeof e !== "string" || !e.startsWith("mb-host: ")) throw e;
+      why = e;
+      log(2, `gpu: no device yet (${why})`);
+    }
+  }
+  gaveUp = true;
+  log(2, `gpu: none to be had in this page (${why})`);
+  post({ op: "gpu-lost", message: why, boot: true });
+  return new Promise(() => {
+  });
+}
 async function restore() {
   if (restoring || gaveUp) return;
   restoring = true;
@@ -5822,6 +5842,25 @@ var Assets = class {
   allArrived() {
     return this.list.every((a) => a.state !== 0 || a.arrived !== void 0);
   }
+  /** Stepping a held session (`mb.step`): resolves once every asset asked for so far has
+   *  arrived, or after `ms`, so each becomes visible at the earliest frame it could (as on a
+   *  fast phone) however slowly the tool steps. Arrival is still recorded at that frame, so
+   *  replays are unchanged. One still on its way then isn't waited for again. */
+  async arrival(ms) {
+    const waiting = this.list.filter((a) => a.state === 0 && !a.arrived && !a.late);
+    if (waiting.length === 0) return;
+    let timer;
+    const late = new Promise((r) => {
+      timer = setTimeout(r, ms);
+    });
+    await Promise.race([Promise.all(waiting.map((a) => a.fetching)), late]);
+    clearTimeout(timer);
+    for (const a of waiting) if (!a.arrived) a.late = true;
+  }
+  /** What the game asked for and can't see yet, each once. */
+  loading() {
+    return [...new Set(this.list.filter((a) => a.state === 0).map((a) => a.path))];
+  }
   /** Live play: publishes everything that has arrived; returns the handles. */
   publishArrived() {
     const out = [];
@@ -5878,6 +5917,7 @@ var FUEL_PER_CALLBACK = 3e8;
 var PREROLL_MIN_FRAMES = 6;
 var PREROLL_MAX_MS = 3e3;
 var GPU_WAIT_MAX_MS = 1e3;
+var STEP_ASSET_WAIT_MS = 8e3;
 var MAX_DT = 0.1;
 var SKIP_SLICE_MS = 12;
 var RESIZE = 14;
@@ -6126,8 +6166,13 @@ var Runtime = class _Runtime {
    *  the game doesn't have.
    *
    *  `until` stops early, after the first frame whose marks (`mb_mark`)
-   *  include one of these labels (`mb shot --at mark:<label>`). */
-  stepFrames(n, paced = true, dt = 1 / 60, until) {
+   *  include one of these labels (`mb shot --at mark:<label>`).
+   *
+   *  Before each live frame it waits up to `waitAssets` ms for the assets
+   *  the game has asked for to arrive (each waited for once), so they're
+   *  visible at the earliest frame they could be, as on a fast phone, however
+   *  slowly the tool steps; 0 doesn't wait (`mb measure`'s real-time run). */
+  stepFrames(n, paced = true, dt = 1 / 60, until, waitAssets = STEP_ASSET_WAIT_MS) {
     if (!(dt > 0 && dt <= MAX_DT)) return Promise.reject(new Error(`mb.step: dt ${dt} is not seconds in (0, ${MAX_DT}]`));
     const frameDt = Math.fround(dt);
     const run = async () => {
@@ -6136,6 +6181,8 @@ var Runtime = class _Runtime {
       for (let i = 0; i < n && this.suspended && !this.stopped; i++) {
         let stat;
         if (this.source.kind === "live") {
+          if (waitAssets > 0) await this.session.assets.arrival(waitAssets);
+          if (!this.suspended || this.stopped) break;
           stat = this.liveFrame(frameDt);
         } else {
           const f = this.source.log.frames[this.cursor];
@@ -7046,7 +7093,7 @@ async function main() {
   adaptiveLandscape = adaptive;
   let { layout, screen: screen2 } = fit(canvas, m, view);
   const host = await __wbg_init({ module_or_path: new URL("mb_host_bg.wasm", import.meta.url) });
-  await host_init(canvas, screen2[0], screen2[1]);
+  await bootGpu(() => host_init(canvas, screen2[0], screen2[1]));
   const gameBase = boot.gameBase ?? "../game/";
   const module = await WebAssembly.compile(await (await fetch(`${gameBase}game.wasm`)).arrayBuffer());
   const input = new Input(canvas, () => layout, m.inputs.includes("touch"), m.inputs.includes("mouse"));
@@ -7308,7 +7355,7 @@ async function main() {
       return page2.latency.report();
     },
     loudness: (v) => page2.sensors?.external(v),
-    step: (n = 1, opts) => rt.stepFrames(n, opts?.paced ?? true, opts?.dt ?? 1 / 60, opts?.until),
+    step: (n = 1, opts) => rt.stepFrames(n, opts?.paced ?? true, opts?.dt ?? 1 / 60, opts?.until, opts?.waitAssets),
     gpu: (n = 30) => rt.redrawTimed(Math.max(1, Math.min(1e3, n | 0))),
     isolate: (node = 0, opts) => rt.redrawIsolated(node >>> 0, opts?.hud ?? true, opts?.plain ?? false),
     audio: () => page2.audio.debug(),
@@ -7345,7 +7392,8 @@ async function main() {
       }
       page2.stats.drawn = true;
       const top = JSON.parse(host_top_draws(TOP_STATS));
-      return { ...JSON.parse(host_stats()), top, budgets: BUDGETS, cpu, ...page2.stats.report(opts) };
+      const loading = rt.session.assets.loading();
+      return { ...JSON.parse(host_stats()), top, budgets: BUDGETS, cpu, loading, ...page2.stats.report(opts) };
     },
     track: (node = 0) => host_track(node >>> 0),
     screenshot: async (name = `shot-${rt.brief().frames}`) => {

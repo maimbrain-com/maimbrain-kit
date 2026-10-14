@@ -13,6 +13,7 @@
 //!     mb voice keep games/duel rocko hit1 2
 //!     mb voice script games/duel lines.csv              # every line, only what's missing or changed
 //!     mb voice list games/duel
+//!     mb voice lengths games/duel                       # src/vo_lengths.rs: each line's length (say, script and keep write it too)
 //!     mb voice slots                                    # the account's voice slots and which game uses which (voice_account.rs)
 //!     mb voice cast games/duel announcer --premade Adam # a premade voice: no slot
 //!
@@ -511,6 +512,8 @@ pub enum VoiceCmd {
     Script(ScriptArgs),
     /// The cast and their lines.
     List { game: PathBuf },
+    /// Rewrite src/vo_lengths.rs, each recorded line's length as a constant (say, script and keep do it too).
+    Lengths { game: PathBuf },
     /// Your ElevenLabs voice slots: how many are used, and which games here use which voice.
     Slots(super::voice_account::SlotsArgs),
     /// Free a character's voice slot: its voice is kept in the game as audio and recreated when it speaks.
@@ -629,6 +632,14 @@ pub fn run(cmd: VoiceCmd) -> Result<(), String> {
         VoiceCmd::Keep { game, character, line, n } => keep(&game, &character, &line, n),
         VoiceCmd::Script(a) => script(a),
         VoiceCmd::List { game } => list(&game),
+        VoiceCmd::Lengths { game } => {
+            if !game.join("src").is_dir() {
+                return Err(format!("{} has no src/ (pass the game directory)", game.display()));
+            }
+            refresh_lengths(&game)?;
+            eprintln!("{}: {} line lengths, up to date", game.join(LENGTHS_FILE).display(), line_lengths(&game).len());
+            Ok(())
+        }
         VoiceCmd::Slots(a) => super::voice_account::slots(a),
         VoiceCmd::Release(a) => super::voice_account::release(a),
         VoiceCmd::Gc(a) => super::voice_account::gc(a),
@@ -981,6 +992,7 @@ fn keep(game: &Path, character: &str, line: &str, n: usize) -> Result<(), String
     sc.recipe = serde_json::to_value(&job).unwrap();
     super::write_sidecar(&to, &sc)?;
     eprintln!("kept take {n} as {}", to.display());
+    refresh_lengths(game)?;
     println!("{}", to.display());
     Ok(())
 }
@@ -1156,7 +1168,135 @@ pub fn speak_line(
         eprintln!("  warning: {w}");
     }
     println!("{}", dest.display());
+    if job.out.starts_with("assets/vo/") {
+        refresh_lengths(game)?;
+    }
     Ok(dest)
+}
+
+// --- the length table ---------------------------------------------------------------------------
+
+/// Where `mb voice` keeps each line's length for the game's code.
+pub const LENGTHS_FILE: &str = "src/vo_lengths.rs";
+
+/// Every recorded line's length: (`"<character>/<line>"`, seconds from its
+/// `.lips.txt`), sorted.
+pub fn line_lengths(game: &Path) -> Vec<(String, f32)> {
+    let mut out = Vec::new();
+    for who in std::fs::read_dir(game.join("assets/vo")).into_iter().flatten().flatten().filter(|e| e.path().is_dir()) {
+        let name = who.file_name().to_string_lossy().to_string();
+        for f in std::fs::read_dir(who.path()).into_iter().flatten().flatten().map(|e| e.path()) {
+            let file = f.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let Some(id) = file.strip_suffix(".lips.txt") else { continue };
+            // A line's timing goes with its recording (a stray .lips.txt isn't a line).
+            if id.is_empty() || !f.with_file_name(format!("{id}.ogg")).is_file() {
+                continue;
+            }
+            let text = std::fs::read_to_string(&f).unwrap_or_default();
+            let dur = text.lines().find_map(|l| l.strip_prefix("dur ")).and_then(|d| d.trim().parse::<f32>().ok()).filter(|d| d.is_finite() && *d >= 0.0);
+            if let Some(d) = dur {
+                out.push((format!("{name}/{id}"), d));
+            }
+        }
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
+}
+
+/// A name as a Rust identifier: `-` → `_`, a leading digit or a keyword escaped.
+fn ident(s: &str, upper: bool) -> String {
+    const KEYWORDS: [&str; 51] = [
+        "as", "break", "const", "continue", "crate", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "self", "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro", "override", "priv", "typeof", "unsized", "virtual", "yield", "try", "gen",
+    ];
+    let mut id: String = s.chars().map(|c| if c.is_ascii_alphanumeric() { if upper { c.to_ascii_uppercase() } else { c.to_ascii_lowercase() } } else { '_' }).collect();
+    if id.starts_with(|c: char| c.is_ascii_digit()) || id == "_" {
+        id.insert(0, '_');
+    } else if KEYWORDS.contains(&id.as_str()) {
+        id.push('_');
+    }
+    id
+}
+
+/// The Rust source of the length table (`src/vo_lengths.rs`): `ALL`, every
+/// line by `"<character>/<line>"`, and a constant per line in a module per
+/// character (`narrator::F1_END`). Compile-time constants, so narration
+/// timed from them replays the same however the audio loads.
+pub fn lengths_source(lines: &[(String, f32)]) -> String {
+    let mut s = String::from(
+        "//! Each recorded voice line's length in seconds, from assets/vo/*/*.lips.txt.\n\
+         //! Written by `mb voice` (say, script, keep, lengths): don't edit it; `mb build`\n\
+         //! warns when it's out of date with the recordings. Compile-time constants, so\n\
+         //! narration timed from them (`talk.narration.lengths = vo_lengths::ALL`) and\n\
+         //! quiet stretches cleared for it replay the same whenever the audio loads.\n\
+         #![allow(dead_code)]\n\n\
+         /// Every line, by \"<character>/<line>\".\n\
+         pub const ALL: &[(&str, f32)] = &[\n",
+    );
+    for (key, d) in lines {
+        s += &format!("    ({key:?}, {d:.3}),\n");
+    }
+    s += "];\n";
+    let mut who = "";
+    let mut names: Vec<String> = Vec::new();
+    for (key, d) in lines {
+        let (w, id) = key.split_once('/').unwrap_or(("", key));
+        if w != who {
+            if !who.is_empty() {
+                s += "}\n";
+            }
+            s += &format!("\npub mod {} {{\n", ident(w, false));
+            who = w;
+            names.clear();
+        }
+        let c = ident(id, true);
+        // Two ids that differ only by - and _ get one constant (ALL has both).
+        if !names.contains(&c) {
+            s += &format!("    pub const {c}: f32 = {d:.3};\n");
+            names.push(c);
+        }
+    }
+    if !who.is_empty() {
+        s += "}\n";
+    }
+    s
+}
+
+/// The values of a length table's `ALL` (for checking it's current).
+pub fn parse_lengths(src: &str) -> Vec<(String, f32)> {
+    let Some(start) = src.find("pub const ALL") else { return Vec::new() };
+    let body = &src[start..];
+    let body = &body[..body.find("];").unwrap_or(body.len())];
+    body.lines()
+        .filter_map(|l| {
+            let l = l.trim().strip_prefix("(\"")?;
+            let (key, rest) = l.split_once('"')?;
+            let d = rest.trim_start_matches(',').trim().trim_end_matches(',').trim_end_matches(')').trim().parse().ok()?;
+            Some((key.to_string(), d))
+        })
+        .collect()
+}
+
+/// Writes `src/vo_lengths.rs` when the game has a `src/` and its recorded
+/// lines' lengths changed (a game with no recordings gets none).
+pub fn refresh_lengths(game: &Path) -> Result<(), String> {
+    let lines = line_lengths(game);
+    let path = game.join(LENGTHS_FILE);
+    if !game.join("src").is_dir() || (lines.is_empty() && !path.exists()) {
+        return Ok(());
+    }
+    let src = lengths_source(&lines);
+    let old = std::fs::read_to_string(&path).ok();
+    if old.as_deref() == Some(src.as_str()) {
+        return Ok(());
+    }
+    write_atomic(&path, src.as_bytes())?;
+    eprintln!("  wrote {LENGTHS_FILE} ({} line lengths)", lines.len());
+    if old.is_none() {
+        eprintln!(
+            "  to time narration from it (story lines in quiet stretches, the same in every replay): `mod vo_lengths;` in src/lib.rs and `talk.narration.lengths = vo_lengths::ALL;` (docs/UI.md \"Narration\")"
+        );
+    }
+    Ok(())
 }
 
 // --- post-processing -----------------------------------------------------------------------------
@@ -1419,7 +1559,7 @@ fn script(a: ScriptArgs) -> Result<(), String> {
         eprintln!("  {}/{}: \"{}\"", j.character, j.line, j.sent_text());
     }
     if todo.is_empty() {
-        return Ok(());
+        return refresh_lengths(&a.game);
     }
     super::check_cost(est, 1, super::max_cost(a.opts.max_cost), "the script")?;
     if a.opts.dry_run {
@@ -1437,7 +1577,26 @@ fn script(a: ScriptArgs) -> Result<(), String> {
     for sp in provs.values_mut() {
         sp.finish()?;
     }
+    voice_warnings(&a.game);
     Ok(())
+}
+
+/// What `mb build` will warn about the game's voices (lines with no voice file, …).
+fn voice_warnings(game: &Path) {
+    let mut src = String::new();
+    let mut stack = vec![game.join("src")];
+    while let Some(d) = stack.pop() {
+        for p in std::fs::read_dir(&d).into_iter().flatten().flatten().map(|e| e.path()) {
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                src += &std::fs::read_to_string(&p).unwrap_or_default();
+            }
+        }
+    }
+    for w in crate::voicecheck::warnings(game, &src) {
+        eprintln!("warning: {w}");
+    }
 }
 
 fn list(game: &Path) -> Result<(), String> {
@@ -1464,6 +1623,7 @@ fn list(game: &Path) -> Result<(), String> {
             eprintln!("  {:<14} {secs:4.1} s  {sub}", f.file_stem().unwrap().to_string_lossy());
         }
     }
+    voice_warnings(game);
     Ok(())
 }
 
@@ -1773,6 +1933,41 @@ mod tests {
         script_run(&game, &script, &opts);
         assert!(game.join("assets/vo/granny/g2.ogg").exists());
         assert_eq!(std::fs::metadata(&ogg).unwrap().modified().unwrap(), before, "unchanged line not spoken again");
+        let _ = std::fs::remove_dir_all(&game);
+    }
+
+    #[test]
+    fn the_length_table_round_trips() {
+        let game = std::env::temp_dir().join(format!("mb-voice-lengths-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&game);
+        for d in ["src", "assets/vo/narrator", "assets/vo/old-man"] {
+            std::fs::create_dir_all(game.join(d)).unwrap();
+        }
+        let line = |who: &str, id: &str, dur: &str| {
+            std::fs::write(game.join(format!("assets/vo/{who}/{id}.ogg")), b"OggS").unwrap();
+            std::fs::write(game.join(format!("assets/vo/{who}/{id}.lips.txt")), format!("mblips 1\nhz 30\ndur {dur}\ntext Hi.\n")).unwrap();
+        };
+        line("narrator", "f1_end", "3.204");
+        line("narrator", "1st", "0.5");
+        line("old-man", "type", "12.75");
+        // A timing file without its recording isn't a line.
+        std::fs::write(game.join("assets/vo/narrator/stray.lips.txt"), "mblips 1\ndur 9\n").unwrap();
+        refresh_lengths(&game).unwrap();
+        let src = std::fs::read_to_string(game.join(LENGTHS_FILE)).unwrap();
+        let want = vec![("narrator/1st".to_string(), 0.5), ("narrator/f1_end".to_string(), 3.204), ("old-man/type".to_string(), 12.75)];
+        assert_eq!(line_lengths(&game), want);
+        assert_eq!(parse_lengths(&src), want, "{src}");
+        for decl in ["pub mod narrator {", "pub const F1_END: f32 = 3.204;", "pub const _1ST: f32 = 0.500;", "pub mod old_man {", "pub const TYPE: f32 = 12.750;"] {
+            assert!(src.contains(decl), "{decl} in {src}");
+        }
+        // Unchanged recordings: not rewritten. A re-recorded line: rewritten.
+        let before = std::fs::metadata(game.join(LENGTHS_FILE)).unwrap().modified().unwrap();
+        refresh_lengths(&game).unwrap();
+        assert_eq!(std::fs::metadata(game.join(LENGTHS_FILE)).unwrap().modified().unwrap(), before);
+        line("narrator", "f1_end", "4.1");
+        refresh_lengths(&game).unwrap();
+        assert_eq!(parse_lengths(&std::fs::read_to_string(game.join(LENGTHS_FILE)).unwrap())[1].1, 4.1);
+        assert_eq!((ident("self", false).as_str(), ident("9lives", false).as_str(), ident("a-b", true).as_str()), ("self_", "_9lives", "A_B"));
         let _ = std::fs::remove_dir_all(&game);
     }
 

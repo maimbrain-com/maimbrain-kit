@@ -49,6 +49,11 @@ struct State {
     due: Vec<Event>,
     calls: Vec<Call>,
     store: BTreeMap<String, Vec<u8>>,
+    /// The board `Rounds::daily` was given.
+    daily_board: Option<u32>,
+    /// This frame's draw fingerprint so far, and each frame's since `init`.
+    drawing: u64,
+    drawn: Vec<u64>,
 }
 
 thread_local! {
@@ -96,7 +101,18 @@ impl Host {
     pub fn start(seed: u64) -> Host {
         super::reset();
         HOST.with(|h| {
-            *h.borrow_mut() = Some(State { seed, daily: seed ^ 0xda11, frame: 0, queue: synth::Queue::new(), due: Vec::new(), calls: Vec::new(), store: BTreeMap::new() })
+            *h.borrow_mut() = Some(State {
+                seed,
+                daily: seed ^ 0xda11,
+                frame: 0,
+                queue: synth::Queue::new(),
+                due: Vec::new(),
+                calls: Vec::new(),
+                store: BTreeMap::new(),
+                daily_board: None,
+                drawing: FNV,
+                drawn: Vec::new(),
+            })
         });
         Host(())
     }
@@ -114,6 +130,7 @@ impl Host {
             s.frame = 0;
             s.queue = synth::Queue::new();
             s.due.clear();
+            s.drawn.clear();
         });
         G::init()
     }
@@ -126,10 +143,12 @@ impl Host {
         with(|s| {
             s.frame += 1;
             s.due = s.queue.due(now);
+            s.drawing = FNV;
         });
         game.update(dt);
         with(|s| s.due.clear());
         game.render();
+        with(|s| s.drawn.push(s.drawing));
     }
 
     /// Frames of `dt` until `seconds` more of game time have passed.
@@ -191,6 +210,21 @@ impl Host {
     pub fn save(&self, key: &str, value: &[u8]) {
         with(|s| s.store.insert(key.to_string(), value.to_vec()));
     }
+
+    /// The board the game's `Rounds` plays its daily mode on (`Rounds::daily`).
+    pub fn rounds_daily_board(&self) -> Option<u32> {
+        with(|s| s.daily_board).flatten()
+    }
+
+    /// A fingerprint of what each frame since `init` drew (frame 1 first):
+    /// a hash of its mb2d draw calls and the mb3d camera and node changes
+    /// made in `update` and `render`, with their arguments. Two frames that
+    /// drew the same things the same way match. (Natively no asset loads,
+    /// so it's shapes, text, transforms and sprite rectangles.) It tells
+    /// whether input changed anything on screen without knowing the game.
+    pub fn drawn(&self) -> Vec<u64> {
+        with(|s| s.drawn.clone()).unwrap_or_default()
+    }
 }
 
 impl Drop for Host {
@@ -200,6 +234,33 @@ impl Drop for Host {
 }
 
 // The native ffi stubs (ffi.rs): the host's when there is one.
+
+const FNV: u64 = 0xcbf2_9ce4_8422_2325;
+
+/// A draw call: its tag and arguments go into the frame's fingerprint.
+pub(crate) fn draw(words: &[u32]) {
+    with(|s| {
+        for w in words {
+            for b in w.to_le_bytes() {
+                s.drawing = (s.drawing ^ b as u64).wrapping_mul(0x100_0000_01b3);
+            }
+        }
+    });
+}
+
+/// A draw call with a block of floats or bytes behind a pointer.
+pub(crate) unsafe fn draw_bytes(tag: u32, ptr: *const u8, len: usize) {
+    draw(&[tag, len as u32]);
+    if ptr.is_null() || len == 0 {
+        return;
+    }
+    let bytes = unsafe { std::slice::from_raw_parts(ptr, len) };
+    with(|s| {
+        for b in bytes {
+            s.drawing = (s.drawing ^ *b as u64).wrapping_mul(0x100_0000_01b3);
+        }
+    });
+}
 
 pub(crate) fn round(state: u32) {
     let state = match state {
@@ -225,6 +286,10 @@ pub(crate) fn rand_seed() -> u64 {
 
 pub(crate) fn daily_seed() -> u64 {
     with(|s| s.daily).unwrap_or(0)
+}
+
+pub(crate) fn note_daily_board(board: u32) {
+    with(|s| s.daily_board = Some(board));
 }
 
 unsafe fn text(ptr: *const u8, len: u32) -> String {

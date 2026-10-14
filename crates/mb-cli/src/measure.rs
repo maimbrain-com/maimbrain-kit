@@ -123,7 +123,8 @@ pub struct MeasureArgs {
 /// frame starts at its refresh, and one that runs past the next refresh
 /// makes the following frame wait for the one after, with a dt to match (as
 /// a display skips a refresh). Unpaced, as a display doesn't wait for the
-/// GPU before the next frame's work. The wait yields through a
+/// GPU before the next frame's work, nor for assets: they arrive in real time,
+/// as on a phone (`waitAssets: 0`). The wait yields through a
 /// MessageChannel rather than setTimeout: Chrome holds timers back for up
 /// to ~100 ms after a touchstart (expecting a scroll), which would read as
 /// a long frame after every tap. Resolves to each frame's start time (ms,
@@ -135,7 +136,7 @@ const DRIVE: &str = r#"window.__mbDrive = (async (hz, secs) => {
   while (t0 + k * period < end) {
     while (performance.now() < t0 + k * period) await tick();
     starts.push(performance.now());
-    await mb.step(1, { dt: Math.min(ticks / hz, 0.1), paced: false });
+    await mb.step(1, { dt: Math.min(ticks / hz, 0.1), paced: false, waitAssets: 0 });
     const next = Math.max(k + 1, Math.ceil((performance.now() - t0) / period));
     ticks = next - k;
     k = next;
@@ -144,7 +145,10 @@ const DRIVE: &str = r#"window.__mbDrive = (async (hz, secs) => {
 })"#;
 
 pub fn run(a: MeasureArgs) -> Result<(), String> {
-    let manifest = shot::game_manifest(&a.path)?;
+    let mut manifest = shot::game_manifest(&a.path)?;
+    if let Some(spec) = &a.script.screen {
+        eprintln!("{}", shot::fit_screen(&mut manifest, spec)?);
+    }
     let hz = a.script.hz;
     // When the script's input ends: planned against a far-off end, so none is cut off.
     let last_input = Plan::new(&a.script, &[3600.0], manifest.logical_size)?.timed(hz).last().map_or(0.0, |x| x.0);
@@ -730,7 +734,12 @@ fn toml_string(s: &str) -> String {
 /// browsers. Each side is a build, the script it plays (its debug
 /// parameters) and its name in the report.
 fn ab(a: &MeasureArgs, sides_in: [(PathBuf, Script, String); 2], exe: &std::path::Path, moments: &[f64], repeats: u32, sessions: u32) -> Result<(), String> {
-    let manifests = [shot::game_manifest(&sides_in[0].0)?, shot::game_manifest(&sides_in[1].0)?];
+    let mut manifests = [shot::game_manifest(&sides_in[0].0)?, shot::game_manifest(&sides_in[1].0)?];
+    for (m, s) in manifests.iter_mut().zip(&sides_in) {
+        if let Some(spec) = &s.1.screen {
+            shot::fit_screen(m, spec)?;
+        }
+    }
     let plans = manifests.iter().zip(&sides_in).map(|(m, s)| Plan::new(&s.1, moments, m.logical_size)).collect::<Result<Vec<_>, _>>()?;
     for (p, m) in plans.iter().zip(&manifests) {
         p.check_sensors(m)?;

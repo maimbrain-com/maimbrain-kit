@@ -594,6 +594,17 @@ fn mix_log() {
 
 // ---- Platform ---------------------------------------------------------------------
 
+/// The swipe hint and SWIPE TO SWAP show at the start of every round, not
+/// only the first one a player ever plays (skill: directions every run).
+#[test]
+fn every_round_teaches_the_swipe_again() {
+    use maimbrain::Game;
+    let mut g = crate::Poppets::init();
+    g.taught = true;
+    g.start();
+    assert!(!g.taught, "a new round shows the directions again");
+}
+
 /// The platform's rules for a round (SKILL.md "Platform facts that bite"),
 /// on a fake host: a tap starts it, the score goes in before Over, a frantic
 /// tap doesn't restart, the best is kept, the session replays. A few blind

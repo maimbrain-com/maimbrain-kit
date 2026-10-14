@@ -22,6 +22,13 @@
 //! - **Priority.** [`Barks::trigger_priority`] (a defeat, a win) is never
 //!   dropped: it waits until it may speak, and the speaker's budget doesn't
 //!   hold it back.
+//! - **Cut-in reactions.** [`Barks::react`] (the player rang the bell, "Stop
+//!   that ringing!") plays in the same frame: it stops a bark or a narration
+//!   line being spoken (the narration line is told again, from the top, in
+//!   the next quiet stretch) and ignores the gap between barks, its pool's
+//!   cooldown and the speaker's budget. Still one voice at a time: it never
+//!   cuts a cutscene line or another cut-in, and two cut-ins start at least
+//!   [`Barks::cut_in_gap`] (2 s) apart, so mashing doesn't make a storm.
 //!
 //! Everything runs on game time and a seeded [`Rng`], so it replays exactly.
 
@@ -252,6 +259,7 @@ struct Request {
     tag: String,
     at: f64,
     priority: bool,
+    cut_in: bool,
 }
 
 /// Situation-tagged bark pools with shuffle bags, a recency window,
@@ -271,6 +279,11 @@ pub struct Barks {
     /// Seconds a pool rests after it speaks, unless [`Barks::set_cooldown`]
     /// gave it its own. Default 8.
     pub cooldown: f32,
+    /// Seconds between the starts of two cut-ins ([`Barks::react`]), so a
+    /// player mashing the thing a character reacts to doesn't get a line on
+    /// every tap. Default 2.
+    pub cut_in_gap: f32,
+    last_cut_in: Option<f64>,
     idle: Option<(String, f32)>,
     pools: Vec<Pool>,
     pending: Vec<Request>,
@@ -298,6 +311,8 @@ impl Barks {
             window: 1.0,
             per_minute: 4,
             cooldown: 8.0,
+            cut_in_gap: 2.0,
+            last_cut_in: None,
             idle: None,
             pools: Vec::new(),
             pending: Vec::new(),
@@ -369,25 +384,38 @@ impl Barks {
     /// start within [`Barks::window`]. Triggering a tag already waiting just
     /// renews it. False (and a warning) for a tag with no lines.
     pub fn trigger(&mut self, tag: &str) -> bool {
-        self.request(tag, false)
+        self.request(tag, false, false)
     }
 
     /// A bark that must be heard (a defeat, a win): it waits until a bark
     /// may start, never expires, goes before ordinary ones and isn't held
     /// back by the speaker's budget.
     pub fn trigger_priority(&mut self, tag: &str) -> bool {
-        self.request(tag, true)
+        self.request(tag, true, false)
     }
 
-    fn request(&mut self, tag: &str, priority: bool) -> bool {
+    /// A reaction to what the player just did, heard at once: in the same
+    /// frame, it cuts in over a bark or a narration line being spoken (the
+    /// narration line is told again later), ignoring the gap between barks,
+    /// the pool's cooldown and the speaker's budget. It never cuts a
+    /// cutscene line or another cut-in still speaking (it waits for them up
+    /// to [`Barks::window`], then is dropped), and two cut-ins start at least
+    /// [`Barks::cut_in_gap`] apart. For the line that answers the player's
+    /// own action ("Stop that ringing!"); everything else is a
+    /// [`Barks::trigger`].
+    pub fn react(&mut self, tag: &str) -> bool {
+        self.request(tag, false, true)
+    }
+
+    fn request(&mut self, tag: &str, priority: bool, cut_in: bool) -> bool {
         if self.lines(tag) == 0 {
             sys::log(sys::Level::Warn, &format!("Barks: no lines tagged {tag:?}"));
             return false;
         }
         let at = sys::time();
-        match self.pending.iter_mut().find(|r| r.tag == tag && r.priority == priority) {
+        match self.pending.iter_mut().find(|r| r.tag == tag && r.priority == priority && r.cut_in == cut_in) {
             Some(r) if !priority => r.at = at,
-            _ => self.pending.push(Request { tag: tag.to_string(), at, priority }),
+            _ => self.pending.push(Request { tag: tag.to_string(), at, priority, cut_in }),
         }
         true
     }
@@ -418,12 +446,12 @@ impl Barks {
             && now - quiet_since >= *every as f64
             && self.lines(tag) > 0
         {
-            self.pending.push(Request { tag: tag.clone(), at: now, priority: false });
+            self.pending.push(Request { tag: tag.clone(), at: now, priority: false, cut_in: false });
         }
         if !free {
             return None;
         }
-        let mut order: Vec<usize> = (0..self.pending.len()).collect();
+        let mut order: Vec<usize> = (0..self.pending.len()).filter(|&i| !self.pending[i].cut_in).collect();
         order.sort_by_key(|&i| !self.pending[i].priority);
         for i in order {
             let (tag, priority) = (self.pending[i].tag.clone(), self.pending[i].priority);
@@ -438,6 +466,39 @@ impl Barks {
             }
         }
         None
+    }
+
+    /// Whether a cut-in may start at `now`: the last one started at least
+    /// [`Barks::cut_in_gap`] ago.
+    pub(crate) fn cut_in_rested(&self, now: f64) -> bool {
+        self.last_cut_in.is_none_or(|t| now - t >= self.cut_in_gap as f64)
+    }
+
+    /// A cut-in started at `now` (picked here, or one line by hand).
+    pub(crate) fn cut_in_started(&mut self, now: f64) {
+        self.last_cut_in = Some(now);
+        self.quiet_since = Some(now);
+    }
+
+    /// The reaction ([`Barks::react`]) to speak at game time `now`, if one
+    /// is wanted and `may` (no cutscene line, no cut-in still speaking).
+    /// The newest wins (older ones are dropped); the pool's cooldown and the speaker's budget don't
+    /// hold it back. [`super::Dialogue::update`] calls it before
+    /// [`Barks::take`].
+    pub fn take_cut_in(&mut self, now: f64, may: bool) -> Option<BarkLine> {
+        let window = self.window as f64;
+        self.pending.retain(|r| !r.cut_in || now - r.at <= window);
+        if !may || !self.cut_in_rested(now) {
+            return None;
+        }
+        let i = (0..self.pending.len()).filter(|&i| self.pending[i].cut_in).max_by(|&a, &b| self.pending[a].at.total_cmp(&self.pending[b].at))?;
+        let tag = self.pending.remove(i).tag;
+        // The newest reaction answers the latest action; older ones are moot.
+        self.pending.retain(|r| !r.cut_in);
+        let p = self.pools.iter().position(|p| p.tag == tag)?;
+        let bark = self.deal(p, now, true)?;
+        self.cut_in_started(now);
+        Some(bark)
     }
 
     /// Deals the next line of pool `p`: in its bag's order, the first that
@@ -662,6 +723,30 @@ mod tests {
         b.trigger("hit");
         b.trigger_priority("hit");
         assert_eq!(b.take(121.5, true).unwrap().speaker, "Rocko");
+    }
+
+    #[test]
+    fn a_reaction_skips_the_cooldowns_but_keeps_its_own_gap() {
+        let mut b = Barks::new(4);
+        b.per_minute = 1;
+        b.add("bell", "Mother", &sub("Stop that ringing!"), "").add("bell", "Mother", &sub("Enough!"), "");
+        sys::test::reset();
+        b.trigger("bell");
+        assert!(b.take(0.0, true).is_some());
+        // The pool rests 8 s and Mother's budget is spent, but a reaction goes now.
+        sys::test::set_time(0.5);
+        b.react("bell");
+        assert!(b.take(0.5, true).is_none(), "ordinary barks don't take reactions");
+        assert!(b.take_cut_in(0.5, false).is_none(), "not while it may not cut in");
+        assert!(b.take_cut_in(0.6, true).is_some());
+        // Two reactions start at least cut_in_gap (2 s) apart; a stale one is dropped.
+        sys::test::set_time(1.0);
+        b.react("bell");
+        assert!(b.take_cut_in(1.0, true).is_none());
+        assert!(b.take_cut_in(2.1, true).is_none() && b.pending() == 0, "went stale waiting");
+        sys::test::set_time(2.7);
+        b.react("bell");
+        assert!(b.take_cut_in(2.7, true).is_some());
     }
 
     #[test]

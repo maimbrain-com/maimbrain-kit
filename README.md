@@ -43,6 +43,8 @@ mb describe mygame   # tell players what it is (mygame/DESCRIPTION.txt, or the t
 mb submit mygame     # when it's right, send it for review; track it at maimbrain.com/create
 ```
 
+A game made with an older kit stays on its SDK until it's moved: `mb upgrade mygame` says what changed since, what the game should fix and what it could adopt, and `--apply` moves it to this kit's SDK. `mb doctor` says when a newer `mb` is out; update the skill with `/plugin update maimbrain@maimbrain-kit`.
+
 `mb publish` uploads a draft only you can see; publish again to replace it while you test. Once a moderator approves what you submit, it's in everyone's feed. `mb publish --submit` skips the draft and goes straight to review. `--model` names the AI model that built the game (an agent gives its own; `none` if you wrote it yourself), and players see it under About this game with the SDK version the game was built with. The description isn't part of the bundle: players see its first line on the game's card and all of it under About this game, and `mb describe` (or My Game Studio in the app) changes it any time, with no review. For a new version of a published game, the number you bump says what it is: the last for a fix, the middle for an update, the first for a new season (the only kind that may change how scores rank). `mb publish` sends the version's entry from the game's `NOTES.md` (a `## 1.3.0` heading, then what's new for players).
 
 ### Fonts and identity

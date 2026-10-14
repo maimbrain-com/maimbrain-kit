@@ -308,6 +308,7 @@ pub mod test {
         set_time(0.0);
         LOST.with(|c| c.set(0.0));
         clear_params();
+        crate::input::reset_held();
     }
 
     /// One frame as the host runs it: `advance(dt)`, then `game.update(dt)`.

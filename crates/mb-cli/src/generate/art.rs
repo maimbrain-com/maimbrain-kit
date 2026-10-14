@@ -51,6 +51,10 @@ pub enum ArtCmd {
         /// Columns in the sheet (default: all frames in one row, up to 8).
         #[arg(long)]
         cols: Option<u32>,
+        /// A character for `maimbrain::walk`: two cells, the body without feet and one foot, at one
+        /// scale; the game steps the feet by distance walked, so they never slide (`--frames` is ignored).
+        #[arg(long)]
+        walker: bool,
     },
     /// A talking portrait for dialogue (`ui::Portrait`): one character's head and shoulders in a sheet
     /// of square cells, 4 columns of mouth shapes (closed, slightly open, open, wide open) × one row
@@ -126,6 +130,18 @@ pub enum ArtCmd {
     },
     /// Check a game's assets against the budgets and list what was generated, and how.
     Check { game: PathBuf },
+    /// Write src/art_meta.rs: each generated figure's feet and height and each painting's floor
+    /// line, measured from the images as they are now (`mb art` does it after every generation).
+    Meta { game: PathBuf },
+    /// Record objects a generated layer or background shows that `mb art` didn't find in its
+    /// prompt (look at its preview): `mb art shows assets/attic_1.png "rocking horse, birdcage"`.
+    /// `mb art` then warns when a prop is one of them.
+    Shows {
+        /// The painting (it has a .gen.json).
+        asset: PathBuf,
+        /// What it shows, comma-separated.
+        objects: String,
+    },
     /// Record an edit made to a generated asset after mb wrote it (a script, a sound editor, by
     /// hand) in its sidecar, so `mb art check` says how the file was made. Run it after the edit:
     /// `mb art edited assets/plunge.ogg --tool tools/bright.py -- --shelf 6`.
@@ -194,6 +210,27 @@ pub struct Opts {
     /// Empty margin around a sprite, in output pixels (pixel art: art pixels).
     #[arg(long)]
     pub margin: Option<u32>,
+    /// Sprites and frames: how tall the figure stands in the game, in logical units (`--height 96`),
+    /// or against another generated figure (`--height 1.3xgirl`). Sizes the image to match, and
+    /// `ground::Figure` draws it that tall (src/art_meta.rs), so figures come out the right size
+    /// against each other.
+    #[arg(long, value_parser = parse_height, value_name = "UNITS|NxNAME")]
+    pub height: Option<Height>,
+    /// Sprites and frames: how tall the thing is in the real world (`--real 1.6m`, `40cm`, `6ft`);
+    /// default: a typical height for what the prompt names (a mirror 1.6 m, a bell 15 cm). With a
+    /// figure already sized by --height, a prop without --height is sized against it (src/art_meta.rs,
+    /// `ground::Scale`), and `mb art check` warns when sizes don't agree.
+    #[arg(long, value_parser = super::scene::parse_real, value_name = "HEIGHT")]
+    pub real: Option<f32>,
+    /// Layers and backgrounds: objects the painting shows besides those its prompt names
+    /// (`--shows "rocking horse,trunk"`), so `mb art` warns when a prop duplicates one.
+    #[arg(long, value_delimiter = ',', value_name = "OBJECTS")]
+    pub shows: Vec<String>,
+    /// Layers and backgrounds: put the painting's floor line this far down (0–1 from the top;
+    /// default `floor` under [layer] or [background] in art/style.toml), so every painting's floor
+    /// is on the same line.
+    #[arg(long, value_name = "0-1")]
+    pub floor: Option<f32>,
     /// Quantize to at most N colors.
     #[arg(long)]
     pub colors: Option<u32>,
@@ -231,6 +268,58 @@ fn parse_horizon(s: &str) -> Result<Option<f32>, String> {
         Ok(v) if (0.0..=1.0).contains(&v) => Ok(Some(v)),
         _ => Err("expected auto, or 0–1 (the horizon's height from the image's top)".into()),
     }
+}
+
+/// `--height`: logical units, or a multiple of another figure's height.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Height {
+    Units(f32),
+    Of(f32, String),
+}
+
+fn parse_height(s: &str) -> Result<Height, String> {
+    let bad = || format!("--height {s}: logical units (96), or a multiple of another figure's height (1.3xgirl)");
+    if let Ok(v) = s.trim().parse::<f32>() {
+        return if v > 0.0 && v <= 2048.0 { Ok(Height::Units(v)) } else { Err(bad()) };
+    }
+    let (k, name) = s.split_once('x').ok_or_else(bad)?;
+    let k: f32 = k.trim().parse().map_err(|_| bad())?;
+    if !(k > 0.0 && k <= 20.0) || name.trim().is_empty() {
+        return Err(bad());
+    }
+    Ok(Height::Of(k, name.trim().to_string()))
+}
+
+/// How tall another generated figure is drawn (its `--height`, else its measured height).
+fn figure_height(game: &Path, name: &str) -> Result<f32, String> {
+    let png = game.join("assets").join(format!("{name}.png"));
+    match super::ground::meta_of(&png, game) {
+        Some(super::ground::Meta::Figure { height, .. }) => Ok(height),
+        _ => Err(format!("--height …x{name}: {} isn't a generated sprite or frames sheet", png.display())),
+    }
+}
+
+/// How tall a new figure is drawn when nothing says: its real height (`--real`, else the table's
+/// for its subject) at the scale of the figures already sized with --height. A thing held in a
+/// hand is drawn at least 16 units, bigger than life, so it reads.
+fn scaled_height(game: &Path, name: &str, subject: &str, real: Option<f32>) -> Option<(f32, String)> {
+    let (m, what) = match real {
+        Some(m) => (m, format!("{m} m")),
+        None => super::scene::typical_height(subject).map(|(m, t)| (m, format!("a {m} m {t}")))?,
+    };
+    let metas: Vec<_> = super::ground::game_meta(game).into_iter().filter(|m| m.name() != name).collect();
+    let (k, hero) = super::ground::scene_scale(&metas)?;
+    let units = ((m * k).max(16.0) * 10.0).round() / 10.0;
+    eprintln!("  sized {units} units tall: {what} at {hero}'s scale ({k:.1} units a meter); --height to choose, --real to correct");
+    Some((units, hero))
+}
+
+/// The square image a figure `units` tall fills at 2 texels a unit, with the default margin.
+fn size_for_height(units: f32, scale: u32) -> [u32; 2] {
+    let side = (units * 2.0 * 8.0 / 7.0).ceil() as u32;
+    let side = side.div_ceil(scale.max(1)) * scale.max(1);
+    let side = side.clamp(16, 2048);
+    [side, side]
 }
 
 fn parse_wh(s: &str) -> Result<[u32; 2], String> {
@@ -303,6 +392,24 @@ pub struct Job {
     pub span: f32,
     #[serde(default = "pole_caps")]
     pub poles: f32,
+    /// Sprites and frames: how tall the figure is drawn, in logical units (`--height`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height: Option<f32>,
+    /// Sprites and frames: the real-world height in meters (`--real`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub real: Option<f32>,
+    /// Sprites and frames sized by the scene's scale (no --height): the figure the scale came from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sized_by: Option<String>,
+    /// Layers and backgrounds: objects it shows that its prompt doesn't name (`--shows`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shows: Vec<String>,
+    /// Opaque layers and backgrounds: where the floor line goes (0–1 from the top; `--floor`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub floor: Option<f32>,
+    /// Frames: a feetless body and a foot for `maimbrain::walk` (`--walker`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub walker: bool,
 }
 
 fn full_span() -> f32 {
@@ -340,8 +447,9 @@ pub fn run(cmd: ArtCmd) -> Result<(), String> {
     match cmd {
         ArtCmd::Init { game, force } => init(&game, force),
         ArtCmd::Sprite(g) => generate_kind("sprite", &g.game, &g.name, &g.prompt, &g.opts, Extra::default()),
-        ArtCmd::Frames { gen_: g, frames, cols } => {
-            generate_kind("frames", &g.game, &g.name, &g.prompt, &g.opts, Extra { frames, cols: cols.unwrap_or(0), ..Extra::default() })
+        ArtCmd::Frames { gen_: g, frames, cols, walker } => {
+            let (frames, cols) = if walker { (2, Some(2)) } else { (frames, cols) };
+            generate_kind("frames", &g.game, &g.name, &g.prompt, &g.opts, Extra { frames, cols: cols.unwrap_or(0), walker, ..Extra::default() })
         }
         ArtCmd::Portrait { gen_: g, expressions } => {
             let expressions = portrait_expressions(&expressions)?;
@@ -364,6 +472,18 @@ pub fn run(cmd: ArtCmd) -> Result<(), String> {
             super::atlas::run(&game, &name, &inputs, padding, trim, rust.as_deref(), remove_inputs)
         }
         ArtCmd::Check { game } => check(&game),
+        ArtCmd::Meta { game } => match super::ground::write_meta(&game)? {
+            Some(p) => {
+                println!("{}", p.display());
+                Ok(())
+            }
+            None if game.join("src").is_dir() => {
+                eprintln!("src/art_meta.rs is up to date");
+                Ok(())
+            }
+            None => Err(format!("{} has no src/ to write art_meta.rs into", game.display())),
+        },
+        ArtCmd::Shows { asset, objects } => record_shows(&asset, &objects),
         ArtCmd::Edited { asset, tool, note, args } => super::record_edit(&asset, &tool, &args, note.as_deref()),
     }
 }
@@ -396,6 +516,8 @@ struct Extra {
     sky: Option<(Option<f32>, f32, f32)>,
     /// Talking portraits: the rows' expressions, neutral first.
     expressions: Vec<String>,
+    /// Frames: a body without feet and a foot, for `maimbrain::walk`.
+    walker: bool,
 }
 
 /// A portrait's rows: neutral, then the creator's expressions (trimmed, lowercased, each once).
@@ -452,7 +574,37 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
     }
     let (screen, _) = super::game_screen(game);
     let scale = style.pixel_scale.max(1);
-    let mut size = o.size.unwrap_or_else(|| default_size(kind, style, screen, extra));
+    let height = match &o.height {
+        None => None,
+        Some(_) if !matches!(kind, "sprite" | "frames") => return Err("--height is for sprites and frames (figures and props that stand)".into()),
+        Some(Height::Units(u)) => Some(*u),
+        Some(Height::Of(k, other)) => Some(k * figure_height(game, other)?),
+    };
+    if o.real.is_some() && !matches!(kind, "sprite" | "frames") {
+        return Err("--real is for sprites and frames (figures and props)".into());
+    }
+    if !o.shows.is_empty() && !matches!(kind, "layer" | "background") {
+        return Err("--shows is for layers and backgrounds (what a painting has in it)".into());
+    }
+    // A prop sized against the figures already sized: its real height at the scene's scale.
+    let (height, sized_by) = match height {
+        None if matches!(kind, "sprite" | "frames") && !extra.walker && o.size.is_none() && o.grid.is_none() => match scaled_height(game, name, subject, o.real) {
+            Some((u, hero)) => (Some(u), Some(hero)),
+            None => (None, None),
+        },
+        h => (h, None),
+    };
+    let opaque_painting = kind == "background" || (kind == "layer" && !keyed_kind(kind, extra.layer));
+    let floor = match o.floor.or(style.kind(kind).floor) {
+        Some(f) if !(0.2..=0.98).contains(&f) => return Err(format!("--floor {f}: the floor line's height, 0.2–0.98 of the image from its top")),
+        Some(f) if opaque_painting => Some(f),
+        Some(_) if o.floor.is_some() && !matches!(kind, "layer") => return Err("--floor is for layers and backgrounds".into()),
+        _ => None,
+    };
+    let mut size = o.size.unwrap_or_else(|| match height {
+        Some(u) => size_for_height(u, if style.pixel_art { scale } else { 1 }),
+        _ => default_size(kind, style, screen, extra),
+    });
     let mut grid = o.grid;
     if grid.is_none() && style.pixel_art && !["background", "icon", "sky"].contains(&kind) {
         grid = Some([(size[0] / scale).max(1), (size[1] / scale).max(1)]);
@@ -582,6 +734,12 @@ fn build_job(kind: &str, game: &Path, name: &str, subject: &str, o: &Opts, style
         horizon: extra.sky.and_then(|s| s.0),
         span: extra.sky.map_or(180.0, |s| s.1),
         poles: extra.sky.map_or(12.0, |s| s.2),
+        height,
+        real: o.real,
+        sized_by,
+        shows: o.shows.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
+        floor,
+        walker: kind == "frames" && extra.walker,
     })
     .map(|mut j: Job| {
         if kind == "frames" && rows > 1 {
@@ -678,6 +836,9 @@ fn layers(g: &Gen, count: u32, screens: f32) -> Result<(), String> {
         }
         execute(&g.game, &job, g.opts.variants.max(1), g.opts.dry_run, f64::INFINITY)?;
     }
+    if g.opts.variants <= 1 && !g.opts.dry_run {
+        refresh_meta(&g.game);
+    }
     eprintln!("draw layer 0 first and scroll layer i at a speed that grows with i (e.g. 0.2, 0.5, 1.0); each wraps horizontally");
     Ok(())
 }
@@ -713,6 +874,50 @@ fn layer_fit(src: &Image, w: u32, h: u32, keyed: bool) -> (Image, Option<String>
         note = Some("no row along the bottom is solid scenery; the backdrop repeats its bottom row downward, so ask for shapes that fill the bottom edge".to_string());
     }
     (out, note)
+}
+
+/// A painting with any letterbox the generator left inside it cropped off
+/// (warned), so its floor lines up with the other paintings'. A full-screen
+/// background keeps bars deeper than 15% of the image (cropping them would
+/// zoom it a lot), with a warning to regenerate. A flat band on one side
+/// only may be a flat floor or sky: warned about at the bottom and sides,
+/// and left in.
+fn unbox(im: &Image, key: Option<[u8; 3]>, layer: bool, warnings: &mut Vec<String>) -> Image {
+    let lb = super::ground::letterbox(im, key);
+    let bars: Vec<String> = (0..4).filter(|&i| lb.crop[i] > 0).map(|i| format!("{} {} px", super::ground::EDGES[i], lb.crop[i])).collect();
+    let deep = (0..4).any(|i| lb.crop[i] as f32 > 0.15 * if i < 2 { im.h } else { im.w } as f32);
+    if lb.any() && deep && !layer {
+        warnings.push(format!(
+            "the painting fills only part of the generated image (flat letterbox bars: {}); regenerate (--new-seed) for one that fills it",
+            bars.join(", ")
+        ));
+        return im.clone();
+    }
+    if lb.any() {
+        warnings.push(format!(
+            "the painting was letterboxed inside the generated image (flat bars: {}); cropped them off, so its floor lines up with the other paintings'",
+            bars.join(", ")
+        ));
+    } else if let Some((side, n)) = lb.lone.filter(|l| l.0 != 0) {
+        warnings.push(format!(
+            "a flat band of one color runs along the {} edge of the generated image ({n} px): if it's a letterbox bar, regenerate (--new-seed); its floor won't line up with the other paintings'",
+            super::ground::EDGES[side]
+        ));
+    }
+    lb.apply(im)
+}
+
+/// An opaque painting fitted to `w`×`h` with its floor line `target` (0–1)
+/// of the way down, when it has a floor line to put there.
+fn place_floor(src: &Image, w: u32, h: u32, target: Option<f32>, warnings: &mut Vec<String>) -> Option<Image> {
+    let t = target?;
+    match super::ground::find_floor(src) {
+        Some(f) => Some(super::ground::fit_floor(src, w, h, f.y, t * h as f32)),
+        None => {
+            warnings.push("no floor line found to put at --floor (no level line across the painting): fitted as usual".into());
+            None
+        }
+    }
 }
 
 /// Fills the holes in a keyed layer's last rows with their median color:
@@ -769,6 +974,9 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
     if let Some(w) = style.unset_warning().filter(|_| !job.no_style) {
         eprintln!("  warning: {w}");
     }
+    if let Some(w) = style.leak_warning().filter(|_| !job.no_style && matches!(job.kind.as_str(), "sprite" | "frames" | "portrait" | "ui" | "icon")) {
+        eprintln!("  note: {w}");
+    }
     let key = if job.keyed { Some(style.key_color()?) } else { None };
     let mut refs = Vec::new();
     let mut ref_files = Vec::new();
@@ -793,7 +1001,8 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
     let full_prompt = style::compose(
         &style,
         &PromptParts {
-            kind: &job.kind,
+            // A walker sheet (body + foot) is frames with its own prompt.
+            kind: if job.walker { "walker" } else { &job.kind },
             subject: &job.subject,
             frames: job.frames,
             expressions: &job.expressions,
@@ -874,6 +1083,7 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
             j.key = key.map(img::hex);
         }
         let (im, mut facts) = process(&j, &style, &palette, &raw_img)?;
+        scene_facts(game, &j, out.text.as_deref(), &mut facts);
         let png = encode_budget(&im, &j, &mut facts)?;
         let dest = if variants == 1 { game.join(&j.out) } else { art.join("variants").join(format!("{}-{}.png", j.name, v + 1)) };
         if let Some(d) = dest.parent() {
@@ -913,6 +1123,7 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
             art.join("variants").join(format!("{}-{}.preview.png", j.name, v + 1))
         };
         std::fs::write(&pv, preview.encode_png()).map_err(|e| e.to_string())?;
+        super::walkcheck::write_onion(&pv, &im, j.frames, j.cols, j.size, &facts)?;
         report(&dest, &im, png.len(), &facts, out.cost_usd);
         outs.push(dest);
         previews.push(im);
@@ -926,6 +1137,10 @@ pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64)
     } else {
         eprintln!("  look at it: {}", art.join("preview").join(format!("{}.png", job.name)).display());
         println!("{}", outs[0].display());
+        // `mb art layers` writes it once, after its last layer.
+        if job.layer.is_none() {
+            refresh_meta(game);
+        }
     }
     Ok(outs.remove(0))
 }
@@ -949,6 +1164,72 @@ fn report(dest: &Path, im: &Image, bytes: usize, facts: &serde_json::Value, cost
     }
     if let Some(r) = facts["rust"].as_str() {
         eprintln!("  {r}");
+    }
+    if let Some(r) = facts["stand"].as_str() {
+        eprintln!("  {r}");
+    }
+}
+
+/// What a new image adds to the scene: a figure's real height (`result.real`), a painting's
+/// objects (`result.shows`), and a warning when a prop is of something a painting already shows,
+/// or a painting shows something there's a prop of, or a figure's size disagrees with the scene's.
+fn scene_facts(game: &Path, job: &Job, model_text: Option<&str>, facts: &mut serde_json::Value) {
+    use super::ground::Meta;
+    let metas: Vec<Meta> = super::ground::game_meta(game).into_iter().filter(|m| m.name() != job.name).collect();
+    let mut warnings: Vec<String> = Vec::new();
+    match job.kind.as_str() {
+        "sprite" | "frames" => {
+            let real = super::scene::real_json(job.real, &job.subject);
+            for m in &metas {
+                if let Meta::Backdrop { path, shows, .. } = m {
+                    for o in shows.iter().filter(|o| super::scene::same_thing(o, &job.subject)) {
+                        warnings.push(dup_warning(path, o, &job.out));
+                    }
+                }
+            }
+            if let (Some(h), Some(r), Some((k, hero))) = (job.height, real["m"].as_f64(), super::ground::scene_scale(&metas))
+                && let Some(want) = super::scene::implausible(h, r as f32, k)
+            {
+                warnings.push(format!(
+                    "{h:.0} units tall for {r} m in the world, where {hero} is {k:.1} units a meter: about {want:.0} units would match (--height {want:.0}, or --real if it isn't {r} m)"
+                ));
+            }
+            if !real.is_null() {
+                facts["real"] = real;
+            }
+        }
+        "layer" | "background" => {
+            // A layer's subject ends with its place in the stack ("— the nearest layer: …").
+            let subject = job.subject.split(" — ").next().unwrap_or(&job.subject);
+            let shows = super::scene::shows_json(subject, model_text, &job.shows);
+            for m in &metas {
+                if let Meta::Figure { path, subject, .. } = m {
+                    for o in shows.iter().filter(|o| super::scene::same_thing(o, subject)) {
+                        warnings.push(dup_warning(&job.out, o, path));
+                    }
+                }
+            }
+            facts["shows"] = json!(shows);
+        }
+        _ => {}
+    }
+    if !warnings.is_empty() {
+        let mut all: Vec<serde_json::Value> = facts["warnings"].as_array().cloned().unwrap_or_default();
+        all.extend(warnings.into_iter().map(serde_json::Value::from));
+        facts["warnings"] = json!(all);
+    }
+}
+
+fn dup_warning(painting: &str, object: &str, prop: &str) -> String {
+    format!(
+        "{painting} already shows a {object} (painted in), and {prop} is one too: a prop beside its painted twin reads as a mistake. Regenerate the painting without it (\"no {object}\" in its prompt) or make the prop something else"
+    )
+}
+
+/// Rewrites src/art_meta.rs after a generation; a failure there doesn't fail the image.
+fn refresh_meta(game: &Path) {
+    if let Err(e) = super::ground::write_meta(game) {
+        eprintln!("  warning: src/art_meta.rs: {e}");
     }
 }
 
@@ -998,11 +1279,36 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
     let mut facts = json!({});
     let keyed_bg = std::cell::Cell::new(None);
     let keyed_extra = std::cell::Cell::new(None);
+    let cut_off: std::cell::RefCell<Vec<&str>> = std::cell::RefCell::new(Vec::new());
+    // A figure or prop running off the generated image's edge was cut off there (a witch without
+    // her hem can't stand on a floor); `ground::cut_edges` says where.
+    let check_cut = |k: &Image, bgs: &[[u8; 3]], warnings: &mut Vec<String>| -> bool {
+        if !matches!(job.kind.as_str(), "sprite" | "frames") {
+            return false;
+        }
+        let cut = super::ground::cut_edges(super::ground::edge_cover(k, bgs, job.tolerance as f32), [k.w, k.h]);
+        if cut.is_empty() {
+            return false;
+        }
+        let what = if job.kind == "frames" { "a frame" } else { "the subject" };
+        warnings.push(if cut.contains(&"bottom") {
+            format!(
+                "{what} runs off the bottom of the generated image ({}): its feet or hem are missing, so it can't stand on a floor. Regenerate (mb regen {} --new-seed)",
+                cut.join(", "),
+                job.out
+            )
+        } else {
+            format!("{what} runs off the generated image's {} edge: part of it is missing. Regenerate (mb regen {} --new-seed)", cut.join(" and "), job.out)
+        });
+        *cut_off.borrow_mut() = cut;
+        true
+    };
     let [w, h] = job.size;
     let flat_bg = palette.first().copied().unwrap_or([0, 0, 0]);
     // Transparency: keep a provider's real alpha, else key out the flat background.
     let keyed = |raw: &Image, warnings: &mut Vec<String>| -> Image {
         if raw.has_transparent_border() {
+            check_cut(raw, &[], warnings);
             return raw.clone();
         }
         let expected = job.key.as_deref().and_then(|k| img::parse_hex(k).ok()).or_else(|| style.key_color().ok());
@@ -1023,7 +1329,7 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
                 (rep.noise * 1.3).max(job.tolerance as f32 + 0.02)
             ));
         }
-        if job.kind != "layer" && rep.border_bg < 0.6 {
+        if !check_cut(&k, &rep.backgrounds, warnings) && job.kind != "layer" && rep.border_bg < 0.6 {
             warnings.push(format!(
                 "the subject touches the image edges ({:.0}% of the border isn't background); it may be cut off. Regenerate",
                 100.0 * (1.0 - rep.border_bg)
@@ -1081,6 +1387,25 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
             facts["cell"] = json!([w, h]);
             facts["cols"] = json!(cols);
             facts["rust"] = json!(format!("frame i's source rect: [(i % {cols}) × {w}, (i / {cols}) × {h}, {w}, {h}] (e.g. {} frames at 8–12 fps)", n));
+            // Walking: a walker sheet's rects, or a walk cycle's feet checked (super::walkcheck).
+            if job.walker {
+                match super::walkcheck::walker_facts(&sheet, cols, w, h, &job.out) {
+                    Some((f, rust, more)) => {
+                        facts["walker"] = f;
+                        facts["rust"] = json!(rust);
+                        warnings.extend(more);
+                    }
+                    None => warnings.push("a walker sheet is a body (cell 0) and a foot (cell 1), and one of them is empty: regenerate".into()),
+                }
+            } else if let Some(g) = super::walkcheck::gait_word(&job.name, &job.subject) {
+                facts["rust"] = json!(format!(
+                    "frame i's source rect: [(i % {cols}) × {w}, (i / {cols}) × {h}, {w}, {h}]; a {g} cycle: pick the frame by distance walked, never a timer, or the feet slide: `maimbrain::walk::Walker`'s `frame({n})`, with `stride` the distance one cycle covers at the size you draw it"
+                ));
+                if let Some(r) = super::walkcheck::measure(&sheet, n, cols, w, h) {
+                    facts["walk"] = r.facts();
+                    warnings.extend(r.warnings(g, &job.name));
+                }
+            }
             sheet
         }
         "portrait" => {
@@ -1130,12 +1455,23 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
         }
         "background" | "icon" => {
             let base = if raw.is_opaque() { raw.clone() } else { raw.flatten(flat_bg) };
-            match job.grid {
-                Some(g) => img::pixelate(&base.cover(g[0] * 8, g[1] * 8), g[0], g[1]).scale_nearest(w / g[0]),
-                None => base.cover(w, h),
+            let painting = job.kind == "background";
+            let base = if painting { unbox(&base, None, false, &mut warnings) } else { base };
+            let mut fit = |tw: u32, th: u32| place_floor(&base, tw, th, job.floor, &mut warnings).unwrap_or_else(|| base.cover(tw, th));
+            let bg = match job.grid {
+                Some(g) => img::pixelate(&fit(g[0] * 8, g[1] * 8), g[0], g[1]).scale_nearest(w / g[0]),
+                None => fit(w, h),
+            };
+            if painting {
+                facts["floor"] = super::ground::find_floor(&bg).map_or(serde_json::Value::Null, |f| f.to_json(bg.h, job.floor.is_some()));
             }
+            bg
         }
         "layer" => {
+            // A letterbox the generator left inside the painting goes first, so its floor lines up.
+            let key = if job.keyed { job.key.as_deref().and_then(|k| img::parse_hex(k).ok()).or_else(|| style.key_color().ok()) } else { None };
+            let unboxed = unbox(raw, key, true, &mut warnings);
+            let raw = &unboxed;
             let src = if job.keyed {
                 keyed(raw, &mut warnings)
             } else if raw.is_opaque() {
@@ -1145,7 +1481,11 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
             };
             let band = 0.08;
             let wide = ((w as f32) * (1.0 + band)).round() as u32;
-            let (fit, note) = layer_fit(&src, wide, h, job.keyed);
+            let placed = if job.keyed { None } else { place_floor(&src, wide, h, job.floor, &mut warnings) };
+            let (fit, note) = match placed {
+                Some(p) => (p, None),
+                None => layer_fit(&src, wide, h, job.keyed),
+            };
             if let Some(n) = note {
                 warnings.push(n);
             }
@@ -1167,10 +1507,14 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
                     "crop": if job.keyed { "bottom at the lowest solid row" } else { "anchored at the bottom" },
                 });
             }
-            match job.grid {
+            let layer = match job.grid {
                 Some(g) => img::pixelate(&s.resize(g[0] * 8, g[1] * 8), g[0], g[1]).scale_nearest(w / g[0]),
                 None => s,
-            }
+            };
+            // Where things stand on it: an opaque painting's floor line, a transparent layer's ground top.
+            let floor = if job.keyed { super::ground::solid_top(&layer) } else { super::ground::find_floor(&layer) };
+            facts["floor"] = floor.map_or(serde_json::Value::Null, |f| f.to_json(layer.h, job.floor.is_some()));
+            layer
         }
         "tile" => {
             let band = 0.125;
@@ -1248,6 +1592,25 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
     }
     if let Some(g) = job.grid {
         facts["pixel_scale"] = json!(w / g[0]);
+    }
+    // Where it stands: its feet (the lowest opaque row) and how tall it's drawn (src/art_meta.rs).
+    // (Not a --walker sheet: its body has no feet; `walk::WalkSprite` stands it on the floor.)
+    if matches!(job.kind.as_str(), "sprite" | "frames") && !job.walker {
+        let (cell, cells) = if job.kind == "frames" { ([w, h], job.frames.max(1)) } else { ([out.w, out.h], 1) };
+        if let Some(ft) = super::ground::footing(&out, cell, cells) {
+            facts["ground"] = ft.to_json(job.height.unwrap_or(ft.height() / 2.0));
+            facts["stand"] = json!(format!(
+                "stand it on a floor by its feet (row {} of {}): ground::Figure::new(image, art_meta::{}){}.draw(x, floor_y)",
+                ft.foot[1],
+                cell[1],
+                super::ground::const_name(&job.name),
+                if job.kind == "frames" { ".frame(i)" } else { "" }
+            ));
+        }
+    }
+    let cut = cut_off.borrow().clone();
+    if !cut.is_empty() {
+        facts["cut_off"] = json!(cut);
     }
     if let Some(bg) = keyed_bg.get() {
         facts["keyed_background"] = json!(img::hex(bg));
@@ -1559,6 +1922,7 @@ fn pick(game: &Path, name: &str, variant: u32) -> Result<(), String> {
         let _ = std::fs::copy(&pv, game.join("art/preview").join(format!("{name}.png")));
     }
     eprintln!("picked variant {variant} (seed {}) → {}", sc.seed, dest.display());
+    refresh_meta(game);
     println!("{}", dest.display());
     Ok(())
 }
@@ -1619,6 +1983,7 @@ pub fn regen(a: &super::RegenArgs, sc: &Sidecar) -> Result<(), String> {
                 .then(|| [(job.size[0] / scale).max(1), (job.size[1] / scale).max(1)]);
         }
         let (im, mut facts) = process(&job, &style, &palette, &Image::decode(&raw)?)?;
+        scene_facts(&game, &job, sc.model_text.as_deref(), &mut facts);
         let png = encode_budget(&im, &job, &mut facts)?;
         let dest = game.join(&job.out);
         std::fs::write(&dest, &png).map_err(|e| format!("{}: {e}", dest.display()))?;
@@ -1632,9 +1997,11 @@ pub fn regen(a: &super::RegenArgs, sc: &Sidecar) -> Result<(), String> {
         let art = super::ensure_art_dir(&game)?;
         std::fs::create_dir_all(art.join("preview")).map_err(|e| e.to_string())?;
         std::fs::write(art.join("preview").join(format!("{}.png", job.name)), im.preview().encode_png()).map_err(|e| e.to_string())?;
+        super::walkcheck::write_onion(&art.join("preview").join(format!("{}.png", job.name)), &im, job.frames, job.cols, job.size, &facts)?;
         eprintln!("reprocessed {} from {} (no provider call)", job.out, sc.raw);
         report(&dest, &im, png.len(), &facts, None);
         println!("{}", dest.display());
+        refresh_meta(&game);
         return Ok(());
     }
     execute(&game, &job, a.variants.max(1), a.dry_run, super::max_cost(a.max_cost)).map(|_| ())
@@ -1661,6 +2028,8 @@ fn check(game: &Path) -> Result<(), String> {
     let mut problems = 0;
     let mut generated = 0;
     let mut images = 0;
+    // Warnings the generation logged (a figure cut off at the image's edge, a letterboxed painting…).
+    let mut logged: Vec<(String, String)> = Vec::new();
     eprintln!("{:34} {:>9} {:>11}  made by", "asset", "KB", "size");
     let icon = game.join("icon.png");
     for path in std::iter::once(icon.clone()).chain(files) {
@@ -1742,6 +2111,13 @@ fn check(game: &Path) -> Result<(), String> {
                 if let Some(n) = sc.provenance_of(&bytes) {
                     notes.push(n);
                 }
+                notes.extend(super::walkcheck::check_notes(&sc.recipe, &sc.result, &bytes));
+                if let Some(cut) = sc.result["cut_off"].as_array().filter(|c| !c.is_empty()) {
+                    notes.push(format!("cut off at the {} edge when generated", cut.iter().filter_map(|c| c.as_str()).collect::<Vec<_>>().join(" and ")));
+                }
+                for w in sc.result["warnings"].as_array().into_iter().flatten().filter_map(|w| w.as_str()) {
+                    logged.push((name.clone(), w.to_string()));
+                }
                 format!("{} {} seed {}", sc.provider, sc.model, sc.seed)
             }
             Err(_) => match std::fs::read_to_string(super::sidecar_path(&path)).ok().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()) {
@@ -1756,6 +2132,24 @@ fn check(game: &Path) -> Result<(), String> {
             dims,
             if notes.is_empty() { String::new() } else { format!("  ← {}", notes.join("; ")) }
         );
+    }
+    if !logged.is_empty() {
+        eprintln!();
+        eprintln!("warnings from when they were generated (look at art/preview/, regenerate what's wrong):");
+        for (n, w) in &logged {
+            eprintln!("  {n}: {w}");
+        }
+    }
+    let metas = super::ground::game_meta(game);
+    for l in scene_report(&metas) {
+        eprintln!("{l}");
+    }
+    let meta_path = game.join("src/art_meta.rs");
+    if game.join("src").is_dir() && !metas.is_empty() && std::fs::read_to_string(&meta_path).ok() != Some(super::ground::meta_rust(&metas)) {
+        eprintln!("src/art_meta.rs is out of date with the images: mb art meta {}", game.display());
+    }
+    if let Some(w) = Style::load(game)?.0.leak_warning() {
+        eprintln!("note: {w}");
     }
     eprintln!();
     eprintln!(
@@ -1773,6 +2167,89 @@ fn check(game: &Path) -> Result<(), String> {
         eprintln!("over budget: quantize big PNGs (mb regen <asset> --reprocess after setting colors in art/style.toml), lower music quality, or cut assets");
     }
     if problems > 0 { Err(format!("{problems} problem(s)")) } else { Ok(()) }
+}
+
+/// `mb art shows`: adds objects to a painting's `result.shows`.
+fn record_shows(asset: &Path, objects: &str) -> Result<(), String> {
+    let mut sc = super::read_sidecar(asset)?;
+    let kind = sc.recipe["kind"].as_str().unwrap_or("");
+    if !matches!(kind, "layer" | "background") {
+        return Err(format!("{} is a {kind}: `mb art shows` is for layers and backgrounds", asset.display()));
+    }
+    let given: Vec<String> = objects.split(',').map(str::trim).filter(|o| !o.is_empty()).map(str::to_string).collect();
+    let mut shows: Vec<String> = match sc.result["shows"].as_array() {
+        Some(a) => a.iter().filter_map(|o| o.as_str().map(str::to_string)).collect(),
+        None => super::scene::objects_in(sc.recipe["subject"].as_str().unwrap_or("")),
+    };
+    for o in super::scene::shows_json("", None, &given) {
+        if !shows.contains(&o) {
+            shows.push(o);
+        }
+    }
+    sc.result["shows"] = json!(shows);
+    super::write_sidecar(asset, &sc)?;
+    let game = super::game_of(asset, sc.recipe["out"].as_str().unwrap_or(""));
+    eprintln!("{} shows: {}", asset.display(), shows.join(", "));
+    refresh_meta(&game);
+    for l in scene_report(&super::ground::game_meta(&game)).iter().filter(|l| l.contains("already shows")) {
+        eprintln!("warning: {}", l.trim());
+    }
+    Ok(())
+}
+
+/// `mb art check`'s scene: every figure's drawn height beside its real one, against the
+/// scene's scale (warning where they disagree), and each painting's objects (warning where a
+/// prop is one of them).
+fn scene_report(metas: &[super::ground::Meta]) -> Vec<String> {
+    use super::ground::Meta;
+    let mut out = Vec::new();
+    let scale = super::ground::scene_scale(metas);
+    let mut rows = Vec::new();
+    let mut warnings = Vec::new();
+    for m in metas {
+        let Meta::Figure { name, height, real, .. } = m else { continue };
+        let world = match real {
+            Some((r, from)) => format!("{r} m{}", if from == "given" { String::new() } else { format!(" (a typical {from})") }),
+            None => "real size unknown (--real)".into(),
+        };
+        let per = real.as_ref().map(|(r, _)| format!("{:.1} units/m", height / r)).unwrap_or_default();
+        rows.push(format!("  {name:24} {height:>6.0} units  {world:28} {per}"));
+        if let (Some((r, _)), Some((k, hero))) = (real, &scale)
+            && let Some(want) = super::scene::implausible(*height, *r, *k)
+        {
+            warnings.push(format!("  {name} is {height:.0} units tall for {r} m: at {hero}'s scale ({k:.1} units a meter) it'd be about {want:.0} (Figure::sized(scale), or mb regen it with --height {want:.0})"));
+        }
+    }
+    if !rows.is_empty() {
+        out.push(String::new());
+        out.push(match &scale {
+            Some((k, hero)) => format!("figures, as tall as ground::Figure draws them and in the world (the scene: {k:.1} units a meter, from {hero}):"),
+            None => "figures, as tall as ground::Figure draws them (size the hero with --height and give things --real so they can be checked against each other):".into(),
+        });
+        out.extend(rows);
+        out.extend(warnings);
+    }
+    let mut dups = Vec::new();
+    for m in metas {
+        let Meta::Backdrop { path, shows, .. } = m else { continue };
+        if shows.is_empty() {
+            continue;
+        }
+        if !out.iter().any(|l| l.contains(" shows: ")) {
+            out.push(String::new());
+            out.push("what the paintings show (`mb art shows` adds what you see in one):".into());
+        }
+        out.push(format!("  {path} shows: {}", shows.join(", ")));
+        for f in metas {
+            if let Meta::Figure { path: prop, subject, .. } = f {
+                for o in shows.iter().filter(|o| super::scene::same_thing(o, subject)) {
+                    dups.push(format!("  {}", dup_warning(path, o, prop)));
+                }
+            }
+        }
+    }
+    out.extend(dups);
+    out
 }
 
 fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -1871,6 +2348,108 @@ mod tests {
     }
 
     #[test]
+    fn a_figure_cut_off_at_the_bottom_is_warned_and_footed() {
+        // A witch on magenta whose skirt runs off the bottom of the image.
+        let mut raw = Image::new(200, 200, [255, 0, 255, 255]);
+        for y in 30..200 {
+            for x in 80..120 {
+                raw.set(x, y, [40, 30, 60, 255]);
+            }
+        }
+        let mut j = job("sprite");
+        j.anchor = Anchor::Bottom;
+        j.key = Some("#ff00ff".into());
+        let (_, facts) = process(&j, &Style::default(), &[], &raw).unwrap();
+        assert_eq!(facts["cut_off"], json!(["bottom"]));
+        assert!(facts["warnings"][0].as_str().unwrap().contains("runs off the bottom of the generated image"), "{facts}");
+        // Whole, she gets a footing: feet on the bottom margin.
+        for y in 180..200 {
+            for x in 80..120 {
+                raw.set(x, y, [255, 0, 255, 255]);
+            }
+        }
+        let (_, facts) = process(&j, &Style::default(), &[], &raw).unwrap();
+        assert!(facts["cut_off"].is_null() && facts["warnings"].as_array().unwrap().is_empty(), "{facts}");
+        assert_eq!(facts["ground"]["foot"][1], 62.0);
+        assert!(facts["stand"].as_str().unwrap().contains("art_meta::T"));
+    }
+
+    #[test]
+    fn a_letterboxed_painting_is_unboxed_and_its_floor_placed() {
+        // A corridor (wall, floor below row 160 of 200) inside black bars.
+        let mut raw = Image::new(400, 300, [0, 0, 0, 255]);
+        for y in 0..200u32 {
+            for x in 0..400u32 {
+                let n = ((x * 7 + y * 13) % 11) as u8;
+                let c = if y < 160 { [120 + n, 90 + n, 70 + n, 255] } else { [40 + n, 28 + n, 22 + n, 255] };
+                raw.set(x, y + 50, c);
+            }
+        }
+        let mut j = job("layer");
+        j.size = [200, 100];
+        j.layer = Some((0, 1));
+        j.keyed = false;
+        j.floor = Some(0.8);
+        let (im, facts) = process(&j, &Style::default(), &[], &raw).unwrap();
+        assert!(facts["warnings"][0].as_str().unwrap().contains("letterboxed"), "{facts}");
+        assert_eq!(facts["floor"]["found"], "given");
+        let y = facts["floor"]["y"].as_f64().unwrap();
+        assert!((y - 80.0).abs() <= 2.0, "{facts}");
+        assert!(im.is_opaque() && im.get(10, 0)[0] > 60, "no black bar left at the top");
+    }
+
+    fn figure_meta(name: &str, subject: &str, height: f32, requested: bool, real: Option<(f32, &str)>, made: &str) -> super::super::ground::Meta {
+        super::super::ground::Meta::Figure {
+            name: name.into(),
+            path: format!("assets/{name}.png"),
+            footing: super::super::ground::Footing { cell: [128, 128], foot: [64.0, 120.0], top: 20, base: 30, span: [40, 90] },
+            cells: 1,
+            cols: 1,
+            height,
+            requested,
+            subject: subject.into(),
+            real: real.map(|(m, f)| (m, f.to_string())),
+            scaled: false,
+            made: made.into(),
+        }
+    }
+
+    #[test]
+    fn the_scene_lists_sizes_against_the_hero_and_painted_twins() {
+        use super::super::ground::{Meta, scene_scale};
+        let metas = vec![
+            Meta::Backdrop { name: "attic_1".into(), path: "assets/attic_1.png".into(), size: [1440, 640], floor: None, given: false, shows: vec!["rocking horse".into(), "mirror".into()] },
+            figure_meta("girl", "a girl in a nightgown holding a candle", 60.0, true, Some((1.3, "girl")), "2026-10-01T00:00:00Z"),
+            figure_meta("mirror", "a tall standing mirror", 30.0, true, Some((1.6, "mirror")), "2026-10-02T00:00:00Z"),
+            figure_meta("horse", "a wooden rocking horse", 41.0, true, Some((0.9, "rocking horse")), "2026-10-03T00:00:00Z"),
+            figure_meta("bell", "a brass bell", 16.0, true, Some((0.15, "bell")), "2026-10-04T00:00:00Z"),
+            figure_meta("orb", "a glowing orb", 20.0, false, None, "2026-10-05T00:00:00Z"),
+        ];
+        // The scale is the first figure sized with --height: the girl, 60 units for 1.3 m.
+        let (k, hero) = scene_scale(&metas).unwrap();
+        assert_eq!(hero, "girl");
+        assert!((k - 46.15).abs() < 0.01);
+        let lines = scene_report(&metas).join("\n");
+        // The mirror at half the girl's height is called out, with the height that would match.
+        assert!(lines.contains("mirror is 30 units tall for 1.6 m: at girl's scale (46.2 units a meter) it'd be about 74"), "{lines}");
+        assert!(!lines.contains("bell is") && !lines.contains("horse is") && lines.contains("real size unknown"), "{lines}");
+        // The rocking horse prop beside the painted one.
+        assert!(lines.contains("assets/attic_1.png already shows a rocking horse (painted in), and assets/horse.png is one too"), "{lines}");
+        assert!(lines.contains("assets/attic_1.png already shows a mirror"), "{lines}");
+        assert!(!lines.contains("girl.png is one too"), "a girl holding a candle isn't a mirror: {lines}");
+    }
+
+    #[test]
+    fn heights_size_figures() {
+        assert_eq!(parse_height("96").unwrap(), Height::Units(96.0));
+        assert_eq!(parse_height("1.3xgirl").unwrap(), Height::Of(1.3, "girl".into()));
+        assert!(parse_height("tall").is_err() && parse_height("0").is_err());
+        // 60 units at 2 texels a unit, with the default margin, in whole art pixels.
+        assert_eq!(size_for_height(60.0, 1), [138, 138]);
+        assert_eq!(size_for_height(60.0, 4), [140, 140]);
+    }
+
+    #[test]
     fn an_older_sidecars_key_comes_from_its_prompt() {
         let p = "A moth. Background: one flat, solid pure magenta color (#ff00ff) filling everything behind the subject: no gradient.";
         assert_eq!(key_in_prompt(p).as_deref(), Some("#ff00ff"));
@@ -1919,6 +2498,12 @@ mod tests {
             horizon: None,
             span: 180.0,
             poles: 12.0,
+            height: None,
+            real: None,
+            sized_by: None,
+            shows: Vec::new(),
+            floor: None,
+            walker: false,
         }
     }
 

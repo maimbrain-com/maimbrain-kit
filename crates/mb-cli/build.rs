@@ -41,6 +41,7 @@ fn main() {
     }
 
     kits(&skill);
+    changelog(&root);
 
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("runtime");
     std::fs::create_dir_all(&out).unwrap();
@@ -70,6 +71,25 @@ fn main() {
     println!("cargo:rustc-env=MB_RUNTIME_DIST={}", dist.display());
     println!("cargo:rustc-env=MB_RUNTIME_ID={}", if present { format!("{:08x}", runtime_id.0 >> 32) } else { "none".into() });
     println!("cargo:rustc-env=MB_BUILD_ID={}", build_id(&root));
+}
+
+/// The kit's CHANGELOG.md (tools/kit/files/ in the monorepo, the root of the
+/// kit), whose `### Upgrading` parts `mb upgrade` prints: copied to
+/// $OUT_DIR/kit-changelog.md (empty if there's none), named by MB_KIT_CHANGELOG.
+fn changelog(root: &Path) {
+    let out = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("kit-changelog.md");
+    // Not the monorepo's own CHANGELOG.md (the app's): the kit's root one only in the kit.
+    let monorepo = root.join("tools/kit/files/CHANGELOG.md");
+    let kit = root.join("CHANGELOG.md");
+    let src = if monorepo.is_file() { Some(monorepo) } else { Some(kit).filter(|p| p.is_file() && root.join("skills/maimbrain-game").is_dir()) };
+    match src {
+        Some(p) => {
+            println!("cargo:rerun-if-changed={}", p.display());
+            std::fs::copy(&p, &out).unwrap_or_else(|e| panic!("{}: {e}", p.display()));
+        }
+        None => std::fs::write(&out, b"").unwrap(),
+    }
+    println!("cargo:rustc-env=MB_KIT_CHANGELOG={}", out.display());
 }
 
 /// FNV-1a (64-bit), for the runtime's id.

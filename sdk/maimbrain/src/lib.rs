@@ -34,6 +34,7 @@ pub mod bot;
 pub mod foley;
 pub mod gfx2d;
 pub mod gfx3d;
+pub mod ground;
 pub mod input;
 pub mod juice;
 pub mod motion;
@@ -48,6 +49,7 @@ pub mod sensors;
 pub mod store;
 pub mod sys;
 pub mod ui;
+pub mod walk;
 
 #[doc(hidden)]
 pub mod ffi;
@@ -102,7 +104,9 @@ macro_rules! export_game {
         }
         #[unsafe(no_mangle)]
         pub extern "C" fn mb_render() {
+            $crate::ground::__begin_frame();
             $crate::Game::render(__MB_GAME.get());
+            $crate::ground::__end_frame();
         }
         #[unsafe(no_mangle)]
         pub extern "C" fn mb_suspend() {

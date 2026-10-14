@@ -190,23 +190,30 @@ pub fn clear(rgba: u32) {
     unsafe { ffi::mb2d_clear(rgba) }
 }
 
+// The transform calls are followed by `ground` while `mb shot` checks grounding.
+
 pub fn push() {
+    crate::ground::track::push();
     unsafe { ffi::mb2d_push() }
 }
 
 pub fn pop() {
+    crate::ground::track::pop();
     unsafe { ffi::mb2d_pop() }
 }
 
 pub fn translate(x: f32, y: f32) {
+    crate::ground::track::translate(x, y);
     unsafe { ffi::mb2d_translate(x, y) }
 }
 
 pub fn rotate(radians: f32) {
+    crate::ground::track::rotate(radians);
     unsafe { ffi::mb2d_rotate(radians) }
 }
 
 pub fn scale(sx: f32, sy: f32) {
+    crate::ground::track::scale(sx, sy);
     unsafe { ffi::mb2d_scale(sx, sy) }
 }
 

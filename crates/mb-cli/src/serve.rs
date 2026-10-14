@@ -8,9 +8,10 @@
 //! swap in the new code, refetch changed assets, or show the compiler's
 //! errors.
 
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
 use mb_format::Manifest;
@@ -52,13 +53,13 @@ const PORT_TRIES: u16 = 20;
 
 /// Listens on 127.0.0.1:`port`, or on the next free port after it when it's
 /// taken (two previews on one machine), saying which; 0 takes any free port.
-pub fn listen(port: u16) -> Result<(tiny_http::Server, u16), String> {
+pub fn listen(port: u16) -> Result<(TcpListener, u16), String> {
     let mut last = String::new();
     let tries = if port == 0 { 1 } else { PORT_TRIES.min(u16::MAX - port + 1) };
     for p in (0..tries).map(|i| port + i) {
-        match tiny_http::Server::http(("127.0.0.1", p)) {
+        match TcpListener::bind(("127.0.0.1", p)) {
             Ok(server) => {
-                let got = server.server_addr().to_ip().map(|a| a.port()).ok_or("the server has no TCP address")?;
+                let got = server.local_addr().map_err(|e| e.to_string())?.port();
                 if got != port && port != 0 {
                     eprintln!("[mb] port {port} is taken (another preview?); using {got}");
                 }
@@ -74,8 +75,8 @@ pub fn serve(
     path: &Path,
     port: u16,
     pin: Option<&Pin>,
-    build: impl Fn(&Path) -> Result<PathBuf, String>,
-    stage: impl Fn(&Path, &Path, &Path) -> Result<(), String>,
+    build: impl Fn(&Path) -> Result<PathBuf, String> + Sync,
+    stage: impl Fn(&Path, &Path, &Path) -> Result<(), String> + Sync,
 ) -> Result<(), String> {
     let work = std::env::temp_dir().join(format!("mb-serve-{}", std::process::id()));
     let runtime_dir = work.join("runtime-src");
@@ -87,7 +88,10 @@ pub fn serve(
         stage(&bundle, site, &runtime_dir)
     };
     rebuild(&site)?;
-    let mut built_at = SystemTime::now();
+    // When the site was last staged; held while it's staged again, so a page load waits for it.
+    let built_at = Mutex::new(SystemTime::now());
+    // Files are read under the read side, so none is read half-written.
+    let staging = RwLock::new(());
 
     let (server, port) = listen(port)?;
     let page = page_path(pin);
@@ -98,26 +102,28 @@ pub fn serve(
     eprintln!("Reload the page after saving to rebuild. Ctrl-C to stop.\n");
     // Preview saves (`mb.screenshot`, `mb.save`) land here.
     let saves = if is_dir { path.join("screenshots") } else { std::env::current_dir().map_err(|e| e.to_string())?.join("screenshots") };
-    for req in server.incoming_requests() {
-        let url = req.url().split('?').next().unwrap_or("/").to_string();
-        let Some(req) = saves_route(&saves, req) else { continue };
-        let Some(req) = replay_route(pin, req) else { continue };
+    serve_http(&server, &|req| {
+        let url = req.path().to_string();
+        let Some(req) = saves_route(&saves, req) else { return };
+        let Some(req) = replay_route(pin, req) else { return };
         if url == "/" || url == "/runtime/index.html" {
-            if is_dir && newest_change(path) > built_at {
+            let mut at = built_at.lock().unwrap_or_else(|e| e.into_inner());
+            if is_dir && newest_change(path) > *at {
                 eprintln!("change detected, rebuilding…");
+                let _w = staging.write().unwrap_or_else(|e| e.into_inner());
                 match rebuild(&site) {
-                    Ok(()) => built_at = SystemTime::now(),
+                    Ok(()) => *at = SystemTime::now(),
                     Err(e) => eprintln!("build failed: {e}"),
                 }
             }
+            drop(at);
             if url == "/" {
-                let r = tiny_http::Response::empty(302).with_header(header("Location", &page));
-                let _ = req.respond(r);
-                continue;
+                return req.respond(302, &[("Location", &page)], b"");
             }
         }
-        site_file(&site, &url, req);
-    }
+        let _r = staging.read().unwrap_or_else(|e| e.into_inner());
+        site_file(&site, req);
+    });
     Ok(())
 }
 
@@ -132,58 +138,165 @@ pub fn write_runtime(dir: &Path) -> Result<(), String> {
 }
 
 /// Serves the staged `site` (runtime/ and game/) on 127.0.0.1:`port` (0: any
-/// free port) from a background thread, for `mb shot`. Returns the port.
+/// free port) from a background thread, for `mb shot` and `mb measure`.
+/// Returns the port.
 pub fn serve_site(site: PathBuf, port: u16) -> Result<u16, String> {
-    let server = tiny_http::Server::http(("127.0.0.1", port)).map_err(|e| format!("can't listen on port {port}: {e}"))?;
-    let port = server.server_addr().to_ip().map(|a| a.port()).ok_or("the server has no TCP address")?;
-    std::thread::spawn(move || {
-        for req in server.incoming_requests() {
-            let url = req.url().split('?').next().unwrap_or("/").to_string();
-            site_file(&site, &url, req);
-        }
-    });
+    let listener = TcpListener::bind(("127.0.0.1", port)).map_err(|e| format!("can't listen on port {port}: {e}"))?;
+    let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+    std::thread::spawn(move || serve_http(&listener, &|req| site_file(&site, req)));
     Ok(port)
 }
 
-/// Answers with the file at `url` under `site`, or 404.
-fn site_file(site: &Path, url: &str, req: tiny_http::Request) {
-    let rel = url.trim_start_matches('/');
-    let file = site.join(rel);
-    if rel.split('/').any(|c| c == "..") || !file.is_file() {
-        let _ = req.respond(tiny_http::Response::from_string("not found").with_status_code(404));
-        return;
+/// Answers with the file at the request's path under `site`, or 404.
+fn site_file(site: &Path, req: Request) {
+    let rel = req.path().trim_start_matches('/').to_string();
+    let file = site.join(&rel);
+    let bytes = (!rel.split('/').any(|c| c == "..") && file.is_file()).then(|| std::fs::read(&file).ok()).flatten();
+    match bytes {
+        Some(b) => req.respond(200, &[("Content-Type", content_type(&file)), NO_STORE], &b),
+        None => req.text(404, "not found"),
     }
-    let bytes = std::fs::read(&file).unwrap_or_default();
-    let r = tiny_http::Response::from_data(bytes)
-        .with_header(header("Content-Type", content_type(&file)))
-        .with_header(header("Cache-Control", "no-store"));
-    let _ = req.respond(r);
+}
+
+// --- the preview's HTTP server ---------------------------------------------------
+
+/// `Cache-Control: no-store`: the preview's files change under the page.
+const NO_STORE: (&str, &str) = ("Cache-Control", "no-store");
+
+/// Answers every connection on `listener` with `handle`, forever: a thread per
+/// connection, one request each, closed after the response (`Connection:
+/// close`), so a long request (`/__mb/wait`, a page's WebSocket) holds only
+/// its own thread. (tiny_http's thread pool, used before, could queue a new
+/// connection behind keep-alive ones holding its threads; the browser's
+/// fetch on it then hung until a socket closed, and a game's assets went
+/// missing at random.)
+fn serve_http(listener: &TcpListener, handle: &(dyn Fn(Request) + Sync)) {
+    std::thread::scope(|s| {
+        for stream in listener.incoming().flatten() {
+            s.spawn(move || {
+                if let Some(req) = Request::read(stream) {
+                    handle(req);
+                }
+            });
+        }
+    });
+}
+
+/// A request read off a connection to the preview's server.
+struct Request {
+    method: String,
+    /// The request target as sent: the path and any query.
+    url: String,
+    headers: Vec<(String, String)>,
+    reader: BufReader<TcpStream>,
+}
+
+impl Request {
+    /// The request line and headers, or None for a connection that sends none.
+    fn read(stream: TcpStream) -> Option<Request> {
+        let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
+        let mut reader = BufReader::new(stream);
+        let mut line = String::new();
+        reader.read_line(&mut line).ok()?;
+        let mut parts = line.split_whitespace();
+        let (method, url) = (parts.next()?.to_string(), parts.next()?.to_string());
+        let mut headers = Vec::new();
+        loop {
+            let mut h = String::new();
+            if reader.read_line(&mut h).ok()? == 0 || headers.len() > 100 {
+                return None;
+            }
+            let h = h.trim_end();
+            if h.is_empty() {
+                break;
+            }
+            if let Some((k, v)) = h.split_once(':') {
+                headers.push((k.trim().to_string(), v.trim().to_string()));
+            }
+        }
+        Some(Request { method, url, headers, reader })
+    }
+
+    /// The path, without the query.
+    fn path(&self) -> &str {
+        self.url.split('?').next().unwrap_or("/")
+    }
+
+    fn header(&self, name: &str) -> Option<&str> {
+        self.headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
+    }
+
+    /// The body, as long as `Content-Length` says (none without one).
+    fn body(&mut self) -> impl Read + '_ {
+        let n = self.header("Content-Length").and_then(|v| v.parse::<u64>().ok()).unwrap_or(0);
+        (&mut self.reader).take(n)
+    }
+
+    fn respond(self, status: u16, headers: &[(&str, &str)], body: &[u8]) {
+        let reason = match status {
+            200 => "OK",
+            204 => "No Content",
+            302 => "Found",
+            400 => "Bad Request",
+            404 => "Not Found",
+            503 => "Service Unavailable",
+            _ => "",
+        };
+        let mut head = format!("HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nConnection: close\r\n", body.len());
+        for (k, v) in headers {
+            head += &format!("{k}: {v}\r\n");
+        }
+        head += "\r\n";
+        let head_only = self.method == "HEAD";
+        let mut stream = self.reader.into_inner();
+        let _ = stream.write_all(head.as_bytes());
+        if !head_only {
+            let _ = stream.write_all(body);
+        }
+        let _ = stream.flush();
+    }
+
+    /// A plain-text answer.
+    fn text(self, status: u16, body: &str) {
+        self.respond(status, &[("Content-Type", "text/plain; charset=utf-8")], body.as_bytes());
+    }
+
+    fn json(self, v: &Value) {
+        self.respond(200, &[("Content-Type", "application/json"), NO_STORE], v.to_string().as_bytes());
+    }
+
+    /// Accepts a WebSocket (`accept`: its `Sec-WebSocket-Accept`) and hands over the connection.
+    fn upgrade(self, accept: &str) -> TcpStream {
+        let mut stream = self.reader.into_inner();
+        let _ = stream.set_read_timeout(None);
+        let head = format!("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n");
+        let _ = stream.write_all(head.as_bytes()).and_then(|()| stream.flush());
+        stream
+    }
 }
 
 /// `mb.screenshot` / `mb.save` (POST) and `mb.load` (GET) at [`SAVE_URL`],
 /// in both `mb serve` and `mb serve --watch`; any other request is handed back.
-fn saves_route(saves: &Path, mut req: tiny_http::Request) -> Option<tiny_http::Request> {
-    let url = req.url().split('?').next().unwrap_or("/").to_string();
-    if url != SAVE_URL {
+fn saves_route(saves: &Path, mut req: Request) -> Option<Request> {
+    if req.path() != SAVE_URL {
         return Some(req);
     }
-    if *req.method() == tiny_http::Method::Post {
-        let full = req.url().to_string();
-        let (status, body) = match save(saves, &full, req.as_reader()) {
+    if req.method == "POST" {
+        let full = req.url.clone();
+        let (status, body) = match save(saves, &full, &mut req.body()) {
             Ok(p) => (200, p.display().to_string()),
             Err(e) => (400, e),
         };
-        let _ = req.respond(tiny_http::Response::from_string(body).with_status_code(status));
+        req.text(status, &body);
         return None;
     }
     // `mb.load(name)`: a file saved earlier (e.g. a replay log to play back).
-    let name = req.url().split_once("?name=").map(|(_, n)| n.to_string()).unwrap_or_default();
+    let name = req.url.split_once("?name=").map(|(_, n)| n.to_string()).unwrap_or_default();
     let ok = !name.is_empty() && !name.starts_with('.') && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b));
-    let r = match ok.then(|| std::fs::read(saves.join(&name))).and_then(Result::ok) {
-        Some(bytes) => tiny_http::Response::from_data(bytes).with_header(header("Cache-Control", "no-store")),
-        None => tiny_http::Response::from_data(b"not found".to_vec()).with_status_code(404),
-    };
-    let _ = req.respond(r);
+    match ok.then(|| std::fs::read(saves.join(&name))).and_then(Result::ok) {
+        Some(bytes) => req.respond(200, &[NO_STORE], &bytes),
+        None => req.text(404, "not found"),
+    }
     None
 }
 
@@ -286,17 +399,14 @@ pub fn page_path(pin: Option<&Pin>) -> String {
 const REPLAY_URL: &str = "/__mb/replay";
 
 /// Answers [`REPLAY_URL`] with the run (404 without one); any other request is handed back.
-fn replay_route(pin: Option<&Pin>, req: tiny_http::Request) -> Option<tiny_http::Request> {
-    if req.url().split('?').next() != Some(REPLAY_URL) {
+fn replay_route(pin: Option<&Pin>, req: Request) -> Option<Request> {
+    if req.path() != REPLAY_URL {
         return Some(req);
     }
-    let r = match pin {
-        Some(p) => tiny_http::Response::from_data(p.log.clone())
-            .with_header(header("Content-Type", "application/json"))
-            .with_header(header("Cache-Control", "no-store")),
-        None => tiny_http::Response::from_data(b"no run: mb serve --replay <log> serves one".to_vec()).with_status_code(404),
-    };
-    let _ = req.respond(r);
+    match pin {
+        Some(p) => req.respond(200, &[("Content-Type", "application/json"), NO_STORE], &p.log),
+        None => req.text(404, "no run: mb serve --replay <log> serves one"),
+    }
     None
 }
 
@@ -326,10 +436,6 @@ fn save(dir: &Path, url: &str, body: &mut dyn std::io::Read) -> Result<PathBuf, 
     std::fs::write(&file, &data).map_err(|e| format!("{}: {e}", file.display()))?;
     eprintln!("saved {}", file.display());
     Ok(file)
-}
-
-fn header(k: &str, v: &str) -> tiny_http::Header {
-    tiny_http::Header::from_bytes(k.as_bytes(), v.as_bytes()).unwrap()
 }
 
 fn content_type(p: &Path) -> &'static str {
@@ -408,11 +514,11 @@ pub fn watch(path: &Path, port: u16, pin: Option<&Pin>, boot: fn(&Manifest) -> V
     }
     // Preview saves (`mb.screenshot`, `mb.save`) land in the game's screenshots/.
     let saves = if is_dir { path.join("screenshots") } else { std::env::current_dir().map_err(|e| e.to_string())?.join("screenshots") };
-    for req in server.incoming_requests() {
+    serve_http(&server, &|req| {
         if let Some(req) = saves_route(&saves, req).and_then(|r| replay_route(pin, r)) {
             handle(&hub, req, &page);
         }
-    }
+    });
     Ok(())
 }
 
@@ -551,70 +657,44 @@ fn query<'a>(q: &'a str, key: &str) -> Option<&'a str> {
     q.split('&').filter_map(|kv| kv.split_once('=')).find(|(k, _)| *k == key).map(|(_, v)| v)
 }
 
-fn json_response(v: &Value) -> tiny_http::Response<std::io::Cursor<Vec<u8>>> {
-    tiny_http::Response::from_string(v.to_string())
-        .with_header(header("Content-Type", "application/json"))
-        .with_header(header("Cache-Control", "no-store"))
-}
-
-fn not_found(req: tiny_http::Request, why: &str) {
-    let _ = req.respond(tiny_http::Response::from_string(why).with_status_code(404));
-}
-
-fn header_value(req: &tiny_http::Request, name: &'static str) -> Option<String> {
-    req.headers().iter().find(|h| h.field.equiv(name)).map(|h| h.value.as_str().to_string())
-}
-
-fn handle(hub: &Arc<Hub>, mut req: tiny_http::Request, page: &str) {
-    let full = req.url().to_string();
+fn handle(hub: &Arc<Hub>, mut req: Request, page: &str) {
+    let full = req.url.clone();
     let (url, q) = full.split_once('?').unwrap_or((&full, ""));
     match url {
-        "/" => {
-            let _ = req.respond(tiny_http::Response::empty(302).with_header(header("Location", page)));
-        }
+        "/" => req.respond(302, &[("Location", page)], b""),
         "/__mb/ws" => {
-            let Some(key) = header_value(&req, "Sec-WebSocket-Key") else { return not_found(req, "websocket only") };
+            let Some(key) = req.header("Sec-WebSocket-Key").map(str::to_string) else { return req.text(404, "websocket only") };
             let page = query(q, "page").filter(|p| !p.is_empty() && p.len() <= 64 && p.bytes().all(|b| b.is_ascii_alphanumeric()));
             let page = page.unwrap_or("anon").to_string();
-            let resp = tiny_http::Response::empty(101).with_header(header("Sec-WebSocket-Accept", &ws_accept(&key)));
-            let stream = req.upgrade("websocket", resp);
-            hub.serve_socket(page, stream);
+            let stream = req.upgrade(&ws_accept(&key));
+            hub.serve_socket(page, Box::new(stream));
         }
-        "/__mb/status" => {
-            let _ = req.respond(json_response(&hub.status()));
-        }
+        "/__mb/status" => req.json(&hub.status()),
         "/__mb/wait" => {
+            // Its own connection's thread: waiting holds nothing else up.
             let secs = query(q, "timeout").and_then(|t| t.parse::<f64>().ok()).unwrap_or(60.0).clamp(0.0, 600.0);
-            let hub = hub.clone();
-            std::thread::spawn(move || {
-                let v = hub.wait(Duration::from_secs_f64(secs));
-                let _ = req.respond(json_response(&v));
-            });
+            let v = hub.wait(Duration::from_secs_f64(secs));
+            req.json(&v);
         }
         "/__mb/page" => {
             let mut body = String::new();
-            let _ = req.as_reader().take(64 * 1024).read_to_string(&mut body);
-            let r = match hub.report(&body) {
-                Ok(()) => tiny_http::Response::empty(204).boxed(),
-                Err(e) => tiny_http::Response::from_string(e).with_status_code(400).boxed(),
-            };
-            let _ = req.respond(r);
+            let _ = req.body().take(64 * 1024).read_to_string(&mut body);
+            match hub.report(&body) {
+                Ok(()) => req.respond(204, &[], b""),
+                Err(e) => req.text(400, &e),
+            }
         }
         "/runtime/index.html" => {
-            let host = header_value(&req, "Host").filter(|h| h.bytes().all(|b| b.is_ascii_alphanumeric() || b".:-[]".contains(&b)));
-            let html = dev_index(host.as_deref().unwrap_or("127.0.0.1"));
-            let r = tiny_http::Response::from_string(html)
-                .with_header(header("Content-Type", "text/html; charset=utf-8"))
-                .with_header(header("Cache-Control", "no-store"));
-            let _ = req.respond(r);
+            let host = req.header("Host").filter(|h| h.bytes().all(|b| b.is_ascii_alphanumeric() || b".:-[]".contains(&b)));
+            let html = dev_index(host.unwrap_or("127.0.0.1"));
+            req.respond(200, &[("Content-Type", "text/html; charset=utf-8"), NO_STORE], html.as_bytes());
         }
         _ => {
             let bytes = if let Some(name) = url.strip_prefix("/runtime/") {
                 RUNTIME.iter().find(|(n, _)| *n == name).map(|(_, b)| b.to_vec())
             } else if let Some(rel) = url.strip_prefix("/game/") {
                 let Some(site) = hub.lock().site.clone() else {
-                    let _ = req.respond(tiny_http::Response::from_string("the first build hasn't finished").with_status_code(503));
-                    return;
+                    return req.text(503, "the first build hasn't finished");
                 };
                 match rel {
                     "boot.json" => Some(site.boot.to_vec()),
@@ -624,11 +704,10 @@ fn handle(hub: &Arc<Hub>, mut req: tiny_http::Request, page: &str) {
             } else {
                 None
             };
-            let Some(bytes) = bytes else { return not_found(req, "not found") };
-            let r = tiny_http::Response::from_data(bytes)
-                .with_header(header("Content-Type", content_type(Path::new(url))))
-                .with_header(header("Cache-Control", "no-store"));
-            let _ = req.respond(r);
+            match bytes {
+                Some(b) => req.respond(200, &[("Content-Type", content_type(Path::new(url))), NO_STORE], &b),
+                None => req.text(404, "not found"),
+            }
         }
     }
 }

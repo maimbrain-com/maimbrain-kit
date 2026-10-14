@@ -159,9 +159,15 @@ impl Rounds {
 
     /// A daily mode on this board: with [`set_daily`](Rounds::set_daily) on,
     /// every round plays today's seed (the same course for everyone), is
-    /// submitted to this board and keeps its own best.
+    /// submitted to this board and keeps its own best. Make it the board the
+    /// manifest marks `daily = true` (SPEC §5.8): the platform keeps that
+    /// one's standings per day. `sys::test::Conformance` checks they match.
     pub fn daily(mut self, board: u32) -> Self {
         self.daily_board = Some(board);
+        // Natively, the test host notes it: Conformance checks it's the
+        // manifest's `daily = true` board.
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::sys::test::host::note_daily_board(board);
         self
     }
 

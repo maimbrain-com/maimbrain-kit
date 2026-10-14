@@ -511,6 +511,17 @@ fn difficulty() {
 
 // ---- the platform's rules ---------------------------------------------------------
 
+/// The how-to hint shows at the start of every round, not only the first
+/// one a player ever plays (skill: directions every run).
+#[test]
+fn every_round_shows_how_to_answer_again() {
+    use maimbrain::Game;
+    let mut g = crate::Trivia::init();
+    g.answered_once = true;
+    g.start();
+    assert!(!g.answered_once, "a new round shows the directions again");
+}
+
 /// The round flow on a fake host (SKILL.md "Platform facts that bite"): a
 /// tap starts it, the score goes in before Over, a frantic tap doesn't
 /// restart, the best is kept, the session replays. Idling loses too (three

@@ -2,7 +2,7 @@
 name = "mb-cli"
 description = "The `mb` command: build, pack and validate Maimbrain games"
 edition.workspace = true
-version = "0.8.1"
+version = "0.8.2"
 publish.workspace = true
 
 [dependencies]
@@ -15,7 +15,6 @@ serde_json = "1.0.151"
 sha1_smol = "1"
 sha2 = "0.11"
 symphonia = { version = "0.6.1", default-features = false, features = ["mp3", "wav", "pcm", "ogg", "vorbis"] }
-tiny_http = "0.12"
 toml = "1.1.6"
 # Font outlines, metrics, kerning and variations for `mb font add`.
 ttf-parser = "0.25"
@@ -34,5 +33,7 @@ name = "mb"
 path = "src/main.rs"
 
 [dev-dependencies]
+# Stand-in servers for the integration tests (mb serve has its own: serve.rs).
+tiny_http = "0.12"
 # The music Director, run over a real take in tests (generate/tension_mix.rs).
 maimbrain = { path = "../../sdk/maimbrain" }

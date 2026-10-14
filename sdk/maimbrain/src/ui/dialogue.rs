@@ -37,6 +37,7 @@ use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
 use super::barks::Barks;
+use super::narration::{Narration, Told};
 use super::damage::{self, Condition, Grid, Reaction};
 use super::layout::{Layout, Rect};
 use super::shape::poly;
@@ -297,6 +298,13 @@ impl Pack {
     }
 }
 
+/// A release of any kind: a finger or mouse button let go (or a touch the
+/// system took away), a key up, a pad button let go. Cutscenes never take
+/// these (the game may be holding something since before them).
+pub(crate) fn is_letting_go(e: &Event) -> bool {
+    e.is_release() || e.kind() == Kind::KeyUp || e.pad_released().is_some()
+}
+
 // ---------------------------------------------------------------------------
 // VoiceLine
 
@@ -337,7 +345,7 @@ impl Files {
                 AssetState::Pending => {}
                 AssetState::Failed => {
                     self.sound_asset = None;
-                    sys::log(sys::Level::Warn, &format!("VoiceLine: {}.ogg didn't load; the line shows its subtitle without a voice", self.path));
+                    sys::log(sys::Level::Warn, &format!("VoiceLine: {}.ogg isn't in the game (it didn't load): the line plays as subtitles only, without a voice. Speak it with `mb voice script` or `mb voice say`; `mb build` lists the lines without voices", self.path));
                 }
                 AssetState::Ready => {
                     self.sound = Sound::new(a);
@@ -488,6 +496,12 @@ impl VoiceLine {
         self.ready()
     }
 
+    /// The base path it loads from (`assets/vo/rocko/taunt1`); "" for a
+    /// line made from parts or a subtitle.
+    pub fn path(&self) -> String {
+        self.files.borrow().path.clone()
+    }
+
     /// Which line this is: the same for its clones.
     pub(crate) fn key(&self) -> usize {
         Rc::as_ptr(&self.files) as usize
@@ -501,6 +515,13 @@ impl VoiceLine {
 
     pub fn has_sound(&self) -> bool {
         self.files.borrow().sound.is_some()
+    }
+
+    /// Its voice: Some(true) heard, Some(false) none (a subtitle line, or
+    /// its `.ogg` failed), None still loading.
+    pub(crate) fn voiced(&self) -> Option<bool> {
+        let f = self.files.borrow();
+        if f.sound.is_some() { Some(true) } else if f.sound_asset.is_some() { None } else { Some(false) }
     }
 
     /// The timing, once loaded.
@@ -989,11 +1010,19 @@ struct Said {
     /// Tapped once all the text was out but the voice wasn't done: moves
     /// on when it is.
     next: bool,
+    /// A reaction that cut in ([`Barks::react`], [`Dialogue::cut_in`]).
+    cut_in: bool,
+    /// A narration line: its id in [`Narration`].
+    told: Option<u64>,
 }
 
 impl Said {
     fn new(speaker: &str, line: &VoiceLine, expression: &str) -> Said {
-        Said { speaker: speaker.to_string(), line: line.clone(), expression: expression.to_string(), queued: sys::time(), playing: None, shown: false, next: false }
+        Said { speaker: speaker.to_string(), line: line.clone(), expression: expression.to_string(), queued: sys::time(), playing: None, shown: false, next: false, cut_in: false, told: None }
+    }
+
+    fn told(t: Told) -> Said {
+        Said { told: Some(t.id), ..Said::new(&t.speaker, &t.line, &t.expression) }
     }
 
     /// Starts it once its files are in (or have waited long enough).
@@ -1079,7 +1108,10 @@ pub enum Advance {
 ///   `bark_hold` after the line ends. It takes no input and never holds the
 ///   game. Only one voice is heard at a time: a bark never starts while a
 ///   bark or a cutscene line is being spoken, nor within `bark_cooldown` of
-///   the last one, so a line on every hit doesn't turn into chatter.
+///   the last one, so a line on every hit doesn't turn into chatter. A
+///   reaction ([`Barks::react`], [`Dialogue::cut_in`]) cuts in at once.
+/// - **Narration** ([`Dialogue::narration`], [`Narration::tell`]): story
+///   lines told in the bark bubble during quiet stretches of play.
 ///
 /// Music ducks under both ([`Ducker`]; `dialogue.ducker.db = 0.0` turns it
 /// off). Subtitles always show.
@@ -1099,6 +1131,9 @@ pub struct Dialogue {
     /// The bark pools: `talk.barks.trigger("part_broken")` during play
     /// ([`Barks`]). Empty until lines are added.
     pub barks: Barks,
+    /// Story lines told in quiet stretches: `talk.narration.tell(..)`
+    /// ([`Narration`]).
+    pub narration: Narration,
     cast: Vec<(String, Portrait)>,
     line_drawer: Option<LineDrawer>,
     queue: VecDeque<Said>,
@@ -1109,6 +1144,10 @@ pub struct Dialogue {
     box_open: bool,
     finished: bool,
     now: f64,
+    /// Each speaker heard so far: (name, a line with a voice, a line without).
+    voiced: Vec<(String, bool, bool)>,
+    /// Speakers already warned about speaking without a voice.
+    warned: Vec<String>,
 }
 
 impl Dialogue {
@@ -1121,6 +1160,7 @@ impl Dialogue {
             bark_y: None,
             advance: Advance::Tap,
             barks: Barks::new(sys::rand_seed()),
+            narration: Narration::new(),
             cast: Vec::new(),
             line_drawer: None,
             queue: VecDeque::new(),
@@ -1131,6 +1171,8 @@ impl Dialogue {
             box_open: false,
             finished: false,
             now: sys::time(),
+            voiced: Vec::new(),
+            warned: Vec::new(),
         }
     }
 
@@ -1164,12 +1206,58 @@ impl Dialogue {
     /// Queues a cutscene line: `speaker` (a name given to [`Dialogue::cast`],
     /// or any name) says `line` with `expression` (a portrait row name; ""
     /// is neutral). A bark being spoken finishes first; one still waiting
-    /// for its files is dropped.
+    /// for its files is dropped (a narration line is told later).
     pub fn say(&mut self, speaker: &str, line: &VoiceLine, expression: &str) {
         if self.bark.as_ref().is_some_and(|b| b.playing.is_none()) {
-            self.bark = None;
+            self.drop_bark();
         }
         self.queue.push_back(Said::new(speaker, line, expression));
+    }
+
+    /// Takes the bark bubble's line away (stopping its voice); a narration
+    /// line cut short goes back to be told again.
+    fn drop_bark(&mut self) {
+        if let Some(b) = self.bark.take() {
+            b.stop();
+            if let Some(id) = b.told
+                && b.busy(self.now.max(sys::time()))
+            {
+                self.narration.interrupted(id);
+            }
+        }
+    }
+
+    /// A reaction to what the player just did, now: like [`Barks::react`]
+    /// for one line. It stops a bark or a narration line being spoken (the
+    /// narration line is told again later) and ignores `bark_cooldown`, but
+    /// never cuts a cutscene or another cut-in still speaking, nor starts
+    /// within `barks.cut_in_gap` of the last cut-in. True if it shows.
+    pub fn cut_in(&mut self, speaker: &str, line: &VoiceLine, expression: &str) -> bool {
+        let now = sys::time();
+        if !self.may_cut_in(now) || !self.barks.cut_in_rested(now) {
+            return false;
+        }
+        self.barks.cut_in_started(now);
+        self.show_cut_in(Said { cut_in: true, ..Said::new(speaker, line, expression) }, now);
+        true
+    }
+
+    /// No cutscene, and no cut-in still speaking.
+    fn may_cut_in(&self, now: f64) -> bool {
+        !self.active() && !self.bark.as_ref().is_some_and(|b| b.cut_in && b.busy(now))
+    }
+
+    fn show_cut_in(&mut self, said: Said, now: f64) {
+        self.drop_bark();
+        self.bark = Some(said);
+        self.last_bark = Some(now);
+        // It starts this frame, not after the next update.
+        if let Some(b) = &mut self.bark
+            && b.start(now)
+        {
+            let (who, sound) = (b.speaker.clone(), b.line.voiced());
+            self.heard(&who, sound);
+        }
     }
 
     /// Shows a bark unless a cutscene is up, a bark is still being spoken,
@@ -1238,22 +1326,27 @@ impl Dialogue {
         self.current.is_some() || !self.queue.is_empty()
     }
 
-    /// Clears everything (cutscene and bark) and lets the music back up.
+    /// Clears everything (cutscene and bark) and lets the music back up. A
+    /// narration line being told is told again later (`narration.clear()`
+    /// forgets the story).
     pub fn skip_all(&mut self) {
-        for s in self.current.take().into_iter().chain(self.queue.drain(..)).chain(self.bark.take()) {
+        self.drop_bark();
+        for s in self.current.take().into_iter().chain(self.queue.drain(..)) {
             s.stop();
         }
         self.box_open = false;
         self.ducker.set(false);
     }
 
-    /// Feeds one input event. True if the dialogue took it (any touch, click
-    /// or key while a cutscene is up): don't also give it to the game. A press
-    /// shows the whole line; once it's all shown, moves on (when the voice
-    /// ends, if it's still speaking; a press after that skips it). Barks
-    /// take nothing.
+    /// Feeds one input event. True if the dialogue took it (presses, moves
+    /// and keys while a cutscene is up): don't also give it to the game. A
+    /// press shows the whole line; once it's all shown, moves on (when the
+    /// voice ends, if it's still speaking; a press after that skips it).
+    /// Releases (a finger or button let go, a key up) are never taken: they
+    /// may end a hold the game began before the cutscene (the tap that
+    /// started the round), so the game always hears them. Barks take nothing.
     pub fn input(&mut self, e: &Event) -> bool {
-        if !self.active() {
+        if !self.active() || is_letting_go(e) {
             return false;
         }
         let pointer = !matches!(e.kind(), Kind::PadAxis | Kind::MouseWheel | Kind::Text | Kind::Unknown);
@@ -1320,24 +1413,72 @@ impl Dialogue {
             && cur.start(now)
         {
             event = Some(DialogueEvent::LineStarted);
+            let (who, sound) = (cur.speaker.clone(), cur.line.voiced());
+            self.heard(&who, sound);
         }
         if self.finished && !self.active() {
             self.finished = false;
             event = Some(DialogueEvent::Finished);
         }
+        // A narration line the game cleared stops.
+        if let Some(id) = self.narration.take_cleared()
+            && self.bark.as_ref().is_some_and(|b| b.told == Some(id))
+            && let Some(b) = self.bark.take()
+        {
+            b.stop();
+        }
+        // A reaction cuts in, in this frame.
+        let may = self.may_cut_in(now);
+        if let Some(b) = self.barks.take_cut_in(now, may) {
+            self.show_cut_in(Said { cut_in: true, ..Said::new(&b.speaker, &b.line, &b.expression) }, now);
+        }
         let free = self.free_to_bark(now);
         if let Some(b) = self.barks.take(now, free) {
             self.show_bark(Said::new(&b.speaker, &b.line, &b.expression), now);
         }
-        if let Some(b) = &mut self.bark {
-            b.start(now);
-            if b.playing.is_some_and(|p| now >= p.start + p.dur as f64 + self.bark_hold as f64 + BARK_OUT as f64) {
-                self.bark = None;
-            }
+        // The story, in a quiet stretch.
+        let quiet = !self.active() && !self.bark.as_ref().is_some_and(|b| b.busy(now));
+        if let Some(t) = self.narration.take(now, quiet) {
+            self.drop_bark();
+            self.bark = Some(Said::told(t));
+        }
+        if let Some(b) = &mut self.bark
+            && b.start(now)
+        {
+            let (who, sound) = (b.speaker.clone(), b.line.voiced());
+            self.heard(&who, sound);
+        }
+        if self.bark.as_ref().is_some_and(|b| b.playing.is_some_and(|p| now >= p.start + p.dur as f64 + self.bark_hold as f64 + BARK_OUT as f64)) {
+            self.bark = None;
         }
         let speaking = self.current.as_ref().is_some_and(|s| s.speaking(now)) || self.bark.as_ref().is_some_and(|s| s.speaking(now));
         self.ducker.set(speaking && self.ducker.db > 0.0);
         event
+    }
+
+    /// A line of `who`'s started, with a voice or not. A speaker heard only
+    /// as subtitles while others speak aloud is almost always a mistake (a
+    /// character left off the voiced list, lines never spoken or not in
+    /// the bundle), so it's logged once per speaker.
+    /// `sound` None: its voice is still loading (it counts for nothing).
+    fn heard(&mut self, who: &str, sound: Option<bool>) {
+        let (loud, quiet) = (sound == Some(true), sound == Some(false));
+        match self.voiced.iter_mut().find(|v| v.0 == who) {
+            Some(v) => {
+                v.1 |= loud;
+                v.2 |= quiet;
+            }
+            None => self.voiced.push((who.to_string(), loud, quiet)),
+        }
+        let Some(loud) = self.voiced.iter().find(|v| v.1).map(|v| v.0.clone()) else { return };
+        let silent: Vec<String> = self.voiced.iter().filter(|v| !v.1 && v.2 && !self.warned.contains(&v.0)).map(|v| v.0.clone()).collect();
+        for s in silent {
+            sys::log(
+                sys::Level::Warn,
+                &format!("Dialogue: {s}'s lines play as subtitles only (no voice) while {loud} speaks aloud. If {s} has recordings, load them with VoiceLine::load(\"assets/vo/<who>/<line>\") and make sure the .ogg files are in the game (mb voice script); if {s} is silent on purpose, ignore this"),
+            );
+            self.warned.push(s);
+        }
     }
 
     /// The cutscene line on screen.
@@ -1630,6 +1771,20 @@ mod tests {
     }
 
     #[test]
+    fn a_release_is_never_taken_from_the_game() {
+        sys::test::reset();
+        let mut d = Dialogue::new(Theme::default());
+        d.say("A", &VoiceLine::subtitle("Wait for me."), "");
+        d.update(1.0 / 60.0);
+        let t = sys::time();
+        let down = synth::touch(Kind::TouchDown, 180.0, 300.0, t);
+        assert!(d.input(&down), "a press is the dialogue's");
+        for kind in [Kind::TouchUp, Kind::TouchCancel, Kind::MouseUp, Kind::KeyUp] {
+            assert!(!d.input(&synth::touch(kind, 180.0, 300.0, t)), "{kind:?} goes on to the game");
+        }
+    }
+
+    #[test]
     fn the_typewriter_follows_the_reveal_times() {
         sys::test::reset();
         let mut d = Dialogue::new(Theme::default());
@@ -1704,6 +1859,29 @@ mod tests {
     /// `line` with a voice: the typewriter is done long before the audio.
     fn voiced(text: &str, ms_per_char: u32, dur: f32) -> VoiceLine {
         VoiceLine::new(Some(Sound(1)), line(text, ms_per_char, dur).lips().unwrap())
+    }
+
+    #[test]
+    fn a_speaker_without_a_voice_among_voiced_ones_is_logged_once() {
+        use crate::sys::test::{Call, Host};
+        let host = Host::start(1);
+        let mut d = Dialogue::new(Theme::default()).auto_advance(0.1);
+        d.say("GIRL", &voiced("Mum?", 50, 0.5), "");
+        d.say("MOTHER", &line("I'm here.", 50, 0.5), "");
+        d.say("MOTHER", &line("Always.", 50, 0.5), "");
+        d.say("NARRATOR", &line("She wasn't.", 50, 0.5), "");
+        run(&mut d, 5.0);
+        let warnings: Vec<String> = host.calls().into_iter().filter_map(|c| if let Call::Log { level: sys::Level::Warn, message, .. } = c { Some(message) } else { None }).collect();
+        assert_eq!(warnings.len(), 2, "once per silent speaker: {warnings:?}");
+        assert!(warnings[0].starts_with("Dialogue: MOTHER's lines play as subtitles only (no voice) while GIRL speaks aloud"), "{warnings:?}");
+        assert!(warnings[1].starts_with("Dialogue: NARRATOR's"));
+        // Nobody voiced: subtitles are the game's style, nothing to say.
+        let host = Host::start(1);
+        let mut d = Dialogue::new(Theme::default()).auto_advance(0.1);
+        d.say("A", &line("Hi.", 50, 0.5), "");
+        d.say("B", &line("Hey.", 50, 0.5), "");
+        run(&mut d, 3.0);
+        assert!(!host.calls().iter().any(|c| matches!(c, Call::Log { .. })));
     }
 
     /// Steps until `f` holds, returning the game time it did (None within `seconds`).

@@ -18,6 +18,14 @@ pub struct KindStyle {
     /// Default output size in PNG pixels [w, h].
     #[serde(default)]
     pub size: Option<[u32; 2]>,
+    /// Things never to draw in this kind of asset, on top of the guide's `avoid`:
+    /// `[sprite] avoid = ["candles"]` when candles are the pickups.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub avoid: Vec<String>,
+    /// `[layer]` / `[background]`: put each painting's floor line this far down (0–1 from
+    /// the top), so the floors of every painting line up (`--floor` per command).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub floor: Option<f32>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -114,6 +122,25 @@ impl Style {
         self.kinds.get(kind).cloned().unwrap_or_default()
     }
 
+    /// Objects the style words name that a model draws into every picture
+    /// ("lit by a candle" puts a candle in every prop). Sprites, frames,
+    /// portraits, UI and the icon avoid them unless their subject names them.
+    pub fn leaky_objects(&self) -> Vec<&'static str> {
+        let text = format!("{} {}", self.style, self.keywords.join(" ")).to_lowercase();
+        LEAKS.iter().filter(|(_, words)| words.iter().any(|w| has_word(&text, w))).map(|(o, _)| *o).collect()
+    }
+
+    /// Why the style's words may put objects into every prop, if they may.
+    pub fn leak_warning(&self) -> Option<String> {
+        let leaks = self.leaky_objects();
+        (!leaks.is_empty()).then(|| {
+            format!(
+                "art/style.toml's `style` names {} (light sources and things are objects to a model), so sprites, frames, portraits, UI and the icon avoid them unless their prompt asks for one. Say how the light looks instead (\"warm, low, flickering light from below\"); list anything else props must never have under [sprite] avoid",
+                leaks.join(", ")
+            )
+        })
+    }
+
     /// The flat background color to ask for: the style's, or the candidate
     /// farthest from every palette color.
     pub fn key_color(&self) -> Result<[u8; 3], String> {
@@ -153,6 +180,28 @@ pub fn frame_grid(n: u32) -> (u32, u32) {
 /// The mouth shapes of a talking-portrait sheet's columns, left to right.
 pub const MOUTHS: [&str; 4] = ["closed", "slightly open", "open", "wide open"];
 
+/// Objects that style words name, and the words that name them.
+const LEAKS: &[(&str, &[&str])] = &[
+    ("candles", &["candle", "candles", "candlelit", "candle-lit", "candlelight"]),
+    ("lanterns", &["lantern", "lanterns", "lantern-lit", "lanternlight"]),
+    ("torches", &["torch", "torches", "torchlit", "torch-lit", "torchlight"]),
+    ("lamps", &["lamp", "lamps", "lamplit", "lamp-lit", "lamplight"]),
+    ("open flames", &["firelight", "firelit", "fire-lit", "campfire", "bonfire", "fireplace", "hearth", "flame", "flames"]),
+    ("chandeliers", &["chandelier", "chandeliers"]),
+    ("light bulbs", &["lightbulb", "lightbulbs", "light bulb", "light bulbs"]),
+    ("fireflies", &["firefly", "fireflies"]),
+    ("neon signs", &["neon sign", "neon signs"]),
+];
+
+/// Whether `text` has `word` as a whole word.
+fn has_word(text: &str, word: &str) -> bool {
+    text.match_indices(word).any(|(i, _)| {
+        let before = text[..i].chars().next_back();
+        let after = text[i + word.len()..].chars().next();
+        !before.is_some_and(char::is_alphanumeric) && !after.is_some_and(char::is_alphanumeric)
+    })
+}
+
 /// "side view" → "Side view." (a sentence for the prompt).
 fn sentence(s: &str) -> String {
     let s = s.trim().trim_end_matches('.');
@@ -180,16 +229,26 @@ pub struct PromptParts<'a> {
 /// Builds the full prompt: what the asset is, the style guide, the
 /// background rule for keyed assets, and what to avoid.
 pub fn compose(style: &Style, p: &PromptParts) -> String {
+    // A walker (`mb art frames --walker`) is a frames sheet with its own description.
+    let walker = p.kind == "walker";
+    let p = &PromptParts { kind: if walker { "frames" } else { p.kind }, ..*p };
     let mut out = Vec::new();
     let subject = p.subject.trim().trim_end_matches('.');
     out.push(match p.kind {
+        "frames" if walker => format!(
+            "A 2D game sprite sheet of two drawings side by side in one horizontal row, with a wide gap of flat background between them so they don't touch. \
+             Left: {subject}, standing in side view, drawn without legs or feet: the body ends cleanly just above the ankles (at the hem of a dress, robe or coat, or the bottom of the trousers), nothing below it. \
+             Right: one of that character's feet on its own (its shoe, boot or paw), in side view with the toes pointing the way the body faces, drawn at exactly the same scale as the body, so it is small next to it. Nothing else in the image."
+        ),
         "sprite" => format!("A single 2D game sprite of {subject}. Centered, the whole subject visible with empty margin around it, a clear readable silhouette, no ground and no cast shadow."),
         "frames" => {
             let (c, r) = frame_grid(p.frames);
             let layout = if r == 1 { "in one horizontal row".to_string() } else { format!("in a grid of {c} columns and {r} rows, in reading order") };
+            let cycle = super::walkcheck::gait_word("", subject).and_then(|g| super::walkcheck::cycle_prompt(g, p.frames, subject));
             format!(
-                "An animation sprite sheet: {} frames of {subject}, {layout}, evenly spaced with clear gaps so no two frames touch, the same size, scale and facing in every frame, each frame the next step of the motion so they loop. Nothing else in the image.",
-                p.frames
+                "An animation sprite sheet: {} frames of {subject}, {layout}, evenly spaced with clear gaps so no two frames touch, the same size, scale and facing in every frame, each frame the next step of the motion so they loop.{} Nothing else in the image.",
+                p.frames,
+                cycle.map(|c| format!(" {c}")).unwrap_or_default()
             )
         }
         "portrait" => {
@@ -213,11 +272,11 @@ pub fn compose(style: &Style, p: &PromptParts) -> String {
             )
         }
         "background" => format!(
-            "A full-screen 2D game background, {} composition: {subject}. No characters, no text; keep the middle calm and lower in contrast so game objects read on top.",
+            "A full-screen 2D game background, {} composition: {subject}. No characters, no text; keep the middle calm and lower in contrast so game objects read on top. The picture runs to the image's edges (no bars or border); any floor meets the wall along one straight, level line.",
             if p.portrait { "tall portrait" } else { "wide landscape" }
         ),
         "layer" => format!(
-            "One parallax layer of a side-scrolling 2D game background: {subject}. Only this layer's shapes, wide and horizontally continuous, the rest of the image empty."
+            "One parallax layer of a side-scrolling 2D game background: {subject}. Only this layer's shapes, wide and horizontally continuous, the rest of the image empty. Any floor or ground meets what's behind it along one straight, level line across the whole width, and the picture runs to the image's edges (no bars or border)."
         ),
         "tile" => format!("A seamless, tileable square texture for a 2D game: {subject}. Evenly lit, no vignette, no border; the pattern continues across all four edges."),
         "sky" => format!(
@@ -233,6 +292,20 @@ pub fn compose(style: &Style, p: &PromptParts) -> String {
     }
     if !style.style.trim().is_empty() {
         out.push(format!("Art style: {}.", style.style.trim().trim_end_matches('.')));
+    }
+    // A prop is only its subject: style words like "lit by a candle" say how it's lit, not that a candle is in it.
+    let props = matches!(p.kind, "sprite" | "frames" | "portrait" | "ui" | "icon");
+    let subject_lower = subject.to_lowercase();
+    let leaked: Vec<&str> = if props {
+        LEAKS.iter().filter(|(o, words)| style.leaky_objects().contains(o) && !words.iter().any(|w| has_word(&subject_lower, w))).map(|(o, _)| *o).collect()
+    } else {
+        Vec::new()
+    };
+    if props && !style.style.trim().is_empty() {
+        out.push("The art style says how the subject is drawn, colored and lit; draw nothing it names that the subject doesn't have (no extra light sources, props or scenery).".into());
+    }
+    if matches!(p.kind, "sprite" | "frames") {
+        out.push("Nothing cut off: the whole subject from top to bottom (a figure from its head down to its feet or hem), with empty background below and around it.".into());
     }
     if !style.keywords.is_empty() {
         out.push(sentence(&style.keywords.join(", ")));
@@ -268,7 +341,7 @@ pub fn compose(style: &Style, p: &PromptParts) -> String {
     if p.kind == "icon" {
         avoid.retain(|a| *a != "frame or border");
     }
-    let extra: Vec<&str> = style.avoid.iter().map(String::as_str).collect();
+    let extra: Vec<&str> = style.avoid.iter().chain(&ks.avoid).map(String::as_str).chain(leaked).collect();
     out.push(format!("Avoid: {}.", avoid.into_iter().chain(extra).collect::<Vec<_>>().join(", ")));
     out.push("An original design: not any existing character, franchise, brand or logo.".into());
     out.join(" ")
@@ -296,6 +369,8 @@ style = ""
 keywords = ["readable silhouettes", "high contrast"]
 
 # Things this game's art should never have (text, watermarks and logos are always avoided).
+# `style` says how things look and are lit, never what's in them: "lit by a candle"
+# puts a candle in every prop (mb then keeps light sources it names out of props).
 avoid = ["busy detail"]
 
 # Hex colors, darkest first. Sent with every prompt; `palette_lock` snaps every pixel to them.
@@ -329,6 +404,12 @@ key = "auto"
 [sprite]
 prompt = "side view"
 size = [128, 128]
+# Never in a sprite (on top of `avoid`): what the game means by pickups, say.
+# avoid = ["candles"]
+
+# Side-scrollers: every painting's floor line this far down (0–1), so floors line up.
+# [layer]
+# floor = 0.85
 
 [background]
 prompt = ""
@@ -433,6 +514,32 @@ mod tests {
         assert!(p.contains("the damaged rows add their marks"));
         let plain = vec!["neutral".to_string(), "smug".to_string()];
         assert!(!compose(&Style::default(), &PromptParts { expressions: &plain, ..parts }).contains("damaged rows"));
+    }
+
+    #[test]
+    fn style_words_never_put_objects_into_props() {
+        let s = Style {
+            style: "gouache storybook painting, a dim manor lit by a candle, deep shadows".into(),
+            avoid: vec!["photorealism".into()],
+            kinds: [("sprite".to_string(), KindStyle { avoid: vec!["keys".into()], ..KindStyle::default() })].into(),
+            ..Style::default()
+        };
+        assert_eq!(s.leaky_objects(), vec!["candles"]);
+        assert!(s.leak_warning().unwrap().contains("names candles"));
+        let parts = |kind, subject| PromptParts { kind, subject, frames: 4, expressions: &[], grid: None, keyed: None, portrait: true, style_refs: 0, subject_refs: 0 };
+        let doll = compose(&s, &parts("sprite", "a porcelain doll"));
+        assert!(doll.contains("Avoid: text, letters, watermark, signature, logo, frame or border, photorealism, keys, candles."), "{doll}");
+        assert!(doll.contains("draw nothing it names that the subject doesn't have"), "{doll}");
+        assert!(doll.contains("from its head down to its feet or hem"), "{doll}");
+        // The pickup itself is a candle: not avoided.
+        assert!(!compose(&s, &parts("sprite", "a lit candle in a brass holder")).contains("candles."));
+        // Paintings may have them; the kind's avoid list is the kind's.
+        let hall = compose(&s, &parts("layer", "a long manor corridor"));
+        assert!(!hall.contains("candles") || hall.contains("lit by a candle"), "{hall}");
+        assert!(!hall.contains("keys") && hall.contains("straight, level line"), "{hall}");
+        // Whole words only: "lamplighter" names no lamp; "candlelit" names a candle.
+        assert!(Style { style: "a lamplighter's town".into(), ..Style::default() }.leaky_objects().is_empty());
+        assert_eq!(Style { keywords: vec!["candlelit".into()], ..Style::default() }.leaky_objects(), vec!["candles"]);
     }
 
     #[test]

@@ -29,7 +29,8 @@ All image commands take the game directory first, then the asset name (output `a
 |---|---|---|
 | `mb art init <game>` | `art/style.toml`, `art/ref/`, `art/.gitignore` | |
 | `mb art sprite <game> <name> "<prompt>"` | a sprite on a transparent background | 128×128 |
-| `mb art frames <game> <name> "<prompt>" --frames N [--cols C]` | an animation sheet of equal cells (one row up to 8 frames) | 128×128 cells, bottom-anchored |
+| `mb art frames <game> <name> "<prompt>" --frames N [--cols C]` | an animation sheet of equal cells (one row up to 8 frames); a walk/run/creep cycle is asked for as contact/down/passing/up poses over two steps, and its feet are checked (they barely move, or it doesn't loop: a warning, `walk` in the sidecar, `art/preview/<name>.walk.png`) | 128×128 cells, bottom-anchored |
+| `mb art frames <game> <name> "<character>" --walker` | a character for `maimbrain::walk`: cell 0 the body without feet, cell 1 one foot, at one scale; prints the `WalkSprite` and `Walker` lines | 2 cells |
 | `mb art portrait <game> <name> "<prompt>" [--expressions smug,angry]` | a [talking portrait](#talking-portraits-mb-art-portrait) for `ui::Portrait`: 4 mouth shapes × a row per expression, plus a blink row | 128×128 cells (pixel art: 48×48 art pixels), neutral + blink |
 | `mb art background <game> <name> "<prompt>"` | an opaque full-screen background | logical size × 2 (720×1280) |
 | `mb art layers <game> <name> "<prompt>" --count N [--screens 2]` | parallax layers `<name>_0…` far to near; layer 0 opaque by design (the sky and the farthest shapes; or use a painted `mb art sky` and only the nearer layers), the rest transparent, keyed from their sky (the top rows and the key color the prompt asked for, not the border, which is mostly scenery) and cropped with their ground kept (the bottom at the lowest solid row, the last rows filled solid, since a backdrop repeats its bottom row downward); all wrap horizontally; later layers get layer 0 as a palette and light reference (not a subject), and the sidecar's `result.layer` says which is which | 2 screens wide |
@@ -39,7 +40,9 @@ All image commands take the game directory first, then the asset name (output `a
 | `mb art icon <game> "<prompt>"` | `icon.png`, 256×256, opaque | |
 | `mb art pick <game> <name> <n>` | promotes candidate n from `--variants` to `assets/` | |
 | `mb art atlas <game> <name> [pngs…] [--trim] [--padding 2]` | packs PNGs into `assets/<name>.png` and writes `src/<name>.rs` (`pub const HERO: [f32; 4] = [x, y, w, h];`, the same shape as `pixel.py`) | every generated sprite and UI PNG |
-| `mb art check <game>` | sizes against the bundle (10 MB) and startup (3 MB) budgets, image limits, mono audio, who made each asset and how it was edited since, stale style, mock leftovers, money spent | |
+| `mb art check <game>` | sizes against the bundle (10 MB) and startup (3 MB) budgets, image limits, mono audio, who made each asset and how it was edited since, stale style, mock leftovers, money spent; the warnings each image got when generated (cut off, letterboxed); every figure's height side by side | |
+| `mb art meta <game>` | rewrites `src/art_meta.rs` from the images as they are: each figure's feet and height, each painting's floor ([Standing things on the floor](#standing-things-on-the-floor)) | |
+| `mb art shows <painting> "rocking horse, trunk"` | records objects a layer or background shows that its prompt didn't name, so a prop of one is warned about ([A scene of several](#a-scene-of-several)) | |
 | `mb art edited <asset> --tool <tool> [--note "…"] [-- <args…>]` | records an edit made to a generated file after mb wrote it in its sidecar ([provenance](#originality-and-provenance)) | |
 | `mb music <game> <name> "<prompt>"` | a looping track `assets/<name>.ogg` | 8 bars, 44.1 kHz, `-q 4` |
 | `mb music <game> <name> ["<shared prompt>"] --zone a="…, 128 bpm" --zone b="…"` | a different song per zone, each in its own genre, key and tempo with its own graph, stinger and tension kit, and `<name>.songs.json` for `music::Songs` ([a different song per zone](#a-different-song-per-zone---zone)) | 16 bars a song |
@@ -50,6 +53,7 @@ All image commands take the game directory first, then the asset name (output `a
 | `mb voice say <game> <who> <line> "<text>" [--emotion smug]` | a spoken line `assets/vo/<who>/<line>.ogg` with its subtitle and lip-flap timings `.lips.txt` | `eleven_v4`, 44.1 kHz, −16 dBFS |
 | `mb voice script <game> <lines.csv\|.toml>` | every line of a script, only those missing or changed, with the total cost first | |
 | `mb voice keep <game> <who> <line> N` / `mb voice list <game>` | keeps take N of a line's `--variants` / the cast and their lines | |
+| `mb voice lengths <game>` | rewrites `src/vo_lengths.rs`, each recorded line's length as a constant (`say`, `script` and `keep` do it too), for narration timed the same in every replay (UI.md "Talking portraits and dialogue") | |
 | `mb model <game> <name> "<prompt>"` | a 3D model `assets/<name>.glb`, optionally rigged with clips ([3D models](#3d-models-mb-model)) | 8000 triangles, 1 m, facing −z, 1024² textures |
 | `mb regen <asset>` | the same asset again from its sidecar | same seed |
 | `mb keys set\|list\|remove <provider>` | API keys | |
@@ -278,8 +282,9 @@ Once one asset looks right (usually the hero), add it to `references`: everythin
 Images (`crates/mb-cli/src/generate/art.rs`, `img.rs`):
 
 1. **Request**: the nearest supported aspect ratio to the target (`1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`; frames are asked for in a near-square grid), at `1K` (backgrounds and layers `2K`), with the style references first and `--ref` photos last.
-2. **Transparency** (sprites, frames, UI, near layers): the prompt asks for one flat `key` color (by default whichever of magenta, green, cyan or blue is farthest from the palette). mb estimates the real background from the image border, clears pixels close to it, computes each edge pixel's alpha by projecting its color between the background and the nearest solid subject color (which also removes the background's tint, "despill"), and drops specks. A provider's real alpha (OpenAI) is kept as is. Warnings say when the background wasn't flat or the subject touches the edges.
-3. **Fit**: sprites and UI are trimmed and scaled into the exact size with a margin, centered or bottom-anchored; backgrounds and icons are cropped to the aspect ratio and resized (Lanczos, in premultiplied alpha).
+2. **Transparency** (sprites, frames, UI, near layers): the prompt asks for one flat `key` color (by default whichever of magenta, green, cyan or blue is farthest from the palette). mb estimates the real background from the image border, clears pixels close to it, computes each edge pixel's alpha by projecting its color between the background and the nearest solid subject color (which also removes the background's tint, "despill"), and drops specks. A provider's real alpha (OpenAI) is kept as is. Warnings say when the background wasn't flat or the subject touches the edges; a sprite or frame whose subject runs along the image's bottom edge (1% of it, 3 pixels) or another edge (2%) was cut off there (a figure without its feet or hem), warned about and recorded (`cut_off` in the sidecar, listed again by `mb art check`).
+3. **Fit**: sprites and UI are trimmed and scaled into the exact size with a margin, centered or bottom-anchored; backgrounds and icons are cropped to the aspect ratio and resized (Lanczos, in premultiplied alpha). Layers and backgrounds lose any letterbox first: flat bars of one color on opposite sides (the model drew the picture smaller than its canvas) are cropped off, with a warning (a background keeps bars deeper than 15% and says to regenerate; a flat band on one side only is warned about and kept). With `--floor` (or `floor` under `[layer]`/`[background]`), an opaque painting is scaled and cropped so its floor line lands that far down, so every painting's floor is on one line.
+3b. **Where it stands** ([below](#standing-things-on-the-floor)): sprites and frames record their footing (`ground` in the sidecar: the feet, the top, the base's width, the height drawn); layers and backgrounds their floor line (`floor`).
 4. **Frames**: the sheet is split into its connected shapes (small bits join the nearest frame) in reading order, falling back to an even grid (with a warning only when the grid's column lines cut through the drawings in the top half of the rows, where the heads are: busts whose shoulders meet are how portrait sheets come back, and split cleanly); every frame gets the same scale and is anchored the same way in equal cells. Talking portraits are aligned to their first cell ([below](#talking-portraits-mb-art-portrait)).
 5. **Pixel art** (`--grid` or `pixel_art`): the content is fitted at 8 texels per art pixel, each cell becomes opaque when at least half covered and takes the median color of its middle (so a model's blended "pixels" don't muddy it), then it's scaled up by whole texels.
 6. **Seamless** (tiles both ways, layers horizontally): the image is made a band wider, and the band is joined onto the opposite edge at the column (row) where the two match best, with a short blend.
@@ -400,6 +405,35 @@ mb regen games/fish/assets/chase.ogg --add-layers tension         # the same, fr
 
 `mb music --reprocess` takes `--layers`, `--key`, `--bars` and `--bpm`, and no prompt. `mb regen --layers` replaces the recorded layers and `--add-layers` adds to them; without `--new-seed`, `--seed`, `--prompt`, `--provider` or `--model` they work from the take you have, and say so. `art/raw/` isn't committed, so on a fresh clone they ask you to generate again.
 
+## Standing things on the floor
+
+A generated figure rarely stands on its image's bottom edge (there's a margin under its feet, and a frames sheet's cells are taller than the figure), and a painting's floor is wherever the model put it. Drawing a sprite with its image's bottom at a hand-picked y leaves characters floating a few units up, or 60 on a title card. So `mb art` measures both and writes `src/art_meta.rs` after every generation (`mb art meta <game>` rewrites it from the images as they are; `mb art check` says when it's out of date):
+
+- a `ground::Footing` for each sprite and frames sheet: the point between its feet (the bottom of its lowest opaque row, of any frame), its top, how wide its base is, its opaque columns (`span`: with the top and feet, the box a tap should hit), its real height in meters, and how tall it's drawn: `--height` (logical units, `--height 96`, or against another figure, `--height 1.3xgirl`, which also sizes the image), else half its height in texels. `mb art check` lists every figure's height side by side.
+- a `ground::Backdrop` for each layer and background with a floor line: an opaque painting's long level line in its lower 60% (the foot of the wall), a transparent layer's top of solid ground.
+
+`maimbrain::ground` draws with them (`mod art_meta;` in src/lib.rs):
+
+```rust
+let floor = art_meta::HALL_0.draw(hall, scroll, 0.0, screen.height); // the painting, and its floor's y
+Figure::new(girl, art_meta::GIRL).frame(step).draw(x, floor);          // feet on the floor, contact shadow
+Figure::new(witch, art_meta::WITCH).flip(true).draw(wx, floor);        // the height --height gave her
+Figure::new(girl, art_meta::GIRL).lift(jump).draw(x, floor);           // in the air on purpose: shadow stays down
+```
+
+`Figure` takes `.height(units)`, `.scale(k)`, `.shadow(alpha)` (0.3 by default), `.pixel_shadow()`, `.tint()`, and `.src(rect)` for an atlas (`mb art atlas` writes `<NAME>_FOOTING` next to `<NAME>`). `Backdrop::floor_at(top, height)` gives the floor of a painting the game draws itself; `ground::floor_line(y, x0, x1)` marks a floor drawn in code. Art made another way: `Footing::bottom(name, w, h)`.
+
+`mb shot` checks what these draw ([SPEC §9](SPEC.md)): a figure whose feet are above the floor under it, below the screen or cropped away, or with no contact shadow is warned about under the shot.
+
+### A scene of several
+
+- **What's painted in.** A layer or background records the objects it shows (`result.shows` in its sidecar, a comment in `src/art_meta.rs`): the everyday things its prompt names ("an attic with a rocking horse and trunks": rocking horse, chest; "no candles" isn't one), those the model's reply names, `--shows "birdcage,urn"`, and what `mb art shows <painting> "…"` adds after you look at it. Things are matched by a small table on singular words and synonyms (trunks are a chest, an armchair a chair). `mb art` warns when a sprite's subject is one of them, or a new painting shows a thing there's a prop of (a prop beside its painted twin), and `mb art check` lists both.
+- **Real sizes.** A sprite or frames sheet records its height in the world (`result.real`, `Footing::real`): `--real 1.6m` (or `40cm`, `6ft`), else a typical height for what its subject is (a mirror 1.6 m, a girl 1.3 m, a bell 0.15 m). Once a figure is sized with `--height` (the first one, usually the hero), a sprite generated without `--height` is sized at that figure's units a meter (a thing smaller than 0.3 m at least 16 units, bigger than life so it reads), and one sized by hand is warned about when it's off by more than a third. `mb art check` lists every figure's height, real height and units a meter, and the ones that don't match the scene. In the game, `Scale::of(art_meta::GIRL)` and `Figure::sized(scale)` do the same at run time.
+- **Depth.** `ground::Scene` draws figures back to front: by `Figure::layer` (−3 to 3, default 0), then by their feet (higher on the screen is farther). `ground::stop_short(from, width, obstacle)` is where to stop a body short of what's in its way. `mb shot` warns about a figure drawn in front of one it stands behind, and two on one floor line standing in each other.
+- **Taps.** `Figure::hit(x, floor)` is the box of the figure's opaque pixels, head to feet, grown to 44 units each way: test taps with it (`ground::hits`). `ground::tap_area(name, rect)` tells `mb shot` about a tap target the game made itself; it warns when one misses part of the figure of that name (its head) or is under 44 units, and `mb shot --taps` draws every tap area (magenta) and every figure's `hit` (cyan) over the shots. `walk::WalkSprite::named("girl")` reports a walker to these checks, with `body_rect` and `hit`.
+
+Style words are about how things look, never what's in them. "A dim manor lit by a candle" in `style` puts a candle in every prop, so sprites, frames, portraits, UI and the icon avoid the light sources the style names (candles, lanterns, torches, lamps, flames…) unless their own prompt asks for one, and `mb art` notes it. `avoid` under a kind (`[sprite] avoid = ["candles"]`) lists what that kind must never have, on top of the guide's `avoid`.
+
 ## Talking portraits (`mb art portrait`)
 
 A character who talks (a rival pilot taunting you, a shopkeeper) needs a face whose mouth moves with the voice line and that blinks now and then. `mb art portrait` makes the whole set as one sheet, so it stays one character:
@@ -450,6 +484,7 @@ Voice acting for characters who talk: barks during play ("Too slow!") and short 
       reveal 0 40 80 120 …
 
 - **Scripts**: a `.csv` (`character,line,text,emotion`, header optional, quotes around commas) or a `.toml` (`[[line]]` with `character`, `id`, `text`, `emotion`). A line is spoken again only when what's sent changes (voice, model, text, emotion, delivery, style, speed, rate, quality: its sidecar's `key`), so editing one line of fifty costs one line. `--force` speaks them all.
+- **Lines that won't be heard**: `mb build`, `mb voice list` and `mb voice script` warn about a script's lines with no `.ogg` (naming a character that isn't cast at all), a `VoiceLine::load("…")` whose `.ogg` isn't there, a `VoiceLine::subtitle("…")` of a line that has a recording, a character's recordings nothing in `src/` loads, and a `src/vo_lengths.rs` out of date with the recordings. At runtime a `VoiceLine` whose `.ogg` doesn't load, and a `Dialogue` speaker heard only as subtitles while others speak aloud, log a warning once.
 - **Sidecars** record the text, what was sent, the voice and model, the timings' source and the cost; `mb regen assets/vo/rocko/taunt.ogg --new-seed` gives another take, `--prompt "…"` changes the line, `--reprocess` redoes the post-processing and the lips from the raw take (free).
 - **Prices** (`mb models`): speech $0.08 per 1,000 characters (`eleven_v4`, `eleven_v3`; flash $0.04), so a 40-character bark is about $0.003; a design is about $0.03. ElevenLabs keys have per-feature permissions: the key needs Text to Speech and Voice Generation (Text to Voice) turned on.
 

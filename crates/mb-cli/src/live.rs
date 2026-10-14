@@ -4,8 +4,8 @@
 //! rather than server-sent events because browsers allow only six HTTP/1.1
 //! connections per host, shared by every tab, and an event stream holds one
 //! per tab for as long as it's open; WebSockets don't count against that.
-//! The server only writes to it (tiny_http hands over one stream that can't
-//! be read and written from two threads), and sends an unsolicited pong, a
+//! The server only writes to it (its connection's thread hands the stream
+//! over, and nothing reads it), and sends an unsolicited pong, a
 //! heartbeat that browsers don't answer (RFC 6455 §5.5.3), every couple of
 //! seconds, so a closed tab is noticed when the write fails and nothing
 //! piles up unread.

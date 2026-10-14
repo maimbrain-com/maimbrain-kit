@@ -467,6 +467,17 @@ fn mix_log() {
 
 // ---- Platform ---------------------------------------------------------------------
 
+/// The build and upgrade hints show at the start of every round, not only
+/// the first one a player ever plays (skill: directions every run).
+#[test]
+fn every_round_teaches_building_again() {
+    use maimbrain::Game;
+    let mut g = crate::Keep::init();
+    (g.taught_build, g.taught_upgrade) = (true, true);
+    g.start();
+    assert!(!g.taught_build && !g.taught_upgrade, "a new round shows the directions again");
+}
+
 /// The platform's rules for a round (SKILL.md "Platform facts that bite"),
 /// on a fake host: a tap starts it, the score goes in before Over, a frantic
 /// tap doesn't restart, the best is kept, the session replays. The tap that

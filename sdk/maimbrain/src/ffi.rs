@@ -9,7 +9,9 @@
 //! exceptions: `mb_time`, `mb_time_lost` and `mb_param` read per-thread
 //! state that tests set (`sys::test`). So, while a test runs one, does
 //! `sys::test::Host`: input, the round state, scores, saved data, seeds and
-//! logs go to it instead (without one they're the stubs above).
+//! logs go to it instead (without one they're the stubs above), and the mb2d
+//! draw calls and mb3d camera and node changes go into its per-frame
+//! fingerprint (`Host::drawn`).
 
 macro_rules! imports {
     ($( pub fn $name:ident($($arg:ident: $ty:ty),* $(,)?) $(-> $ret:ty)? $(= $stub:expr)?; )*) => {
@@ -53,22 +55,22 @@ imports! {
     // 5.3 mb2d
     pub fn mb2d_image(asset: u32) -> i32;
     pub fn mb2d_font(asset: u32) -> i32;
-    pub fn mb2d_clear(rgba: u32);
-    pub fn mb2d_push();
-    pub fn mb2d_pop();
-    pub fn mb2d_translate(x: f32, y: f32);
-    pub fn mb2d_rotate(r: f32);
-    pub fn mb2d_scale(sx: f32, sy: f32);
+    pub fn mb2d_clear(rgba: u32) = crate::sys::test::host::draw(&[1, rgba]);
+    pub fn mb2d_push() = crate::sys::test::host::draw(&[2]);
+    pub fn mb2d_pop() = crate::sys::test::host::draw(&[3]);
+    pub fn mb2d_translate(x: f32, y: f32) = crate::sys::test::host::draw(&[4, x.to_bits(), y.to_bits()]);
+    pub fn mb2d_rotate(r: f32) = crate::sys::test::host::draw(&[5, r.to_bits()]);
+    pub fn mb2d_scale(sx: f32, sy: f32) = crate::sys::test::host::draw(&[6, sx.to_bits(), sy.to_bits()]);
     pub fn mb2d_blend(mode: u32);
-    pub fn mb2d_rect(x: f32, y: f32, w: f32, h: f32, rgba: u32);
-    pub fn mb2d_rect_gradient(x: f32, y: f32, w: f32, h: f32, top: u32, bottom: u32);
-    pub fn mb2d_circle(x: f32, y: f32, r: f32, rgba: u32);
-    pub fn mb2d_line(x0: f32, y0: f32, x1: f32, y1: f32, w: f32, rgba: u32);
-    pub fn mb2d_poly(pts: *const f32, n: u32, rgba: u32);
-    pub fn mb2d_sprite(img: u32, sx: f32, sy: f32, sw: f32, sh: f32, dx: f32, dy: f32, dw: f32, dh: f32, tint: u32);
-    pub fn mb2d_text(font: u32, size: f32, x: f32, y: f32, rgba: u32, ptr: *const u8, len: u32);
+    pub fn mb2d_rect(x: f32, y: f32, w: f32, h: f32, rgba: u32) = crate::sys::test::host::draw(&[7, x.to_bits(), y.to_bits(), w.to_bits(), h.to_bits(), rgba]);
+    pub fn mb2d_rect_gradient(x: f32, y: f32, w: f32, h: f32, top: u32, bottom: u32) = crate::sys::test::host::draw(&[8, x.to_bits(), y.to_bits(), w.to_bits(), h.to_bits(), top, bottom]);
+    pub fn mb2d_circle(x: f32, y: f32, r: f32, rgba: u32) = crate::sys::test::host::draw(&[9, x.to_bits(), y.to_bits(), r.to_bits(), rgba]);
+    pub fn mb2d_line(x0: f32, y0: f32, x1: f32, y1: f32, w: f32, rgba: u32) = crate::sys::test::host::draw(&[10, x0.to_bits(), y0.to_bits(), x1.to_bits(), y1.to_bits(), w.to_bits(), rgba]);
+    pub fn mb2d_poly(pts: *const f32, n: u32, rgba: u32) = unsafe { crate::sys::test::host::draw_bytes(11 ^ rgba, pts.cast(), n as usize * 8) };
+    pub fn mb2d_sprite(img: u32, sx: f32, sy: f32, sw: f32, sh: f32, dx: f32, dy: f32, dw: f32, dh: f32, tint: u32) = crate::sys::test::host::draw(&[12, img, sx.to_bits(), sy.to_bits(), sw.to_bits(), sh.to_bits(), dx.to_bits(), dy.to_bits(), dw.to_bits(), dh.to_bits(), tint]);
+    pub fn mb2d_text(font: u32, size: f32, x: f32, y: f32, rgba: u32, ptr: *const u8, len: u32) = { crate::sys::test::host::draw(&[13, font, size.to_bits(), x.to_bits(), y.to_bits(), rgba]); unsafe { crate::sys::test::host::draw_bytes(13, ptr, len as usize) } };
     pub fn mb2d_measure(font: u32, size: f32, ptr: *const u8, len: u32) -> f32;
-    pub fn mb2d_rrect(x: f32, y: f32, w: f32, h: f32, radius: f32, stroke: f32, feather: f32, top: u32, bottom: u32);
+    pub fn mb2d_rrect(x: f32, y: f32, w: f32, h: f32, radius: f32, stroke: f32, feather: f32, top: u32, bottom: u32) = crate::sys::test::host::draw(&[14, x.to_bits(), y.to_bits(), w.to_bits(), h.to_bits(), radius.to_bits(), stroke.to_bits(), feather.to_bits(), top, bottom]);
     pub fn mb2d_text_style(weight: f32, outline: f32, outline_rgba: u32, soft: f32);
     pub fn mb2d_antialias(on: u32);
     // 5.3 mb2d 2: game fonts
@@ -84,11 +86,11 @@ imports! {
     pub fn mb3d_model_spawn(model: u32, parent: u32) -> i32 = 1;
     pub fn mb3d_node() -> i32 = 1;
     pub fn mb3d_node_parent(node: u32, parent: u32);
-    pub fn mb3d_node_transform(node: u32, ptr: *const u8);
+    pub fn mb3d_node_transform(node: u32, ptr: *const u8) = unsafe { crate::sys::test::host::draw_bytes(20 ^ node, ptr, 40) };
     pub fn mb3d_node_mesh(node: u32, mesh: u32, material: u32);
-    pub fn mb3d_node_visible(node: u32, visible: u32);
+    pub fn mb3d_node_visible(node: u32, visible: u32) = crate::sys::test::host::draw(&[21, node, visible]);
     pub fn mb3d_node_destroy(node: u32);
-    pub fn mb3d_camera(ptr: *const u8);
+    pub fn mb3d_camera(ptr: *const u8) = unsafe { crate::sys::test::host::draw_bytes(22, ptr, 40) };
     pub fn mb3d_project(x: f32, y: f32, z: f32, out: *mut u8) -> i32;
     pub fn mb3d_sun(ptr: *const u8);
     pub fn mb3d_light_point(node: u32, r: f32, g: f32, b: f32, intensity: f32, range: f32) -> i32;

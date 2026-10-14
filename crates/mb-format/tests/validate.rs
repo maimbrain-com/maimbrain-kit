@@ -352,3 +352,13 @@ fn checks_glb_assets() {
     assert_error(&validate(&bundle(MANIFEST, wasm(), &[("assets/ship.glb", &short)])).errors, "declared length");
     assert_error(&validate(&bundle(MANIFEST, wasm(), &[("assets/ship.glb", b"not a gltf file at all")])).errors, "not a binary glTF");
 }
+
+#[test]
+fn one_daily_board_and_never_board_0() {
+    let wasm = || module(EXPORTS);
+    let board = |n: u32, daily: bool| format!("[[scores]]\nboard = {n}\nlabel = \"B{n}\"\norder = \"higher\"\ndaily = {daily}\n");
+    let m = |boards: &str| format!("{MANIFEST}capabilities = [\"score\"]\n{boards}");
+    assert!(errors(&m(&(board(0, false) + &board(1, true))), wasm()).is_empty());
+    assert_error(&errors(&m(&board(0, true)), wasm()), "board 0 can't be daily");
+    assert_error(&errors(&m(&(board(1, true) + &board(2, true))), wasm()), "at most one board can be daily");
+}

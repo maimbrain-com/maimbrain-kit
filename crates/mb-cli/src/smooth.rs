@@ -86,7 +86,8 @@ impl Pose {
             projection: camera.as_ref().and_then(|v| v.get(6..9)?.try_into().ok()),
             track: nums("track").and_then(|v| v.try_into().ok()),
             // Not `Node::mark_subject`'s, which names a node rather than an impulse.
-            marks: strings("marks").into_iter().filter(|m| !m.starts_with(crate::readability::SUBJECT_MARK)).collect(),
+            // Nor ground::Figure's reports of where things stand (grounding.rs).
+            marks: strings("marks").into_iter().filter(|m| !m.starts_with(crate::readability::SUBJECT_MARK) && !crate::grounding::is_ground(m)).collect(),
             logs: strings("logs"),
         })
     }

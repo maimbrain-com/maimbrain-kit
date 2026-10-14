@@ -104,11 +104,32 @@ pub fn run(game: &Path, name: &str, inputs: &[PathBuf], pad: u32, trim: bool, ru
     for (n, x, y, w, h) in &packed.rects {
         let c = const_name(n);
         lines.push(format!("pub const {c}: [f32; 4] = [{x}.0, {y}.0, {w}.0, {h}.0];"));
+        let (_, _, off, full) = items.iter().find(|i| &i.0 == n).unwrap();
         if trim {
-            let (_, _, off, full) = items.iter().find(|i| &i.0 == n).unwrap();
             lines.push(format!("/// Where the trimmed rect sits in the original {}×{} image.", full.0, full.1));
             lines.push(format!("pub const {c}_OFFSET: [f32; 2] = [{}.0, {}.0];", off.0, off.1));
             lines.push(format!("pub const {c}_SIZE: [f32; 2] = [{}.0, {}.0];", full.0, full.1));
+        }
+        // A generated figure's feet: ground::Figure::new(atlas, {c}_FOOTING).src({c}) (a sheet: then .frame(i)).
+        if let Some(f) = files.iter().find(|f| f.file_stem().is_some_and(|s| s.to_string_lossy() == *n))
+            && let Some(super::ground::Meta::Figure { footing: ft, cells, cols, height, real, .. }) = super::ground::meta_of(f, game)
+            && (cells == 1 || !trim)
+        {
+            let (ox, oy) = (off.0 as f32, off.1 as f32);
+            let cell = if cells == 1 { [*w as f32, *h as f32] } else { [ft.cell[0] as f32, ft.cell[1] as f32] };
+            lines.push(format!(
+                "pub const {c}_FOOTING: maimbrain::ground::Footing = maimbrain::ground::Footing {{ name: {n:?}, cell: [{:.1}, {:.1}], cols: {cols}, foot: [{:.1}, {:.1}], top: {:.1}, base: {:.1}, span: [{:.1}, {:.1}], height: {:.1}, real: {:.3} }};",
+                cell[0],
+                cell[1],
+                ft.foot[0] - ox,
+                ft.foot[1] - oy,
+                ft.top as f32 - oy,
+                ft.base as f32,
+                ft.span[0] as f32 - ox,
+                ft.span[1] as f32 - ox,
+                height,
+                real.map_or(0.0, |r| r.0)
+            ));
         }
     }
     let rust_path = rust.map(Path::to_path_buf).unwrap_or_else(|| game.join("src").join(format!("{name}.rs")));

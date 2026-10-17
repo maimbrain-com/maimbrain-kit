@@ -390,8 +390,8 @@ impl Pin {
 /// The preview page's address, with the run to replay if there is one.
 pub fn page_path(pin: Option<&Pin>) -> String {
     match pin {
-        Some(p) => format!("/runtime/index.html?overlays&{}", p.query()),
-        None => "/runtime/index.html?overlays".into(),
+        Some(p) => format!("/runtime/index.html?overlays&debug&{}", p.query()),
+        None => "/runtime/index.html?overlays&debug".into(),
     }
 }
 
@@ -771,10 +771,10 @@ mod tests {
         let p = Pin::read(&dir.join("wrapped.json"), Some(2), false).unwrap();
         assert_eq!(serde_json::from_slice::<Value>(&p.log).unwrap(), log);
         assert_eq!((p.at, p.frames, p.game.as_str(), p.bundle.as_deref()), (2, 3, "dev.x.y", Some("ab")));
-        assert_eq!(page_path(Some(&p)), "/runtime/index.html?overlays&replay=play&at=2");
+        assert_eq!(page_path(Some(&p)), "/runtime/index.html?overlays&debug&replay=play&at=2");
         let p = Pin::read(&dir.join("wrapped.json"), None, true).unwrap();
-        assert_eq!(page_path(Some(&p)), "/runtime/index.html?overlays&replay=restore&at=3&restore=on", "default: its last frame");
-        assert_eq!(page_path(None), "/runtime/index.html?overlays");
+        assert_eq!(page_path(Some(&p)), "/runtime/index.html?overlays&debug&replay=restore&at=3&restore=on", "default: its last frame");
+        assert_eq!(page_path(None), "/runtime/index.html?overlays&debug");
         assert!(Pin::read(&dir.join("wrapped.json"), Some(4), false).unwrap_err().contains("the run has 3 frames, so --at 4 is past its end"));
         std::fs::write(dir.join("not.json"), r#"{"frames":[]}"#).unwrap();
         assert!(Pin::read(&dir.join("not.json"), None, false).unwrap_err().contains("not a replay log"));

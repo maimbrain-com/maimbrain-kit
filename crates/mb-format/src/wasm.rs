@@ -115,6 +115,21 @@ pub fn check(wasm: &[u8], manifest: &Manifest, errors: &mut Vec<String>) {
     }
 }
 
+/// The names of the host functions `wasm` imports from `mb`.
+pub fn imports(wasm: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for p in Parser::new(0).parse_all(wasm) {
+        if let Ok(Payload::ImportSection(reader)) = p {
+            for import in reader.into_imports().flatten() {
+                if import.module == "mb" {
+                    out.push(import.name.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
 /// The custom section the SDK's `export_game!` writes its version into.
 pub const SDK_SECTION: &str = "maimbrain-sdk";
 

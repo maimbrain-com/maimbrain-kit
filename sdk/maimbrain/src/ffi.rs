@@ -37,6 +37,7 @@ imports! {
     pub fn mb_log(level: u32, ptr: *const u8, len: u32) = unsafe { crate::sys::test::host::log(level, ptr, len) };
     pub fn mb_mark(ptr: *const u8, len: u32);
     pub fn mb_param(name: *const u8, name_len: u32, out: *mut u8, cap: u32) -> i32 = unsafe { crate::sys::test::param_raw(name, name_len, out, cap) };
+    pub fn mb_debug_menu(ptr: *const u8, len: u32);
     pub fn mb_time() -> f64 = crate::sys::test::time();
     pub fn mb_time_lost() -> f32 = crate::sys::test::time_lost();
     pub fn mb_rand_seed() -> u64 = crate::sys::test::host::rand_seed();

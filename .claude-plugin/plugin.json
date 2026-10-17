@@ -1,6 +1,6 @@
 {
   "name": "maimbrain",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Make games for Maimbrain, the swipe-through game feed: the maimbrain-game skill (spec, design guide for engaging feed games, 2D and 3D starter templates, pixel-art, sound and glTF tools).",
   "author": { "name": "Maimbrain", "url": "https://maimbrain.com" },
   "homepage": "https://maimbrain.com/create",

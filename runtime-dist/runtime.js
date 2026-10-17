@@ -549,7 +549,7 @@ function __wbg_get_imports() {
           const a = state0.a;
           state0.a = 0;
           try {
-            return wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(a, state0.b, arg02, arg12);
+            return wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(a, state0.b, arg02, arg12);
           } finally {
             state0.a = a;
           }
@@ -1223,27 +1223,27 @@ function __wbg_get_imports() {
       }, arguments);
     },
     __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000002: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000003: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
       return ret;
     },
     __wbindgen_generic_0000000000000004: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119);
       return ret;
     },
     __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120);
       return ret;
     },
     __wbindgen_generic_0000000000000006: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121);
       return ret;
     },
     __wbindgen_generic_0000000000000007: function(arg0) {
@@ -1273,38 +1273,38 @@ function __wbg_get_imports() {
     "./mb_host_bg.js": import0
   };
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2);
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
-  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
+  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
 }
 var __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
 var __wbindgen_enum_GpuAutoLayoutMode = ["auto"];
@@ -2648,18 +2648,818 @@ async function loadBoot() {
   return await res.json();
 }
 
+// src/debug.ts
+var DEBUG_KIND = 15;
+var MAX_JSON = 64 * 1024;
+var MAX_SECTIONS = 12;
+var MAX_ITEMS = 200;
+var MAX_OPTIONS = 24;
+function parseMenu(json) {
+  if (json.length > MAX_JSON) throw new Error(`over ${MAX_JSON} bytes`);
+  const v = JSON.parse(json);
+  if (!v || !Array.isArray(v.sections)) throw new Error("no sections array");
+  if (v.sections.length > MAX_SECTIONS) throw new Error(`${v.sections.length} sections (at most ${MAX_SECTIONS})`);
+  const ids = /* @__PURE__ */ new Set();
+  let count = 0;
+  const str = (x, max, what) => {
+    if (typeof x !== "string" || !x.length) throw new Error(`${what} missing`);
+    return [...x].slice(0, max).join("");
+  };
+  const fin = (x, what) => {
+    if (typeof x !== "number" || !Number.isFinite(x)) throw new Error(`${what} not a number`);
+    return x;
+  };
+  return v.sections.map((s, si) => {
+    const title = str(s?.title, 24, `section ${si} title`);
+    if (!Array.isArray(s.items)) throw new Error(`section "${title}": no items`);
+    const items = s.items.map((r) => {
+      if (++count > MAX_ITEMS) throw new Error(`over ${MAX_ITEMS} items`);
+      const id = r.id;
+      if (typeof id !== "number" || !Number.isInteger(id) || id < 1 || id > 2 ** 31) throw new Error(`"${String(r.label)}": id ${String(id)}`);
+      if (ids.has(id)) throw new Error(`id ${id} used twice`);
+      ids.add(id);
+      const label = str(r.label, 48, `item ${id} label`);
+      const hint = typeof r.hint === "string" && r.hint ? [...r.hint].slice(0, 64).join("") : void 0;
+      const base = { id, label, ...hint ? { hint } : {} };
+      switch (r.kind) {
+        case "action":
+          return { ...base, kind: "action", stay: r.stay === true, confirm: r.confirm === true };
+        case "toggle":
+          return { ...base, kind: "toggle", value: r.value ? 1 : 0 };
+        case "number": {
+          const min = fin(r.min ?? 0, "min");
+          const max = fin(r.max ?? 100, "max");
+          const step = fin(r.step ?? 1, "step");
+          if (!(min <= max) || !(step > 0)) throw new Error(`"${label}": needs min \u2264 max and step > 0`);
+          return { ...base, kind: "number", value: Math.min(max, Math.max(min, fin(r.value, "value"))), min, max, step };
+        }
+        case "choice": {
+          const options = Array.isArray(r.options) ? r.options.map((o, i) => str(o, 48, `"${label}" option ${i}`)) : [];
+          if (!options.length || options.length > MAX_OPTIONS) throw new Error(`"${label}": ${options.length} options`);
+          const value = Math.trunc(fin(r.value, "value"));
+          return { ...base, kind: "choice", value: Math.min(options.length - 1, Math.max(0, value)), options };
+        }
+        default:
+          throw new Error(`"${label}": kind ${String(r.kind)}`);
+      }
+    });
+    return { title, items };
+  });
+}
+var TURN_ON = {
+  title: "Turn on debug mode?",
+  body: "Scores won't count, and you'll play on a copy of your save. Turn it off any time to go back to your real save.",
+  yes: "Turn on debug mode"
+};
+var SPEEDS = [0.25, 0.5, 1, 2, 4];
+var SPEED_NAMES = ["\xBC\xD7", "\xBD\xD7", "1\xD7", "2\xD7", "4\xD7"];
+var P_SPEED = -1;
+var P_STEP = -2;
+var P_RESTART = -3;
+var P_RESET = -4;
+var P_LEAVE = -5;
+var CONFIRM_MS = 2500;
+var REPEAT_DELAY = 350;
+var REPEAT_EVERY = 90;
+var PAD = { A: 0, B: 1, LB: 4, RB: 5, SELECT: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
+var HID = { ENTER: 40, ESC: 41, SPACE: 44, GRAVE: 53, RIGHT: 79, LEFT: 80, DOWN: 81, UP: 82, Q: 20, E: 8 };
+var CSS = `
+.mbdbg{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;
+  padding-top:env(safe-area-inset-top);background:rgba(0,0,0,.25);font:15px/1.25 -apple-system,system-ui,sans-serif;color:#f2f2f5;-webkit-tap-highlight-color:transparent}
+.mbdbg *{box-sizing:border-box}
+.mbdbg-panel{width:min(520px,100%);max-height:72vh;display:flex;flex-direction:column;background:rgba(22,22,28,.97);
+  border:1px solid rgba(255,255,255,.12);border-bottom:0;border-radius:18px 18px 0 0;overflow:hidden;box-shadow:0 -8px 30px rgba(0,0,0,.45);
+  padding-bottom:env(safe-area-inset-bottom);transition:transform .18s ease-out}
+@media (orientation:landscape){
+  .mbdbg{align-items:stretch;justify-content:flex-end;padding-top:0}
+  .mbdbg-panel{width:min(400px,55vw);max-height:none;height:100%;border:1px solid rgba(255,255,255,.12);border-right:0;border-radius:18px 0 0 18px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) 0}
+  .mbdbg-grab{display:none}
+}
+.mbdbg-grab{width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,.28);margin:8px auto 0;flex:none}
+.mbdbg-head{display:flex;align-items:center;gap:8px;padding:8px 8px 6px 16px;touch-action:none}
+.mbdbg-title{flex:1;min-width:0;font-weight:700;font-size:16px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbdbg-title span{color:#9a9aa6;font-weight:500;font-size:13px;margin-left:6px}
+.mbdbg-chip{flex:none;font:700 12px -apple-system,system-ui,sans-serif;padding:4px 9px;border-radius:9px;background:rgba(255,255,255,.1);color:#c9c9d1}
+.mbdbg-chip.on{background:#34d3c5;color:#062a27}
+.mbdbg-leaverow{padding:0 12px 8px;flex:none}
+.mbdbg-confirm{padding:6px 16px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:0}
+.mbdbg-confirm button{flex:none}
+.mbdbg-confirm h3{margin:4px 0 0;font-size:17px;color:#fff}
+.mbdbg-confirm p{margin:0;color:#b9b9c3;font-size:14px;line-height:1.4}
+.mbdbg-confirm .then{color:#9fe9e0;font-size:13px}
+.mbdbg-primary{height:46px;border:0;border-radius:12px;background:#34d3c5;color:#062a27;font:700 15px -apple-system,system-ui,sans-serif}
+.mbdbg-secondary{height:42px;border:0;border-radius:12px;background:rgba(255,255,255,.08);color:#fff;font:600 15px -apple-system,system-ui,sans-serif}
+.mbdbg-primary.sel,.mbdbg-secondary.sel{box-shadow:inset 0 0 0 2px #ffb347}
+.mbdbg-primary.danger{background:#ff6b5b;color:#fff}
+.mbdbg-foot{flex:none;padding:8px 12px 10px;border-top:1px solid rgba(255,255,255,.08)}
+.mbdbg-foot button{width:100%}
+.mbdbg-headsw{flex:none;display:flex;align-items:center;gap:8px;border:0;background:transparent;color:#c9c9d1;font:600 13px -apple-system,system-ui,sans-serif;padding:4px}
+.mbdbg-x{width:36px;height:36px;border:0;border-radius:18px;background:rgba(255,255,255,.08);color:#fff;font-size:18px}
+.mbdbg-tabs{display:flex;gap:6px;padding:4px 12px 10px;overflow-x:auto;scrollbar-width:none;flex:none}
+.mbdbg-tabs::-webkit-scrollbar{display:none}
+.mbdbg-tab{flex:none;height:30px;padding:0 12px;border:0;border-radius:15px;background:rgba(255,255,255,.08);color:#c9c9d1;font:600 13px/30px -apple-system,system-ui,sans-serif}
+.mbdbg-tab.on{background:#ffb347;color:#1a1408}
+.mbdbg-rows{overflow-y:auto;padding:0 8px 8px;-webkit-overflow-scrolling:touch;flex:1;min-height:0}
+.mbdbg-row{display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 8px 6px 10px;border-radius:10px}
+.mbdbg-row.sel{background:rgba(255,179,71,.16);box-shadow:inset 0 0 0 1.5px rgba(255,179,71,.7)}
+.mbdbg-row.act:active{background:rgba(255,255,255,.08)}
+.mbdbg-lab{flex:1;min-width:0}
+.mbdbg-lab div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbdbg-hint{font-size:12px;color:#9a9aa6}
+.mbdbg-go{color:#9a9aa6;font-size:20px}
+.mbdbg-sure{color:#ff6b5b;font-weight:600;font-size:13px}
+.mbdbg-sw{width:46px;height:28px;border-radius:14px;background:rgba(255,255,255,.18);position:relative;flex:none;transition:background .15s}
+.mbdbg-sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:11px;background:#fff;transition:left .15s}
+.mbdbg-sw.on{background:#34c759}.mbdbg-sw.on::after{left:21px}
+.mbdbg-val{display:flex;align-items:center;flex:none}
+.mbdbg-val b{min-width:64px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.mbdbg-arr{width:36px;height:36px;border:0;border-radius:18px;background:rgba(255,255,255,.08);color:#fff;font-size:18px;touch-action:manipulation}
+.mbdbg-empty{padding:16px 10px;color:#9a9aa6;font-size:13px}
+.mbdbg-leave{display:block;width:100%;height:40px;border:1.5px solid #ff6b5b;border-radius:10px;background:transparent;color:#ff8a7d;font:700 14px -apple-system,system-ui,sans-serif}
+.mbdbg-leave.sure{background:#ff6b5b;color:#fff}
+.mbdbg-bar{position:fixed;z-index:50;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));display:flex;gap:8px;
+  padding:8px;background:rgba(22,22,28,.92);border:1px solid rgba(255,255,255,.12);border-radius:14px;font:600 14px -apple-system,system-ui,sans-serif}
+.mbdbg-bar button{height:40px;padding:0 14px;border:0;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font:inherit}
+.mbdbg-bar button.sel{box-shadow:inset 0 0 0 1.5px #ffb347}
+.mbdbg-bar span{align-self:center;color:#9a9aa6;font-weight:500;padding:0 6px;font-variant-numeric:tabular-nums}
+.mbdbg-speed{position:fixed;z-index:49;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));padding:3px 8px;border-radius:8px;
+  background:rgba(255,179,71,.9);color:#1a1408;font:700 12px -apple-system,system-ui,sans-serif;pointer-events:none}
+`;
+var DebugMenu = class {
+  constructor(name, hooks, pollPads, tainted) {
+    this.name = name;
+    this.hooks = hooks;
+    this.pollPads = pollPads;
+    this.tainted = tainted;
+    if (typeof document !== "undefined" && !document.getElementById("mbdbg-css")) {
+      const st = document.createElement("style");
+      st.id = "mbdbg-css";
+      st.textContent = CSS;
+      document.head.appendChild(st);
+    }
+  }
+  sections = [];
+  queue = [];
+  /** Marks for the next frame with no event of their own (the platform's items). */
+  notes = [];
+  root = null;
+  bar = null;
+  badge = null;
+  tab = 0;
+  sel = 0;
+  barSel = 0;
+  sureId = null;
+  sureTimer = null;
+  speedIndex = 2;
+  stepped = 0;
+  stepping = false;
+  /** Step mode with the host's controls (`stepState`): no bar of our own. */
+  stepMode = false;
+  /** Pad buttons and directions last seen, for edges and repeats. */
+  padWas = /* @__PURE__ */ new Set();
+  repeatAt = /* @__PURE__ */ new Map();
+  polling = 0;
+  /** A question waiting on an answer: turning debug mode on (by the switch, or the first change, in the app) or off. */
+  confirming = null;
+  /** The confirm's focused button for a controller: 0 turn on, 1 cancel. */
+  confirmSel = 0;
+  /** The game declared its menu (`mb_debug_menu`). */
+  declare(json) {
+    try {
+      this.sections = parseMenu(json);
+    } catch (e) {
+      this.hooks.warn(`debug menu ignored: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    for (const q2 of this.queue) {
+      const it = this.find(q2.id);
+      if (it && it.kind !== "action") it.value = q2.value;
+    }
+    if (this.root) this.render();
+  }
+  isOpen() {
+    return this.root !== null || this.bar !== null || this.stepMode;
+  }
+  /** Step mode, from the host's controls: run `n` frames. */
+  step(n) {
+    if (this.stepMode) void this.runSteps(Math.max(1, Math.min(600, n | 0)));
+  }
+  /** Step mode, from the host's controls: play on. */
+  play() {
+    if (this.stepMode) this.leaveStep(true);
+  }
+  open() {
+    if (this.root || typeof document === "undefined") return;
+    if (this.bar) this.leaveStep(false);
+    this.root = document.createElement("div");
+    this.root.className = "mbdbg";
+    this.root.addEventListener("pointerdown", (e) => {
+      if (e.target === this.root) this.close();
+    });
+    document.body.appendChild(this.root);
+    this.tab = Math.min(this.tab, this.allSections().length - 1);
+    this.render();
+    this.startPolling();
+    this.hooks.shown(true);
+  }
+  /** Closes the menu (or the step bar) and, with `resume`, goes back to play. The host
+   *  closing it from outside (its pause pill) doesn't resume: it shows its own pause screen. */
+  close(resume = true) {
+    if ((this.bar || this.stepMode) && !this.root) return this.leaveStep(resume, true);
+    if (!this.root) return;
+    this.root.remove();
+    this.root = null;
+    this.clearSure();
+    this.stopPolling();
+    this.hooks.shown(false);
+    if (resume) this.hooks.resume();
+  }
+  /** A pick made from outside (`mb.debug.pick`): as if chosen in the menu. */
+  pick(id, value) {
+    const it = this.find(id);
+    if (!it) {
+      this.hooks.warn(`mb.debug.pick: no item ${id}`);
+      return;
+    }
+    this.taint();
+    if (it.kind === "action") this.enqueue(id, 0, it.label, false);
+    else this.setValue(it, value ?? (it.kind === "toggle" ? 1 - it.value : it.value));
+  }
+  /** Drops picks not yet delivered: a new session starts without the old one's. */
+  forget() {
+    this.queue = [];
+    this.notes = [];
+  }
+  /** The picks (and marks) for this live frame. */
+  take() {
+    const events = this.queue.map((q2) => [DEBUG_KIND, 0, 0, 0, 0, q2.value, 0, q2.id]);
+    const marks = [...this.notes, ...this.queue.map((q2) => q2.mark)];
+    this.queue = [];
+    this.notes = [];
+    return { events, marks };
+  }
+  /** A key from the app (HID usage); true if the menu took it. */
+  key(down, code) {
+    if (!this.isOpen()) return false;
+    if (!down) return true;
+    const nav = {
+      [HID.UP]: "up",
+      [HID.DOWN]: "down",
+      [HID.LEFT]: "left",
+      [HID.RIGHT]: "right",
+      [HID.ENTER]: "ok",
+      [HID.SPACE]: "ok",
+      [HID.ESC]: "back",
+      [HID.GRAVE]: "back",
+      [HID.Q]: "prev",
+      [HID.E]: "next"
+    };
+    const n = nav[code];
+    if (n) this.nav(n);
+    return true;
+  }
+  /** Controller states (the app's, or the Gamepad API's); true if the menu took them. */
+  pads(states) {
+    if (!this.isOpen()) {
+      this.padWas.clear();
+      return false;
+    }
+    const now = performance.now();
+    const held = /* @__PURE__ */ new Set();
+    for (const p of states) {
+      const b = (i) => (p.buttons[i] ?? 0) > 0.5;
+      const ax = (i) => p.axes[i] ?? 0;
+      if (b(PAD.UP) || ax(1) < -0.6) held.add("up");
+      if (b(PAD.DOWN) || ax(1) > 0.6) held.add("down");
+      if (b(PAD.LEFT) || ax(0) < -0.6) held.add("left");
+      if (b(PAD.RIGHT) || ax(0) > 0.6) held.add("right");
+      if (b(PAD.A)) held.add("ok");
+      if (b(PAD.B) || b(PAD.SELECT) || b(PAD.START)) held.add("back");
+      if (b(PAD.LB)) held.add("prev");
+      if (b(PAD.RB)) held.add("next");
+    }
+    for (const h of held) {
+      const repeats = h === "up" || h === "down" || h === "left" || h === "right";
+      if (!this.padWas.has(h)) {
+        this.repeatAt.set(h, now + REPEAT_DELAY);
+        this.nav(h);
+      } else if (repeats && now >= (this.repeatAt.get(h) ?? Infinity)) {
+        this.repeatAt.set(h, now + REPEAT_EVERY);
+        this.nav(h);
+      }
+    }
+    this.padWas = held;
+    return true;
+  }
+  /** The preview's keyboard (DOM keys). */
+  domKey(e) {
+    if (e.key === "`" || e.code === "Backquote") {
+      e.preventDefault();
+      if (this.root) this.close();
+      else this.open();
+      return;
+    }
+    if (!this.isOpen()) return;
+    const nav = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "ok", " ": "ok", Escape: "back", q: "prev", e: "next" };
+    const n = nav[e.key];
+    if (n) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this.nav(n);
+    }
+  }
+  // ---------------------------------------------------------------- items
+  platform() {
+    return {
+      title: "Platform",
+      items: [
+        { id: P_SPEED, label: "Game speed", kind: "choice", value: this.speedIndex, options: SPEED_NAMES },
+        { id: P_STEP, label: "Step frames", hint: "Freeze, then advance a frame at a time", kind: "action" },
+        { id: P_RESTART, label: "Restart", hint: "A fresh session with a new seed", kind: "action" },
+        // The app's debug save is a copy thrown away on leaving; the preview's is its only one.
+        ...this.hooks.leave ? [] : [{ id: P_RESET, label: "Reset debug save", hint: "Wipes this debug save and restarts", kind: "action", confirm: true }],
+        ...this.hooks.leave && this.tainted ? [{ id: P_LEAVE, label: "Turn off debug mode", hint: "Restarts on your real save", kind: "action" }] : []
+      ]
+    };
+  }
+  allSections() {
+    return [...this.sections, this.platform()];
+  }
+  find(id) {
+    for (const s of this.sections) for (const it of s.items) if (it.id === id) return it;
+    return void 0;
+  }
+  /** Debug mode on, before the first change that needs it. */
+  taint() {
+    if (this.tainted) return;
+    this.tainted = true;
+    this.hooks.taint();
+  }
+  isOn() {
+    return this.tainted;
+  }
+  /** Runs a change, asking first if it's the one that turns debug mode on (the app). */
+  guard(label, run) {
+    if (this.tainted || !this.hooks.leave) return run();
+    this.ask({ ...TURN_ON, then: label, run });
+  }
+  ask(q2) {
+    this.confirming = q2;
+    this.confirmSel = 0;
+    this.render();
+  }
+  /** The header's switch: on (asks first) or off (asks, then restarts on the real save). */
+  flip() {
+    if (!this.tainted) return this.ask({ ...TURN_ON, run: () => {
+    } });
+    this.ask({
+      title: "Turn off debug mode?",
+      body: "The game restarts on your real save. Everything you did in debug mode is thrown away.",
+      yes: "Turn off and restart",
+      danger: true,
+      run: () => {
+        this.closeQuietly();
+        this.forget();
+        this.hooks.leave?.();
+      }
+    });
+  }
+  confirmYes() {
+    const c = this.confirming;
+    this.confirming = null;
+    if (!c) return;
+    this.taint();
+    c.run();
+    this.render();
+  }
+  confirmNo() {
+    this.confirming = null;
+    this.render();
+  }
+  enqueue(id, value, mark, coalesce) {
+    this.taint();
+    const last = this.queue.at(-1);
+    if (coalesce && last && last.coalesce && last.id === id) {
+      last.value = value;
+      last.mark = mark;
+    } else this.queue.push({ id, value, mark, coalesce });
+  }
+  setValue(it, value) {
+    if (it.kind === "action") return;
+    if (it.kind === "number") value = Math.min(it.max, Math.max(it.min, value));
+    if (it.kind === "choice") value = Math.min(it.options.length - 1, Math.max(0, Math.round(value)));
+    if (it.kind === "toggle") value = value ? 1 : 0;
+    if (value === it.value) return;
+    const mark = it.id === P_SPEED ? `Speed ${SPEED_NAMES[value]}` : it.kind === "toggle" ? `${it.label} ${value ? "on" : "off"}` : it.kind === "choice" ? `${it.label}: ${it.options[value]}` : `${it.label} \u2192 ${fmt(value)}`;
+    this.guard(mark, () => {
+      it.value = value;
+      if (it.id === P_SPEED) {
+        this.taint();
+        this.speedIndex = value;
+        this.notes.push(mark);
+        this.hooks.speed(SPEEDS[value] ?? 1);
+        if (!this.hooks.speedShown) this.showBadge();
+      } else this.enqueue(it.id, value, mark, true);
+      this.render();
+    });
+  }
+  activate(it) {
+    if (it.kind === "toggle") return this.setValue(it, 1 - it.value);
+    if (it.kind !== "action") return;
+    if (it.confirm && this.sureId !== it.id) {
+      this.clearSure();
+      this.sureId = it.id;
+      this.sureTimer = setTimeout(() => {
+        this.sureId = null;
+        this.render();
+      }, CONFIRM_MS);
+      return this.render();
+    }
+    this.clearSure();
+    switch (it.id) {
+      case P_STEP:
+        return this.guard("Step frames", () => this.enterStep());
+      case P_RESTART:
+        this.closeQuietly();
+        this.forget();
+        return this.hooks.restart();
+      case P_RESET:
+        this.closeQuietly();
+        this.forget();
+        return this.hooks.reset();
+      case P_LEAVE:
+        return this.flip();
+    }
+    this.guard(it.label, () => {
+      this.enqueue(it.id, 0, it.label, false);
+      if (it.stay) this.flash(it.id);
+      else this.close();
+    });
+  }
+  clearSure() {
+    if (this.sureTimer) clearTimeout(this.sureTimer);
+    this.sureTimer = null;
+    this.sureId = null;
+  }
+  /** Closes without resuming (a restart follows). */
+  closeQuietly() {
+    this.root?.remove();
+    this.root = null;
+    this.stopPolling();
+    this.hooks.shown(false);
+  }
+  // ---------------------------------------------------------------- step mode
+  enterStep() {
+    this.taint();
+    this.root?.remove();
+    this.root = null;
+    this.stepped = 0;
+    this.barSel = 0;
+    this.notes.push("Step frames");
+    if (this.hooks.stepState) {
+      this.stepMode = true;
+      this.hooks.stepState(true, 0);
+      return;
+    }
+    this.bar = document.createElement("div");
+    this.bar.className = "mbdbg-bar";
+    document.body.appendChild(this.bar);
+    this.renderBar();
+  }
+  renderBar() {
+    const bar = this.bar;
+    if (!bar) return;
+    bar.textContent = "";
+    const buttons = [
+      ["+1 frame", () => void this.runSteps(1)],
+      ["+10", () => void this.runSteps(10)],
+      ["\u25B6 Play", () => this.leaveStep(true)]
+    ];
+    buttons.forEach(([label, f], i) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (i === this.barSel) b.className = "sel";
+      b.addEventListener("click", f);
+      bar.appendChild(b);
+    });
+    const n = document.createElement("span");
+    n.textContent = `${this.stepped} stepped`;
+    bar.appendChild(n);
+  }
+  async runSteps(n) {
+    if (this.stepping) return;
+    this.stepping = true;
+    try {
+      await this.hooks.step(n);
+      this.stepped += n;
+    } finally {
+      this.stepping = false;
+      if (this.stepMode) this.hooks.stepState?.(true, this.stepped);
+      else this.renderBar();
+    }
+  }
+  leaveStep(resume, shown = resume) {
+    this.bar?.remove();
+    this.bar = null;
+    if (this.stepMode) {
+      this.stepMode = false;
+      this.hooks.stepState?.(false, this.stepped);
+    }
+    this.stopPolling();
+    if (shown) this.hooks.shown(false);
+    if (resume) this.hooks.resume();
+  }
+  // ---------------------------------------------------------------- navigation
+  nav(n) {
+    if (this.stepMode && !this.root) {
+      if (n === "ok") return void this.runSteps(1);
+      if (n === "back") return this.leaveStep(true);
+      return;
+    }
+    if (this.bar && !this.root) {
+      if (n === "left") this.barSel = Math.max(0, this.barSel - 1);
+      else if (n === "right") this.barSel = Math.min(2, this.barSel + 1);
+      else if (n === "ok") return void [() => this.runSteps(1), () => this.runSteps(10), () => this.leaveStep(true)][this.barSel]();
+      else if (n === "back") return this.leaveStep(true);
+      return this.renderBar();
+    }
+    if (this.confirming) {
+      if (n === "back") return this.confirmNo();
+      if (n === "ok") return this.confirmSel === 0 ? this.confirmYes() : this.confirmNo();
+      if (n === "up" || n === "down" || n === "left" || n === "right") {
+        this.confirmSel = 1 - this.confirmSel;
+        this.render();
+      }
+      return;
+    }
+    const secs = this.allSections();
+    const items = secs[this.tab]?.items ?? [];
+    const it = items[this.sel];
+    switch (n) {
+      case "back":
+        return this.close();
+      case "prev":
+      case "next":
+        this.tab = (this.tab + (n === "next" ? 1 : secs.length - 1)) % secs.length;
+        this.sel = 0;
+        this.clearSure();
+        return this.render();
+      case "up":
+      case "down":
+        if (!items.length) return;
+        this.sel = (this.sel + (n === "down" ? 1 : items.length - 1)) % items.length;
+        this.clearSure();
+        return this.render(true);
+      case "left":
+      case "right": {
+        const d = n === "right" ? 1 : -1;
+        if (it?.kind === "number") return this.setValue(it, round(it.value + d * it.step, it.step));
+        if (it?.kind === "choice") return this.setValue(it, (it.value + d + it.options.length) % it.options.length);
+        if (it?.kind === "toggle") return this.setValue(it, d > 0 ? 1 : 0);
+        return this.nav(d > 0 ? "next" : "prev");
+      }
+      case "ok":
+        if (it) this.activate(it);
+    }
+  }
+  // ---------------------------------------------------------------- drawing
+  render(scrollToSel = false) {
+    const root = this.root;
+    if (!root) return;
+    const secs = this.allSections();
+    this.tab = Math.max(0, Math.min(this.tab, secs.length - 1));
+    const sec = secs[this.tab];
+    this.sel = Math.max(0, Math.min(this.sel, sec.items.length - 1));
+    const keepScroll = root.querySelector(".mbdbg-rows")?.scrollTop ?? 0;
+    root.textContent = "";
+    const panel = el("div", "mbdbg-panel");
+    const head = el("div", "mbdbg-head");
+    const title = el("div", "mbdbg-title", "Debug");
+    title.appendChild(el("span", "", this.name));
+    head.appendChild(title);
+    if (this.hooks.leave) {
+      const sw = el("button", "mbdbg-headsw");
+      sw.setAttribute("role", "switch");
+      sw.setAttribute("aria-checked", String(this.tainted));
+      sw.setAttribute("aria-label", "Debug mode");
+      sw.appendChild(el("span", "", this.tainted ? "On" : "Off"));
+      sw.appendChild(el("div", `mbdbg-sw${this.tainted ? " on" : ""}`));
+      sw.addEventListener("click", () => this.flip());
+      head.appendChild(sw);
+    } else head.appendChild(el("div", "mbdbg-chip on", "Preview"));
+    const x = el("button", "mbdbg-x", "\u2715");
+    x.addEventListener("click", () => this.close());
+    head.appendChild(x);
+    this.dragToClose(head, panel);
+    panel.append(el("div", "mbdbg-grab"), head);
+    if (this.confirming) {
+      const c = el("div", "mbdbg-confirm");
+      const q2 = this.confirming;
+      c.appendChild(el("h3", "", q2.title));
+      c.appendChild(el("p", "", q2.body));
+      if (q2.then) c.appendChild(el("div", "then", `Then: ${q2.then}`));
+      const yes = el("button", `mbdbg-primary${q2.danger ? " danger" : ""}${this.confirmSel === 0 ? " sel" : ""}`, q2.yes);
+      yes.addEventListener("click", () => this.confirmYes());
+      const no = el("button", `mbdbg-secondary${this.confirmSel === 1 ? " sel" : ""}`, "Cancel");
+      no.addEventListener("click", () => this.confirmNo());
+      c.append(yes, no);
+      panel.appendChild(c);
+      root.appendChild(panel);
+      return;
+    }
+    const tabs = el("div", "mbdbg-tabs");
+    secs.forEach((s, i) => {
+      const t = el("button", `mbdbg-tab${i === this.tab ? " on" : ""}`, s.title);
+      t.addEventListener("click", () => {
+        this.tab = i;
+        this.sel = 0;
+        this.clearSure();
+        this.render();
+      });
+      tabs.appendChild(t);
+    });
+    const rows = el("div", "mbdbg-rows");
+    if (!sec.items.length) rows.appendChild(el("div", "mbdbg-empty", "Nothing here."));
+    if (this.sections.length === 0 && sec.title === "Platform") {
+      rows.appendChild(el("div", "mbdbg-empty", "This game declares no debug items of its own."));
+    }
+    sec.items.forEach((it, i) => rows.appendChild(this.row(it, i === this.sel, i)));
+    panel.append(tabs, rows);
+    if (this.hooks.report) {
+      const foot = el("div", "mbdbg-foot");
+      const b = el("button", "mbdbg-secondary", "Write your agent a note");
+      b.addEventListener("click", () => {
+        this.closeQuietly();
+        requestAnimationFrame(() => requestAnimationFrame(() => this.hooks.report?.()));
+      });
+      foot.appendChild(b);
+      panel.appendChild(foot);
+    }
+    root.appendChild(panel);
+    rows.scrollTop = keepScroll;
+    if (scrollToSel) rows.children[this.sel]?.scrollIntoView({ block: "nearest" });
+    tabs.children[this.tab]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+  /** Dragging the sheet's header down (or right, as a side sheet) far enough closes it. */
+  dragToClose(handle, panel) {
+    let from = null;
+    const side = () => typeof matchMedia !== "undefined" && matchMedia("(orientation: landscape)").matches;
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button")) return;
+      from = { x: e.clientX, y: e.clientY };
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener("pointermove", (e) => {
+      if (!from) return;
+      const d = Math.max(0, side() ? e.clientX - from.x : e.clientY - from.y);
+      panel.style.transition = "none";
+      panel.style.transform = side() ? `translateX(${d}px)` : `translateY(${d}px)`;
+    });
+    const end = (e) => {
+      if (!from) return;
+      const d = side() ? e.clientX - from.x : e.clientY - from.y;
+      from = null;
+      panel.style.transition = "";
+      panel.style.transform = "";
+      if (d > 80) this.close();
+    };
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+  }
+  row(it, selected, index) {
+    const r = el("div", `mbdbg-row${selected ? " sel" : ""}${it.kind === "action" || it.kind === "toggle" ? " act" : ""}`);
+    const lab = el("div", "mbdbg-lab");
+    lab.appendChild(el("div", "", it.label));
+    if (it.hint) lab.appendChild(el("div", "mbdbg-hint", it.hint));
+    r.appendChild(lab);
+    const choose = () => {
+      this.sel = index;
+    };
+    if (it.kind === "action") {
+      r.appendChild(this.sureId === it.id ? el("div", "mbdbg-sure", "Tap again") : el("div", "mbdbg-go", "\u203A"));
+      r.addEventListener("click", () => {
+        choose();
+        this.activate(it);
+      });
+    } else if (it.kind === "toggle") {
+      r.appendChild(el("div", `mbdbg-sw${it.value ? " on" : ""}`));
+      r.addEventListener("click", () => {
+        choose();
+        this.activate(it);
+      });
+    } else {
+      const val = el("div", "mbdbg-val");
+      const shown = it.kind === "number" ? fmt(it.value) : it.options[it.value] ?? "";
+      const minus = el("button", "mbdbg-arr", "\u2039");
+      const plus = el("button", "mbdbg-arr", "\u203A");
+      const bump = (d) => {
+        choose();
+        if (it.kind === "number") this.setValue(it, round(it.value + d * it.step, it.step));
+        else this.setValue(it, (it.value + d + it.options.length) % it.options.length);
+      };
+      holdRepeat(minus, () => bump(-1), it.kind === "number");
+      holdRepeat(plus, () => bump(1), it.kind === "number");
+      val.append(minus, el("b", "", shown), plus);
+      r.appendChild(val);
+    }
+    return r;
+  }
+  /** A "stay" action's row blinks so the press shows. */
+  flash(id) {
+    this.render();
+    const sec = this.allSections()[this.tab];
+    const i = sec?.items.findIndex((x) => x.id === id) ?? -1;
+    const row = this.root?.querySelectorAll(".mbdbg-row")[i];
+    if (row) {
+      row.style.background = "rgba(52,199,89,.3)";
+      setTimeout(() => row.style.background = "", 250);
+    }
+  }
+  showBadge() {
+    if (typeof document === "undefined") return;
+    const k = SPEEDS[this.speedIndex] ?? 1;
+    if (k === 1) {
+      this.badge?.remove();
+      this.badge = null;
+      return;
+    }
+    if (!this.badge) {
+      this.badge = el("div", "mbdbg-speed");
+      document.body.appendChild(this.badge);
+    }
+    this.badge.textContent = SPEED_NAMES[this.speedIndex] ?? "";
+  }
+  startPolling() {
+    if (!this.pollPads || this.polling || typeof navigator === "undefined" || !navigator.getGamepads) return;
+    const loop = () => {
+      if (!this.isOpen()) {
+        this.polling = 0;
+        return;
+      }
+      const states = [];
+      for (const g of navigator.getGamepads()) {
+        if (g) states.push({ index: g.index, style: "generic", name: g.id, buttons: g.buttons.map((b) => b.value), axes: [...g.axes] });
+      }
+      this.pads(states);
+      this.polling = requestAnimationFrame(loop);
+    };
+    this.polling = requestAnimationFrame(loop);
+  }
+  stopPolling() {
+    if (this.bar) return;
+    if (this.polling) cancelAnimationFrame(this.polling);
+    this.polling = 0;
+  }
+};
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== void 0) e.textContent = text;
+  return e;
+}
+function round(v, step) {
+  const decimals = Math.min(6, Math.max(0, -Math.floor(Math.log10(step)) + 1));
+  return Number(v.toFixed(decimals));
+}
+function fmt(v) {
+  return Number.isInteger(v) ? String(v) : String(Number(v.toFixed(4)));
+}
+var repeating = null;
+function holdRepeat(b, f, repeat) {
+  const stop = () => {
+    if (repeating) clearTimeout(repeating);
+    repeating = null;
+  };
+  b.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    stop();
+    f();
+    if (!repeat) return;
+    for (const ev of ["pointerup", "pointercancel"]) window.addEventListener(ev, stop, { once: true });
+    const again = (delay) => {
+      repeating = setTimeout(() => {
+        f();
+        again(REPEAT_EVERY);
+      }, delay);
+    };
+    again(REPEAT_DELAY);
+  });
+}
+
 // src/input.ts
 var Input = class {
-  constructor(el, layout, touchDeclared, mouseDeclared) {
+  constructor(el2, layout, touchDeclared, mouseDeclared) {
     this.layout = layout;
     this.touchDeclared = touchDeclared;
     this.mouseDeclared = mouseDeclared;
-    el.addEventListener("pointerdown", (e) => this.down(e));
-    el.addEventListener("pointermove", (e) => this.move(e));
-    el.addEventListener("pointerup", (e) => this.up(e, false));
-    el.addEventListener("pointercancel", (e) => this.up(e, true));
-    el.style.touchAction = "none";
-    el.addEventListener("contextmenu", (e) => e.preventDefault());
+    el2.addEventListener("pointerdown", (e) => this.down(e));
+    el2.addEventListener("pointermove", (e) => this.move(e));
+    el2.addEventListener("pointerup", (e) => this.up(e, false));
+    el2.addEventListener("pointercancel", (e) => this.up(e, true));
+    el2.style.touchAction = "none";
+    el2.addEventListener("contextmenu", (e) => e.preventDefault());
   }
   pending = [];
   /** When each pending event happened (ms, performance.now clock); NaN = at the frame. */
@@ -2846,9 +3646,9 @@ var Stats = class {
   }
 };
 function drawStatsOverlay(stats) {
-  const el = document.createElement("div");
-  el.style.cssText = "position:fixed;top:4px;right:4px;z-index:11;pointer-events:none;padding:3px 5px;border-radius:4px;background:rgba(0,0,0,.45);color:#fff;font:10px/1.3 ui-monospace,Menlo,monospace;white-space:pre;text-align:right";
-  document.body.append(el);
+  const el2 = document.createElement("div");
+  el2.style.cssText = "position:fixed;top:4px;right:4px;z-index:11;pointer-events:none;padding:3px 5px;border-radius:4px;background:rgba(0,0,0,.45);color:#fff;font:10px/1.3 ui-monospace,Menlo,monospace;white-space:pre;text-align:right";
+  document.body.append(el2);
   const num = (v) => typeof v === "number" ? v : null;
   const show = () => {
     const frames = stats.frames(60);
@@ -2863,8 +3663,8 @@ function drawStatsOverlay(stats) {
     const over = last ? overBudget(last) : [];
     const use = last ? budgetUse(last) : null;
     const worst = last?.top?.[0];
-    el.style.background = over.length ? "rgba(190,20,20,.85)" : "rgba(0,0,0,.45)";
-    el.textContent = `${fps} fps  p95 ${interval ? interval.p95.toFixed(1) : "\u2013"} ms
+    el2.style.background = over.length ? "rgba(190,20,20,.85)" : "rgba(0,0,0,.45)";
+    el2.textContent = `${fps} fps  p95 ${interval ? interval.p95.toFixed(1) : "\u2013"} ms
 upd ${p95("mb_update")} ren ${p95("mb_render")} host ${p95("present")}
 ${draws === null ? "\u2013" : `${draws}+${num(last?.draws2d) ?? 0}`} draws ${tris === null ? "0" : k(tris)} tris` + (scale === null ? "" : ` \xD7${scale.toFixed(2)}`) + (use ? over.map((b) => `
 over: ${b} ${k(use[b])} > ${k(BUDGETS[b])}`).join("") : "") + (over.length && worst ? `
@@ -3243,7 +4043,7 @@ function levelOf(a, buf) {
 }
 
 // src/keys.ts
-var HID = {
+var HID2 = {
   Enter: 40,
   Escape: 41,
   Backspace: 42,
@@ -3274,10 +4074,10 @@ var HID = {
   AltRight: 230,
   MetaRight: 231
 };
-for (let i = 0; i < 26; i++) HID[`Key${String.fromCharCode(65 + i)}`] = 4 + i;
-for (let i = 1; i <= 9; i++) HID[`Digit${i}`] = 29 + i;
-HID.Digit0 = 39;
-for (let i = 1; i <= 12; i++) HID[`F${i}`] = 57 + i;
+for (let i = 0; i < 26; i++) HID2[`Key${String.fromCharCode(65 + i)}`] = 4 + i;
+for (let i = 1; i <= 9; i++) HID2[`Digit${i}`] = 29 + i;
+HID2.Digit0 = 39;
+for (let i = 1; i <= 12; i++) HID2[`F${i}`] = 57 + i;
 var KEY_DOWN = 5;
 var KEY_UP = 6;
 var PAD_BUTTON = 11;
@@ -3308,7 +4108,7 @@ var Keyboard = class {
     this.activity = activity;
     if (!dom) return;
     const on = (kind) => (e) => {
-      const code = HID[e.code];
+      const code = HID2[e.code];
       if (code === void 0 || e.repeat) return;
       e.preventDefault();
       this.key(kind, code, e.timeStamp);
@@ -3507,9 +4307,9 @@ var Play = class {
     const inputs = byTime(this.active);
     const orientations = byTime(this.held);
     if (orientations.length === 0) orientations.push(this.orientation());
-    const round = (s) => Math.round(s * 1e3) / 1e3;
+    const round2 = (s) => Math.round(s * 1e3) / 1e3;
     return {
-      seconds: round(this.seconds),
+      seconds: round2(this.seconds),
       inputs,
       primaryInput: inputs[0] ?? null,
       orientations,
@@ -3597,15 +4397,27 @@ var Recorder = class {
       this.starting = null;
     }
   }
-  frame(dt, events, assets, sensors, calls = [], lost = 0) {
+  frame(dt, events, assets, sensors, calls = [], lost = 0, picks = []) {
     const f = { dt, ...sensors };
     if (lost > 0) f.lost = lost;
     if (events.length) f.events = events;
     if (assets.length) f.assets = assets;
     if (calls.length) f.calls = calls;
+    if (picks.length) f.picks = picks;
     this.log.frames.push(f);
   }
 };
+function debugMarks(log2) {
+  const out = [];
+  let t = 0;
+  let origin = 0;
+  log2.frames.forEach((f, i) => {
+    if (i === (log2.start ?? 0)) origin = t;
+    t += f.dt;
+    for (const label of f.picks ?? []) out.push({ time: t, label });
+  });
+  return out.map((m) => ({ time: Math.max(0, m.time - origin), label: m.label }));
+}
 
 // src/abi.json
 var abi_default = {
@@ -3642,6 +4454,15 @@ var abi_default = {
       results: [
         "i32"
       ]
+    },
+    {
+      name: "mb_debug_menu",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: null,
+      results: []
     },
     {
       name: "mb_time",
@@ -5322,6 +6143,8 @@ function buildImports(s, host, m) {
     // 5.1 sys
     mb_log: ((level, ptr, len) => s.log(level, str(ptr, len))),
     mb_mark: ((ptr, len) => s.mark(str(ptr, Math.min(len >>> 0, 64)))),
+    // An output, like mb_mark: outside a live debug session it does nothing.
+    mb_debug_menu: ((ptr, len) => s.onDebugMenu?.(str(ptr, Math.min(len >>> 0, 64 * 1024 + 1)))),
     mb_param: ((nptr, nlen, out, cap) => {
       const v = s.params.get(str(nptr, nlen));
       if (v === void 0) return -1;
@@ -5656,7 +6479,7 @@ function buildImports(s, host, m) {
     mb_score_submit: ((board, value) => {
       if (!boards.has(board)) return -3 /* NotDeclared */;
       s.observer?.score(board, value);
-      if (!s.replaying && !s.fastForwarding) post({ op: "score_submit", board, value: value.toString() });
+      if (!s.replaying && !s.fastForwarding && !s.debug) post({ op: "score_submit", board, value: value.toString() });
       return 0;
     }),
     mb_score_show: ((board) => {
@@ -5722,6 +6545,10 @@ var Session = class {
   /** Running through a left run's frames to pick it up (`mb.restart({ resume })`): what it
    *  saves and reports still counts, but nothing reaches the player (haptics, overlays). */
   fastForwarding = false;
+  /** A debug session (SPEC §5.1 `mb_debug_menu`): it never submits a score. */
+  debug = false;
+  /** Told each menu the game declares (`mb_debug_menu`), in a live debug session; else null. */
+  onDebugMenu = null;
   /** Called when saved data changes (key, base64 value or null). */
   onStore = null;
   /** What the game reports, replay or not: the headless runner's (`mb replay`)
@@ -5971,6 +6798,8 @@ var Runtime = class _Runtime {
   frameNow = null;
   /** rAF to rAF (ms) for the frame being run, for `mb.stats()`; null outside a display frame. */
   frameInterval = null;
+  /** When the last display frame ran (performance.now ms), for `alive()`; null before the first. */
+  lastTick = null;
   /** Since the last heartbeat: the longest frame interval (ms) and the display frames missed. */
   beatWorst = 0;
   beatDropped = 0;
@@ -6102,6 +6931,7 @@ var Runtime = class _Runtime {
   }
   tick(now) {
     if (!this.running || this.suspended || this.stopped) return;
+    this.lastTick = performance.now();
     this.frameInterval = this.lastShown !== null ? now - this.lastShown : null;
     if (this.frameInterval !== null) {
       host_frame_time(this.frameInterval);
@@ -6150,8 +6980,10 @@ var Runtime = class _Runtime {
         this.resumedAt = null;
       }
     }
+    const picks = this.view?.debug?.take();
+    if (picks) events.push(...picks.events);
     this.latency.deliver(this.input.taken, this.frames + 1, this.frameNow);
-    this.recorder.frame(dt, events, assets, sensors, this.calls.splice(0), lost);
+    this.recorder.frame(dt, events, assets, sensors, this.calls.splice(0), lost, picks?.marks);
     return this.step(dt, events, sensors, [], lost);
   }
   /** Preview: advance a suspended session by `n` frames — a live one by
@@ -6365,8 +7197,36 @@ var Runtime = class _Runtime {
     this.stopped = true;
     cancelFrame(this.raf);
   }
+  /** Native's watchdog heard no frames for a while and asks the page (`mb.alive()`). That it
+   *  answers at all says the game's code isn't stuck: WebKit isn't running the page's animation
+   *  frames. Asks for the next one again, in case the one asked for was dropped, and says how
+   *  the page looks: whether WebKit thinks it's visible, and how long since its last frame. */
+  alive() {
+    const rearmed = this.running && !this.suspended && !this.stopped && !this.prerolling;
+    if (rearmed) {
+      cancelFrame(this.raf);
+      this.raf = requestAnimationFrame((t) => this.tick(t));
+    }
+    const sinceFrame = this.lastTick === null ? null : Math.round(performance.now() - this.lastTick);
+    return { visible: typeof document === "undefined" ? "headless" : document.visibilityState, sinceFrame, rearmed };
+  }
   brief() {
     return { frames: this.frames, time: this.session.gameTime, hash: host_draw_hash(), replay: this.source.kind === "replay" };
+  }
+  /** The debug menu's first change: this session is a debug session from here on (no
+   *  score is submitted, and its replay log is marked `debug`, so none of it counts). */
+  markDebug() {
+    if (this.source.kind !== "live") return;
+    this.session.debug = true;
+    this.recorder.log.debug = true;
+  }
+  /** The debug menu's step mode: the session stays held, but the game hears it's back
+   *  (`mb_resume`, recorded) before the frames it's stepped through. */
+  wakeForSteps() {
+    if (!this.guestSuspended || this.stopped || this.source.kind !== "live") return;
+    this.guestSuspended = false;
+    this.lifecycle("resume");
+    this.calls.push("resume");
   }
   /** Paused, held or not started: no frames run on their own. */
   get held() {
@@ -6399,7 +7259,7 @@ var Runtime = class _Runtime {
         if (f.att !== void 0) sensors.att = f.att;
         if (f.loud !== void 0) sensors.loud = f.loud;
         if (f.screen !== void 0) sensors.screen = f.screen;
-        this.recorder.frame(f.dt, f.events ?? [], assets, sensors, f.calls ?? [], f.lost ?? 0);
+        this.recorder.frame(f.dt, f.events ?? [], assets, sensors, f.calls ?? [], f.lost ?? 0, f.picks ?? []);
         this.step(f.dt, f.events ?? [], sensors, f.calls, f.lost);
         if (firstMismatch === null && i + 1 < expected.length && this.hashes[i + 1] !== expected[i + 1]) firstMismatch = i + 1;
         if (performance.now() - slice > 16) {
@@ -6541,6 +7401,9 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
     session.play = page2.play ?? null;
     session.onHaptic = (k) => page2.gamepads?.rumble(k);
   }
+  const debug = live && (page2.debugOn === true || from?.debug === true);
+  session.debug = debug;
+  if (live && page2.debug) session.onDebugMenu = (json) => page2.debug?.declare(json);
   session.onStore = (key, value) => {
     if (value === null) delete page2.store[key];
     else page2.store[key] = value;
@@ -6558,10 +7421,11 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
     playerId,
     locale,
     screen: Array.from(screen2),
-    ...Object.keys(params).length ? { params } : {}
+    ...Object.keys(params).length ? { params } : {},
+    ...debug ? { debug: true } : {}
   });
   if (live) session.onRound = (state) => recorder.round(state);
-  const view = source.kind === "live" ? { screen: page2.screen, adaptive: page2.adaptive === true, pending: page2.pending } : null;
+  const view = source.kind === "live" ? { screen: page2.screen, adaptive: page2.adaptive === true, pending: page2.pending, debug: page2.debug ?? null } : null;
   const rt = new Runtime(guest, session, page2.input, recorder, page2.gamepads, page2.sensors, page2.stats, page2.latency, source, view, live ? page2.play ?? null : null);
   rt.init();
   return rt;
@@ -6889,20 +7753,20 @@ var Ui = class {
   offerTimer = 0;
   dismissed = -1;
   constructor() {
-    const el = (css) => {
+    const el2 = (css) => {
       const d = document.createElement("div");
       d.style.cssText = css;
       return d;
     };
-    this.root = el("position:fixed;inset:0;pointer-events:none;z-index:30");
-    this.pillEl = el(`position:absolute;top:8px;right:8px;max-width:70vw;padding:4px 10px;border-radius:12px;font:${FONT};color:#fff;background:rgba(0,0,0,.75);display:none`);
-    this.offerEl = el(
+    this.root = el2("position:fixed;inset:0;pointer-events:none;z-index:30");
+    this.pillEl = el2(`position:absolute;top:8px;right:8px;max-width:70vw;padding:4px 10px;border-radius:12px;font:${FONT};color:#fff;background:rgba(0,0,0,.75);display:none`);
+    this.offerEl = el2(
       `position:absolute;top:40px;left:50%;transform:translateX(-50%);max-width:92vw;padding:8px 12px;border-radius:10px;font:${FONT};color:#fff;background:rgba(20,40,90,.92);box-shadow:0 2px 12px rgba(0,0,0,.5);pointer-events:auto;display:none`
     );
-    this.errorEl = el(
+    this.errorEl = el2(
       `position:absolute;left:0;right:0;bottom:0;max-height:65vh;overflow:auto;padding:10px 14px;font:${FONT};color:#ffd9d9;background:rgba(40,0,0,.93);border-top:3px solid #e33;white-space:pre-wrap;pointer-events:auto;display:none`
     );
-    this.runtimeEl = el(
+    this.runtimeEl = el2(
       `position:absolute;left:0;right:0;top:0;max-height:40vh;overflow:auto;padding:8px 14px;font:${FONT};color:#fff3cf;background:rgba(50,30,0,.93);border-bottom:3px solid #fa0;white-space:pre-wrap;pointer-events:auto;display:none`
     );
     this.root.append(this.runtimeEl, this.pillEl, this.offerEl, this.errorEl);
@@ -7202,6 +8066,7 @@ async function main() {
       else if (opts.paused) next.startPaused();
       else next.start();
       post({ op: "restarted", replay: next.source.kind === "replay" });
+      if (next.source.kind === "replay") post({ op: "replay-marks", marks: debugMarks(next.source.log) });
     });
   };
   let seekTarget = null;
@@ -7292,14 +8157,85 @@ async function main() {
       if (saved.held) next.startHeld();
       else next.start();
       post({ op: "restarted", replay: false });
-      const round = next.session.round;
-      if (round === 1) next.session.play?.start();
-      if (round !== 0) post({ op: "round", state: round });
+      const round2 = next.session.round;
+      if (round2 === 1) next.session.play?.start();
+      if (round2 !== 0) post({ op: "round", state: round2 });
     }
     return result;
   };
   page2.audio.setPlayback(boot.soundOn === true);
   page2.audio.setUserMuted(boot.muted === true);
+  const preview = !hasNative && !boot.web;
+  const appDebug = preview && new URLSearchParams(location.search).get("debug") === "app";
+  page2.debugOn = boot.debug === true || preview && !appDebug;
+  if (boot.debug === true || boot.debugMenu === true || preview) {
+    let pausedForMenu = false;
+    page2.debug = new DebugMenu(m.name ?? m.id, {
+      shown: (open) => {
+        post({ op: "debug-menu", open });
+        if (open && !hasNative && !rt.held) {
+          rt.suspend();
+          pausedForMenu = true;
+        }
+      },
+      resume: () => {
+        if (hasNative) return post({ op: "debug-resume" });
+        if (pausedForMenu) rt.resume();
+        pausedForMenu = false;
+      },
+      step: async (n) => {
+        rt.wakeForSteps();
+        await rt.stepFrames(n, true, 1 / 60, void 0, 0);
+      },
+      restart: () => {
+        if (hasNative) return post({ op: "debug-restart" });
+        pausedForMenu = false;
+        void restart({ seed: randomSeed() });
+      },
+      reset: () => {
+        if (hasNative) return post({ op: "debug-reset" });
+        pausedForMenu = false;
+        for (const key of Object.keys(page2.store)) {
+          delete page2.store[key];
+          post({ op: "store_set", key, value: null });
+        }
+        void restart({ seed: randomSeed() });
+      },
+      speed: (k) => {
+        Runtime.timeScale = k;
+        if (hasNative) post({ op: "debug-speed", speed: k });
+      },
+      speedShown: hasNative,
+      ...hasNative ? { stepState: (on, stepped) => post({ op: "debug-step", on, stepped }) } : {},
+      // Only the app can leave (and the preview playing it, `?debug=app`): the preview is otherwise always a debug session.
+      ...hasNative ? { leave: () => post({ op: "debug-leave" }) } : {},
+      ...appDebug ? {
+        leave: () => {
+          page2.debugOn = false;
+          location.reload();
+        }
+      } : {},
+      ...hasNative && boot.debugReport === true ? { report: () => post({ op: "debug-report" }) } : {},
+      taint: () => {
+        page2.debugOn = true;
+        rt.markDebug();
+        post({ op: "debug-on" });
+      },
+      warn: (msg) => post({ op: "log", level: 2, msg })
+    }, preview && boot.nativePads !== true, page2.debugOn === true);
+    if (preview) {
+      const menu = page2.debug;
+      window.addEventListener("keydown", (e) => menu.domKey(e), true);
+      if (new URLSearchParams(location.search).has("debug")) {
+        const b = document.createElement("button");
+        b.textContent = "DEBUG";
+        b.title = "Debug menu (`)";
+        b.style.cssText = "position:fixed;right:10px;bottom:10px;z-index:48;padding:6px 10px;border:0;border-radius:8px;background:rgba(255,179,71,.85);color:#1a1408;font:700 11px -apple-system,system-ui,sans-serif;letter-spacing:.06em;cursor:pointer";
+        b.addEventListener("click", () => menu.open());
+        document.body.appendChild(b);
+      }
+    }
+  }
   window.mb = {
     sound: (on) => page2.audio.setPlayback(on),
     mute: (on) => page2.audio.setUserMuted(on),
@@ -7313,6 +8249,7 @@ async function main() {
       else rt.resume();
     },
     seek: (seconds) => seek(seconds),
+    alive: () => rt.alive(),
     snapshot: () => rt.snapshot(),
     resize: (json) => {
       const v = typeof json === "string" ? JSON.parse(json) : json ?? {};
@@ -7322,9 +8259,14 @@ async function main() {
     },
     pads: (json, sentAt) => {
       if (typeof sentAt === "number") padLag(Date.now() - sentAt);
-      page2.gamepads?.setNative(typeof json === "string" ? JSON.parse(json) : json);
+      const states = typeof json === "string" ? JSON.parse(json) : json;
+      if (page2.debug?.pads(states)) return;
+      page2.gamepads?.setNative(states);
     },
-    key: (down, code) => keyboard?.key(down ? 5 : 6, code, performance.now()),
+    key: (down, code) => {
+      if (page2.debug?.key(down, code)) return;
+      keyboard?.key(down ? 5 : 6, code, performance.now());
+    },
     inputs: (on) => {
       if (!on) page2.pending?.push(...keyboard?.releaseAll() ?? [], ...page2.gamepads?.releaseAll() ?? []);
       page2.gamepads?.setEnabled(on);
@@ -7377,6 +8319,14 @@ async function main() {
     dev: () => dev?.status() ?? null,
     speed: (k) => {
       Runtime.timeScale = Math.max(0.01, Math.min(4, k));
+    },
+    debug: {
+      open: () => page2.debug?.open(),
+      close: () => page2.debug?.close(false),
+      isOpen: () => page2.debug?.isOpen() ?? false,
+      pick: (id, value) => page2.debug?.pick(id, value),
+      step: (n = 1) => page2.debug?.step(n),
+      play: () => page2.debug?.play()
     },
     debugGpu,
     save: (name, data) => saveFile(name, data),
@@ -7440,6 +8390,7 @@ async function main() {
     if (restorePin) rt.startHeld();
     else if (paused) rt.startPaused();
     else rt.start();
+    if (boot.watch) post({ op: "replay-marks", marks: debugMarks(boot.watch) });
   }
   dev?.attach({
     game: m.id,
@@ -7461,6 +8412,10 @@ async function main() {
     frames: () => rt.brief().frames,
     replay: restorePin ? { v: 1, game: m.id, frames: restorePin.at, time: 0, held: true, log: { ...restorePin.log, frames: restorePin.log.frames.slice(0, restorePin.at) }, hashes: [] } : pin ? "played" : void 0
   });
+}
+function randomSeed() {
+  const w = crypto.getRandomValues(new Uint32Array(2));
+  return (BigInt(w[0]) << 32n | BigInt(w[1])).toString();
 }
 function wholeRun(log2) {
   const { start: _, ...whole } = log2;

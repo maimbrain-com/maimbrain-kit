@@ -1,5 +1,22 @@
 # Creator kit changelog
 
+## 0.8.3
+
+A debug menu for testing games. A build that isn't live yet (a draft, or one waiting for review) can be played in debug mode: the creator always, moderators reviewing it, and testers the creator allows. A live game too, by its creator only, with *Write your agent a note* in the menu: it files a to-do on that moment, with the run, for `mb feedback`. A Debug button on the game's card opens a menu the platform draws from the items the game declares: jump to any level or boss, set the state, turn on cheats, fire a rare event. Nothing played in debug mode ever counts.
+
+- **`maimbrain::debug`.** Build a `Menu` of sections and items (`action` for a jump or a trigger, `toggle`, `number` with a range and step, `choice` of options; `.stay()`, `.confirm()`, `.hint(..)`) and `debug::show(&menu)` it from `init` and whenever a value it shows changes (it's only sent when it changed). Picks arrive in `update` as input events of the new kind `Kind::Debug` (15): `Pick::from(&e)` gives the item's id and its new value. They're recorded in the replay like a touch, so a run that used the menu replays exactly. Outside debug mode the menu is ignored and no pick ever comes, so the build plays exactly as it would without one.
+- **The platform's own items** close every menu: game speed (¼× to 4×), step frames, restart with a new seed, and turn off debug mode.
+- **Debug mode never counts.** Opening the menu changes nothing; the first change in it turns debug mode on, and from then the game plays on a copy of the tester's save (the switch in the menu's header turns it off, throwing the copy away and restarting on the real save; it lasts until the app closes). It submits no score, saves no verified progress, and its runs never reach a board, a tester board or a released build's scores. Its runs still upload, tagged DEBUG, so the creator can watch them and `mb feedback` lists them, and the replay timeline marks each pick ("Invincible on", "Floor 3").
+- **Testers get it if you say so**, per tester: the tester picker's Debug menu choice in the app (None, Everyone, or Choose), or `mb test <game> --debug ann` (`--no-debug ann` takes it away).
+- **`mb serve` always has the menu**: the DEBUG button in the corner, or the backtick key. `mb.debug.open()` and `mb.debug.pick(id, value)` script it.
+- **Tests:** `Host::debug_pick(id, value)` delivers a pick in the next frame, and `Host::debug_menu()` is the menu the game last declared (`find_label("Floor 3")`), so a test can check every item does what it says.
+- **`mb build` warns** when a game that looks long or varied (saved progress, bosses, levels or floors, chapters, checkpoints) declares no debug menu.
+
+### Upgrading
+
+Recommended:
+- **Give a long or varied game a debug menu.** A game with levels, floors or stages, bosses, story beats, unlocks or saved progress, rare events (anything a player meets in fewer than about one run in five), or runs over about 3 minutes needs one, so testers and reviewers can reach every part of it: a jump to each level and boss, the state that matters (lives, money, unlocks), cheats (invincible, one-hit kills) and each rare event. See the skill's debug-menu.md. `mb build` warns when such a game has none. A game built with this SDK needs the app released alongside it to run (it imports `mb_debug_menu`).
+
 ## 0.8.2
 
 A round of fixes from a creator's game that took too many phone tests to get right: characters that walk without sliding, intros that never swallow a finger's release, slow motion that ends by itself, reactions that land on the moment, story lines told in the quiet between the action, and checks that warn about voice lines that would play as subtitles only and events that come round like clockwork. It also brings daily boards, and `mb upgrade`, which moves a game made with an older kit to this one and says what it can adopt.

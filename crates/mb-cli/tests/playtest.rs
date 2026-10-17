@@ -384,6 +384,7 @@ fn test_server(current: Option<Value>, invite: (u16, Value)) -> FakeServer {
                 json_reply(invite.0, t)
             }
             "PATCH" if path == format!("{tests}/current") => json_reply(200, open_test()),
+            "PATCH" if path.starts_with(&format!("{tests}/current/testers/")) => json_reply(200, json!({ "debug": body["debug"] })),
             "DELETE" if path == format!("{tests}/current") => Some((204, vec![], "application/json")),
             _ => None,
         }
@@ -433,6 +434,21 @@ fn test_invites_removes_and_ends() {
     assert_eq!(s.requests("POST", &tests)[0].body, json!({ "testers": ["ann", "cleo"] }));
     assert_eq!(s.requests("PATCH", &tests)[0].body, json!({ "remove": ["ann"] }));
     assert_eq!(s.requests("DELETE", &tests).len(), 1);
+
+    // The debug menu: given with the invite, then per tester.
+    let s = test_server(None, (200, open_test()));
+    let d = setup("test-invite-debug", &s.url);
+    let o = mb(&d, &["test", "summoned", "--invite", "ann,cleo", "--debug", "ann"]);
+    assert!(o.status.success(), "{}", stderr(&o));
+    assert_eq!(s.requests("POST", &tests)[0].body, json!({ "testers": ["ann", "cleo"], "debug_usernames": ["ann"] }));
+    let o = mb(&d, &["test", "summoned", "--invite", "ann", "--debug", "bo"]);
+    assert!(!o.status.success() && stderr(&o).contains("--debug bo"), "{}", stderr(&o));
+    let o = mb(&d, &["test", "summoned", "--debug", "cleo"]);
+    assert!(o.status.success() && stderr(&o).contains("@cleo can use the debug menu"), "{}", stderr(&o));
+    let o = mb(&d, &["test", "summoned", "--no-debug", "ann"]);
+    assert!(o.status.success(), "{}", stderr(&o));
+    assert_eq!(s.requests("PATCH", &format!("{tests}/current/testers/cleo"))[0].body, json!({ "debug": true }));
+    assert_eq!(s.requests("PATCH", &format!("{tests}/current/testers/ann"))[0].body, json!({ "debug": false }));
 
     // --invite-all: every friend not testing yet.
     let s = test_server(Some(open_test()), (200, open_test()));

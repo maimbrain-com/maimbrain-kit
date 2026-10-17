@@ -527,7 +527,7 @@ function __wbg_get_imports() {
           const a = state0.a;
           state0.a = 0;
           try {
-            return wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(a, state0.b, arg02, arg12);
+            return wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(a, state0.b, arg02, arg12);
           } finally {
             state0.a = a;
           }
@@ -1201,27 +1201,27 @@ function __wbg_get_imports() {
       }, arguments);
     },
     __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000002: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000003: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
       return ret;
     },
     __wbindgen_generic_0000000000000004: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119);
       return ret;
     },
     __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120);
       return ret;
     },
     __wbindgen_generic_0000000000000006: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121);
       return ret;
     },
     __wbindgen_generic_0000000000000007: function(arg0) {
@@ -1251,38 +1251,38 @@ function __wbg_get_imports() {
     "./mb_host_bg.js": import0
   };
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2);
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___JsValue__core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__120(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___wasm_bindgen_265b8cf50d59c234___sys__JsNullable_wgpu_eaa100529841c49f___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_608f92abc48d28da___result__Result_____wasm_bindgen_265b8cf50d59c234___JsError___true__121(arg0, arg1, arg2);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
-  wasm.wasm_bindgen_265b8cf50d59c234___convert__closures_____invoke___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined___js_sys_1be3539c672eb81b___Function_fn_wasm_bindgen_265b8cf50d59c234___JsValue_____wasm_bindgen_265b8cf50d59c234___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
+function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
+  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
 }
 var __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
 var __wbindgen_enum_GpuAutoLayoutMode = ["auto"];
@@ -2791,6 +2791,15 @@ var abi_default = {
       results: [
         "i32"
       ]
+    },
+    {
+      name: "mb_debug_menu",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: null,
+      results: []
     },
     {
       name: "mb_time",
@@ -4471,6 +4480,8 @@ function buildImports(s, host, m) {
     // 5.1 sys
     mb_log: ((level, ptr, len) => s.log(level, str(ptr, len))),
     mb_mark: ((ptr, len) => s.mark(str(ptr, Math.min(len >>> 0, 64)))),
+    // An output, like mb_mark: outside a live debug session it does nothing.
+    mb_debug_menu: ((ptr, len) => s.onDebugMenu?.(str(ptr, Math.min(len >>> 0, 64 * 1024 + 1)))),
     mb_param: ((nptr, nlen, out, cap) => {
       const v = s.params.get(str(nptr, nlen));
       if (v === void 0) return -1;
@@ -4805,7 +4816,7 @@ function buildImports(s, host, m) {
     mb_score_submit: ((board, value) => {
       if (!boards.has(board)) return -3 /* NotDeclared */;
       s.observer?.score(board, value);
-      if (!s.replaying && !s.fastForwarding) post({ op: "score_submit", board, value: value.toString() });
+      if (!s.replaying && !s.fastForwarding && !s.debug) post({ op: "score_submit", board, value: value.toString() });
       return 0;
     }),
     mb_score_show: ((board) => {
@@ -4861,12 +4872,13 @@ var Recorder = class {
       this.starting = null;
     }
   }
-  frame(dt, events, assets, sensors, calls = [], lost = 0) {
+  frame(dt, events, assets, sensors, calls = [], lost = 0, picks = []) {
     const f = { dt, ...sensors };
     if (lost > 0) f.lost = lost;
     if (events.length) f.events = events;
     if (assets.length) f.assets = assets;
     if (calls.length) f.calls = calls;
+    if (picks.length) f.picks = picks;
     this.log.frames.push(f);
   }
 };
@@ -4917,6 +4929,10 @@ var Session = class {
   /** Running through a left run's frames to pick it up (`mb.restart({ resume })`): what it
    *  saves and reports still counts, but nothing reaches the player (haptics, overlays). */
   fastForwarding = false;
+  /** A debug session (SPEC §5.1 `mb_debug_menu`): it never submits a score. */
+  debug = false;
+  /** Told each menu the game declares (`mb_debug_menu`), in a live debug session; else null. */
+  onDebugMenu = null;
   /** Called when saved data changes (key, base64 value or null). */
   onStore = null;
   /** What the game reports, replay or not: the headless runner's (`mb replay`)
@@ -5166,6 +5182,8 @@ var Runtime = class _Runtime {
   frameNow = null;
   /** rAF to rAF (ms) for the frame being run, for `mb.stats()`; null outside a display frame. */
   frameInterval = null;
+  /** When the last display frame ran (performance.now ms), for `alive()`; null before the first. */
+  lastTick = null;
   /** Since the last heartbeat: the longest frame interval (ms) and the display frames missed. */
   beatWorst = 0;
   beatDropped = 0;
@@ -5297,6 +5315,7 @@ var Runtime = class _Runtime {
   }
   tick(now) {
     if (!this.running || this.suspended || this.stopped) return;
+    this.lastTick = performance.now();
     this.frameInterval = this.lastShown !== null ? now - this.lastShown : null;
     if (this.frameInterval !== null) {
       host_frame_time(this.frameInterval);
@@ -5345,8 +5364,10 @@ var Runtime = class _Runtime {
         this.resumedAt = null;
       }
     }
+    const picks = this.view?.debug?.take();
+    if (picks) events.push(...picks.events);
     this.latency.deliver(this.input.taken, this.frames + 1, this.frameNow);
-    this.recorder.frame(dt, events, assets, sensors, this.calls.splice(0), lost);
+    this.recorder.frame(dt, events, assets, sensors, this.calls.splice(0), lost, picks?.marks);
     return this.step(dt, events, sensors, [], lost);
   }
   /** Preview: advance a suspended session by `n` frames — a live one by
@@ -5560,8 +5581,36 @@ var Runtime = class _Runtime {
     this.stopped = true;
     cancelFrame(this.raf);
   }
+  /** Native's watchdog heard no frames for a while and asks the page (`mb.alive()`). That it
+   *  answers at all says the game's code isn't stuck: WebKit isn't running the page's animation
+   *  frames. Asks for the next one again, in case the one asked for was dropped, and says how
+   *  the page looks: whether WebKit thinks it's visible, and how long since its last frame. */
+  alive() {
+    const rearmed = this.running && !this.suspended && !this.stopped && !this.prerolling;
+    if (rearmed) {
+      cancelFrame(this.raf);
+      this.raf = requestAnimationFrame((t) => this.tick(t));
+    }
+    const sinceFrame = this.lastTick === null ? null : Math.round(performance.now() - this.lastTick);
+    return { visible: typeof document === "undefined" ? "headless" : document.visibilityState, sinceFrame, rearmed };
+  }
   brief() {
     return { frames: this.frames, time: this.session.gameTime, hash: host_draw_hash(), replay: this.source.kind === "replay" };
+  }
+  /** The debug menu's first change: this session is a debug session from here on (no
+   *  score is submitted, and its replay log is marked `debug`, so none of it counts). */
+  markDebug() {
+    if (this.source.kind !== "live") return;
+    this.session.debug = true;
+    this.recorder.log.debug = true;
+  }
+  /** The debug menu's step mode: the session stays held, but the game hears it's back
+   *  (`mb_resume`, recorded) before the frames it's stepped through. */
+  wakeForSteps() {
+    if (!this.guestSuspended || this.stopped || this.source.kind !== "live") return;
+    this.guestSuspended = false;
+    this.lifecycle("resume");
+    this.calls.push("resume");
   }
   /** Paused, held or not started: no frames run on their own. */
   get held() {
@@ -5594,7 +5643,7 @@ var Runtime = class _Runtime {
         if (f.att !== void 0) sensors.att = f.att;
         if (f.loud !== void 0) sensors.loud = f.loud;
         if (f.screen !== void 0) sensors.screen = f.screen;
-        this.recorder.frame(f.dt, f.events ?? [], assets, sensors, f.calls ?? [], f.lost ?? 0);
+        this.recorder.frame(f.dt, f.events ?? [], assets, sensors, f.calls ?? [], f.lost ?? 0, f.picks ?? []);
         this.step(f.dt, f.events ?? [], sensors, f.calls, f.lost);
         if (firstMismatch === null && i + 1 < expected.length && this.hashes[i + 1] !== expected[i + 1]) firstMismatch = i + 1;
         if (performance.now() - slice > 16) {
@@ -5736,6 +5785,9 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
     session.play = page2.play ?? null;
     session.onHaptic = (k) => page2.gamepads?.rumble(k);
   }
+  const debug = live && (page2.debugOn === true || from?.debug === true);
+  session.debug = debug;
+  if (live && page2.debug) session.onDebugMenu = (json) => page2.debug?.declare(json);
   session.onStore = (key, value) => {
     if (value === null) delete page2.store[key];
     else page2.store[key] = value;
@@ -5753,10 +5805,11 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
     playerId,
     locale,
     screen: Array.from(screen),
-    ...Object.keys(params).length ? { params } : {}
+    ...Object.keys(params).length ? { params } : {},
+    ...debug ? { debug: true } : {}
   });
   if (live) session.onRound = (state) => recorder.round(state);
-  const view = source.kind === "live" ? { screen: page2.screen, adaptive: page2.adaptive === true, pending: page2.pending } : null;
+  const view = source.kind === "live" ? { screen: page2.screen, adaptive: page2.adaptive === true, pending: page2.pending, debug: page2.debug ?? null } : null;
   const rt = new Runtime(guest, session, page2.input, recorder, page2.gamepads, page2.sensors, page2.stats, page2.latency, source, view, live ? page2.play ?? null : null);
   rt.init();
   return rt;

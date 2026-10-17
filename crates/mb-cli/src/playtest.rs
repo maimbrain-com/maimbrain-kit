@@ -51,6 +51,13 @@ pub struct TestArgs {
     /// End the test. Its runs and testers' notes are kept for 30 days.
     #[arg(long)]
     pub end: bool,
+    /// Let these testers use the debug menu (SPEC §5.1 `mb_debug_menu`): with --invite, those of
+    /// the invited who get it; alone, testers already testing (--debug ann). Debug rounds never count.
+    #[arg(long, value_delimiter = ',', value_name = "USERNAMES", conflicts_with_all = ["invite_all", "remove", "end"])]
+    pub debug: Vec<String>,
+    /// Take the debug menu away from these testers (--no-debug ann).
+    #[arg(long, value_delimiter = ',', value_name = "USERNAMES", conflicts_with_all = ["invite", "invite_all", "remove", "end"])]
+    pub no_debug: Vec<String>,
 }
 
 #[derive(clap::Args)]
@@ -267,6 +274,30 @@ pub fn test(t: &SubmitTarget, a: &TestArgs) -> Result<(), String> {
         }
         return Ok(());
     }
+    // The debug menu for testers already testing: one change each.
+    let set_debug = |names: &[String], on: bool| -> Result<(), String> {
+        for name in usernames(names) {
+            let (status, body) = api.send("PATCH", &format!("{path}/current/testers/{name}"), json!({ "debug": on }))?;
+            if status == 404 {
+                return Err(format!("@{name} isn't testing {id} (invite them with --invite {name} --debug {name})"));
+            }
+            if !ok(status) {
+                return Err(remote::error_text(status, &body));
+            }
+        }
+        eprintln!(
+            "✓ {} {} the debug menu from their next game. Rounds they play with it never count.",
+            at_list(&usernames(names)),
+            if on { "can use" } else { "can no longer use" }
+        );
+        Ok(())
+    };
+    if !a.no_debug.is_empty() {
+        return set_debug(&a.no_debug, false);
+    }
+    if !a.debug.is_empty() && a.invite.is_empty() {
+        return set_debug(&a.debug, true);
+    }
     let (status, current) = api.get(&format!("{path}/current"), &[])?;
     let current = match status {
         200 => Some(current),
@@ -306,7 +337,15 @@ pub fn test(t: &SubmitTarget, a: &TestArgs) -> Result<(), String> {
         print!("{out}");
         return Ok(());
     }
-    let (status, body) = api.send("POST", &path, json!({ "testers": invite }))?;
+    let debug = usernames(&a.debug);
+    if let Some(n) = debug.iter().find(|n| !invite.contains(n)) {
+        return Err(format!("--debug {n}: the debug menu is for testers you're inviting (add them to --invite)"));
+    }
+    let mut req = json!({ "testers": invite });
+    if !debug.is_empty() {
+        req["debug_usernames"] = json!(debug);
+    }
+    let (status, body) = api.send("POST", &path, req)?;
     if !ok(status) {
         // A 422 says which aren't mutual friends, or that it'd be over 25, or that there's no build.
         return Err(remote::error_text(status, &body));
@@ -353,7 +392,8 @@ pub fn test_text(id: &str, test: &Value) -> String {
         } else {
             "invited, hasn't played yet".into()
         };
-        out += &format!("  {:<w$}{state}\n", format!("@{name}"));
+        let debug = if t["debug"].as_bool() == Some(true) { " · debug menu" } else { "" };
+        out += &format!("  {:<w$}{state}{debug}\n", format!("@{name}"));
     }
     if list.is_empty() {
         out += "  (none)\n";
@@ -723,6 +763,11 @@ pub fn feedback_text(id: &str, body: &Value, locals: &[Local], source_dir: Optio
 fn note_text(n: &Value, l: &Local, source_dir: Option<&str>, num_w: usize, user_w: usize) -> String {
     let tester = is_tester(n);
     let mut about: Vec<String> = Vec::new();
+    // Played in debug mode (the debug menu, SPEC §5.1 `mb_debug_menu`): its run may jump
+    // around or cheat, and its value was never a score.
+    if n["debug"].as_bool() == Some(true) {
+        about.push("DEBUG".into());
+    }
     match n["state"].as_str() {
         Some("todo") if tester => about.push("accepted by you".into()),
         Some("fixed") => about.push(match n["fixed_in"]["build"].as_u64() {
@@ -792,6 +837,7 @@ pub fn feedback_json(id: &str, body: &Value, locals: &[Local], dir: &Path, sourc
                 "fun": match fun_word(&n["fun"]) { Some("fun") => json!(true), Some(_) => json!(false), None => Value::Null },
                 "difficulty": difficulty_word(&n["difficulty"]),
                 "value": n["value"],
+                "debug": n["debug"].as_bool().unwrap_or(false),
                 "moments": moments,
                 "run": l.run,
                 "bundle": l.bundle,

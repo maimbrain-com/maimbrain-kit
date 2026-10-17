@@ -49,6 +49,7 @@ pub const IMPORTS: &[Import] = &[
     f("mb_log", &[I32, I32, I32], &[], A),
     f("mb_mark", &[I32, I32], &[], A),
     f("mb_param", &[I32, I32, I32, I32], &[I32], A),
+    f("mb_debug_menu", &[I32, I32], &[], A),
     f("mb_time", &[], &[F64], A),
     f("mb_time_lost", &[], &[F32], A),
     f("mb_rand_seed", &[], &[I64], A),

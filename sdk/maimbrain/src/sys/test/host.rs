@@ -54,6 +54,8 @@ struct State {
     /// This frame's draw fingerprint so far, and each frame's since `init`.
     drawing: u64,
     drawn: Vec<u64>,
+    /// The debug menu the game last declared (`debug::show`).
+    debug_menu: Option<crate::debug::Menu>,
 }
 
 thread_local! {
@@ -112,6 +114,7 @@ impl Host {
                 daily_board: None,
                 drawing: FNV,
                 drawn: Vec::new(),
+                debug_menu: None,
             })
         });
         Host(())
@@ -169,6 +172,18 @@ impl Host {
     /// A quick tap at (x, y), starting in the next frame.
     pub fn tap(&self, x: f32, y: f32) {
         self.push(synth::tap(x, y, super::time() + 1e-4));
+    }
+
+    /// A pick in the debug menu (SPEC §5.2 kind 15), delivered in the next
+    /// frame: `value` is a toggle's 1 or 0, a number, a choice's index, or 0
+    /// for an action.
+    pub fn debug_pick(&self, id: u32, value: f32) {
+        self.push([crate::debug::Pick { id, value }.event(super::time() + 1e-4)]);
+    }
+
+    /// The debug menu the game last declared, if any (`debug::show`).
+    pub fn debug_menu(&self) -> Option<crate::debug::Menu> {
+        with(|s| s.debug_menu.clone()).flatten()
     }
 
     /// Game time now (s).
@@ -260,6 +275,10 @@ pub(crate) unsafe fn draw_bytes(tag: u32, ptr: *const u8, len: usize) {
             s.drawing = (s.drawing ^ *b as u64).wrapping_mul(0x100_0000_01b3);
         }
     });
+}
+
+pub(crate) fn debug_menu(menu: crate::debug::Menu) {
+    with(|s| s.debug_menu = Some(menu));
 }
 
 pub(crate) fn round(state: u32) {

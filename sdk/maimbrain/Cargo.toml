@@ -2,7 +2,7 @@
 name = "maimbrain"
 edition.workspace = true
 # The creator kit's version (crates/mb-cli); mb-cli's tests keep them equal.
-version = "0.8.2"
+version = "0.8.3"
 publish.workspace = true
 description = "Guest SDK for Maimbrain games"
 

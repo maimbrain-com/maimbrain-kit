@@ -30,6 +30,10 @@ pub enum Kind {
     /// again and lay out for it. `x` and `y` are the new width and height.
     /// It comes first in its frame. Never sent to a portrait letterboxed game.
     Resize = 14,
+    /// A pick in the platform's debug menu (debug sessions only; SPEC §5.2,
+    /// [`crate::debug`]): `code` is the item's id, `a` its new value. Read it
+    /// with [`crate::debug::Pick::from`]. Never a press.
+    Debug = 15,
     Unknown = 255,
 }
 
@@ -204,6 +208,7 @@ impl Event {
             12 => Kind::PadAxis,
             13 => Kind::Text,
             14 => Kind::Resize,
+            15 => Kind::Debug,
             _ => Kind::Unknown,
         }
     }

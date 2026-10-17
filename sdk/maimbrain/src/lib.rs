@@ -31,6 +31,7 @@
 pub mod audio;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod bot;
+pub mod debug;
 pub mod foley;
 pub mod gfx2d;
 pub mod gfx3d;

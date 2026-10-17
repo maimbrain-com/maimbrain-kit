@@ -888,6 +888,31 @@ fn workspace_target_dir(dir: &Path) -> Result<PathBuf, String> {
     meta["target_directory"].as_str().map(PathBuf::from).ok_or_else(|| "cargo metadata: no target_directory".into())
 }
 
+/// A game that looks long or varied (saved progress, bosses, levels or
+/// floors, story chapters, checkpoints) but declares no debug menu
+/// (`maimbrain::debug`, SPEC §5.1 `mb_debug_menu`): its testers and reviewers
+/// can't reach most of it.
+fn debug_menu_warning(manifest: &mb_format::Manifest, wasm: &[u8], src: &str) -> Option<String> {
+    if mb_format::wasm::imports(wasm).iter().any(|i| i == "mb_debug_menu") {
+        return None;
+    }
+    let lower = src.to_ascii_lowercase();
+    let words = ["boss", "levels", "next_level", "floors", "chapter", "checkpoint", "cutscene", "world_map"];
+    let mut why: Vec<&str> = words.iter().copied().filter(|w| lower.contains(w)).collect();
+    if manifest.capabilities.contains(&mb_format::manifest::Capability::Progress) {
+        why.insert(0, "saved progress");
+    }
+    if why.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "no debug menu, but this game looks like it has parts a tester can't reach quickly ({}). Declare one with maimbrain::debug \
+         (jumps to each level and boss, rare events, the state that matters) so testers and reviewers can reach all of it; \
+         see the skill's debug-menu.md. Ignore this if every part of the game shows up within a minute or two of play.",
+        why.join(", ")
+    ))
+}
+
 fn pack(dir: &Path, wasm: &Path, out: &Path) -> Result<PathBuf, String> {
     let manifest = read_manifest(dir)?;
     let read = |p: &Path| std::fs::read(p).map_err(|e| format!("{}: {e}", p.display()));
@@ -902,6 +927,9 @@ fn pack(dir: &Path, wasm: &Path, out: &Path) -> Result<PathBuf, String> {
         add_tree(&dir.join("assets"), "assets", ASSET_EXTENSIONS, &mut files)?;
     }
     let src = rust_sources(&dir.join("src"));
+    if let Some(w) = debug_menu_warning(&manifest, &files["game.wasm"], &src) {
+        eprintln!("warning: {w}");
+    }
     // Every file is one of the bundle's 512 entries: provenance sidecars stay
     // out (the game doesn't read them) and lip timings ship packed, one file
     // per character (the source tree keeps them per asset).

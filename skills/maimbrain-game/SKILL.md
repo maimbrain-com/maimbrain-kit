@@ -22,6 +22,7 @@ Then, as the game needs them:
 - **[audio.md](audio.md)** when sound has to follow the game: music that reacts to danger and progress (`music::Director`), foley from motion, rhythm games.
 - **`docs/PHYSICS.md`** if the game has things that stack, topple, bounce, roll, swing or break (see [Physics](#physics)).
 - **[landscape-controllers.md](landscape-controllers.md)** for a game held sideways (`orientation = "landscape"`), one that turns with the phone (`"any"`) or fills the screen's shape (`fit = "fill"`), and for controller or keyboard play: resizes, pad buttons and prompts, touch sticks.
+- **[debug-menu.md](debug-menu.md)** for a game with levels, bosses, story, unlocks, rare events or runs over about 3 minutes: it needs a debug menu (`maimbrain::debug`), so testers and reviewers can reach every part of it.
 - **[publish.md](publish.md)** when the user asks to publish, update or describe a game, and before working on one that's already published.
 - **[upgrade.md](upgrade.md)** before working on an existing game: `mb upgrade <game dir>` moves it to this kit's SDK and says what to fix and what it can adopt.
 
@@ -299,6 +300,7 @@ The SDK has deterministic rigid-body physics (Rapier inside your wasm): `maimbra
 
 - [ ] `mb build` validates with no warnings; `cargo test -p <name>` passes, `keeps_the_platform_rules` included; the bot (with `synth::Skill` numbers) says the difficulty curve is right, its accuracy and time-to-kill are in their bands, and it agrees with a real run or the owner's verdict ("Difficulty sanity check").
 - [ ] `await mb.verify()` after a played round returns `match: true` (the run replays exactly).
+- [ ] A game with levels, bosses, story, unlocks, rare events or runs over ~3 minutes has a debug menu ([debug-menu.md](debug-menu.md)) that reaches every level, boss, ending and rare event, with a test for each item.
 - [ ] Every item in the [engagement checklist](engagement.md#checklist).
 - [ ] 3D: the player's node is `mark_subject`ed and `mb shot … --readability` at a few moments (including the darkest scene) gives no warnings.
 - [ ] An `mb shot … --sheet` of the final build looked at (readable at speed, the player and hazards standing out from the background, the HUD clear of the player), and screenshots reviewed for the title card, game-over card, mid-round and both edges of danger, with no grounding warnings under them.

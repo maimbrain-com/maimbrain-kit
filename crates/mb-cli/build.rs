@@ -71,11 +71,66 @@ fn main() {
     println!("cargo:rustc-env=MB_RUNTIME_DIST={}", dist.display());
     println!("cargo:rustc-env=MB_RUNTIME_ID={}", if present { format!("{:08x}", runtime_id.0 >> 32) } else { "none".into() });
     println!("cargo:rustc-env=MB_BUILD_ID={}", build_id(&root));
+    studio_engine(&root);
 }
 
 /// The kit's CHANGELOG.md (tools/kit/files/ in the monorepo, the root of the
 /// kit), whose `### Upgrading` parts `mb upgrade` prints: copied to
 /// $OUT_DIR/kit-changelog.md (empty if there's none), named by MB_KIT_CHANGELOG.
+/// The Studio engine (games/studio-engine in the monorepo and the kit), which
+/// `mb build` packs Studio projects with: its crate's directory
+/// (MB_STUDIO_ENGINE_DIR, for building it with cargo), and, in
+/// $OUT_DIR/studio_engine.rs, its version, its published builds
+/// (published/studio-<version>-<plain|tilt>.wasm, made by `just
+/// studio-engine`) and its source, so packing needs no Rust toolchain.
+/// Without the engine all three are empty.
+fn studio_engine(root: &Path) {
+    let dir = root.join("games/studio-engine");
+    let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    let mut code = String::new();
+    let lib = std::fs::read_to_string(dir.join("src/lib.rs")).unwrap_or_default();
+    let version = lib.lines().find_map(|l| l.trim().strip_prefix("pub const ENGINE_VERSION: &str = \"")?.strip_suffix("\";")).unwrap_or("");
+    println!("cargo:rustc-env=MB_STUDIO_ENGINE_DIR={}", if dir.join("Cargo.toml").is_file() { dir.display().to_string() } else { String::new() });
+    code.push_str(&format!("pub const VERSION: &str = {version:?};\n"));
+    for variant in ["plain", "tilt"] {
+        let f = dir.join(format!("published/studio-{version}-{variant}.wasm"));
+        println!("cargo:rerun-if-changed={}", f.display());
+        let name = variant.to_uppercase();
+        if f.is_file() && !version.is_empty() {
+            code.push_str(&format!("pub const {name}: &[u8] = include_bytes!({:?});\n", f.display().to_string()));
+        } else {
+            code.push_str(&format!("pub const {name}: &[u8] = &[];\n"));
+        }
+    }
+    // The source a bundle ships in src/: Cargo.toml and src/ (not its tests).
+    let mut files = Vec::new();
+    if dir.join("Cargo.toml").is_file() {
+        files.push(("Cargo.toml".to_string(), dir.join("Cargo.toml")));
+        let mut stack = vec![dir.join("src")];
+        while let Some(d) = stack.pop() {
+            for e in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    stack.push(p);
+                } else {
+                    let rel = p.strip_prefix(&dir).unwrap().to_string_lossy().replace('\\', "/");
+                    files.push((rel, p));
+                }
+            }
+        }
+        println!("cargo:rerun-if-changed={}", dir.join("src").display());
+        println!("cargo:rerun-if-changed={}", dir.join("Cargo.toml").display());
+    }
+    files.sort();
+    code.push_str("pub const SOURCE: &[(&str, &[u8])] = &[\n");
+    for (rel, p) in &files {
+        println!("cargo:rerun-if-changed={}", p.display());
+        code.push_str(&format!("    ({rel:?}, include_bytes!({:?})),\n", p.display().to_string()));
+    }
+    code.push_str("];\n");
+    std::fs::write(out.join("studio_engine.rs"), code).unwrap();
+}
+
 fn changelog(root: &Path) {
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("kit-changelog.md");
     // Not the monorepo's own CHANGELOG.md (the app's): the kit's root one only in the kit.

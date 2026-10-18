@@ -1,0 +1,27 @@
+[package]
+name = "studio-engine"
+edition.workspace = true
+# The Studio engine's own version is ENGINE_VERSION in src/lib.rs (a
+# project's studio.toml pins it as `engine = "1.0"`); the crate's stays the
+# workspace's.
+version.workspace = true
+publish.workspace = true
+description = "Plays a Maimbrain Studio project (Arcade rung): Lua over a small Rust core"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# The build for projects that read tilt (`player.tilt`, inputs = ["tilt"]):
+# it imports mb_tilt, so its manifest declares sensors = ["tilt"]. A game may
+# only import what its manifest declares (SPEC §5), hence one engine build
+# per import set (docs/SPEC.md "Studio bundles").
+sensors = []
+
+[dependencies]
+maimbrain = { path = "../../sdk/maimbrain" }
+# Lua 5.4 in pure Rust (docs/spike/studio-lua-vm.md). The lean build: base,
+# string, table and math only (no io, os, package or debug).
+omnilua = { version = "=0.7.1", default-features = false }
+# studio.toml, sprite and tile tables, map headers, scenarios.
+toml = { version = "1.1.6", default-features = false, features = ["parse", "serde", "std"] }

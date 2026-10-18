@@ -7,6 +7,7 @@ pub mod bundle;
 pub mod font;
 pub mod manifest;
 pub mod meter;
+pub mod studio;
 pub mod wasm;
 
 pub use bundle::{Bundle, Report, pack, validate};

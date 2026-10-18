@@ -40,6 +40,19 @@ impl Snapshot {
         s
     }
 
+    /// A Studio project's files: studio.toml, icon.png and what's under the
+    /// directories the engine reads.
+    pub fn scan_studio(dir: &Path) -> Snapshot {
+        let mut s = Snapshot::default();
+        for f in ["studio.toml", "icon.png"] {
+            s.add(&dir.join(f), f.to_string());
+        }
+        for d in ["game", "sprites", "tiles", "maps", "sounds", "music", "debug"] {
+            s.walk(&dir.join(d), d, false);
+        }
+        s
+    }
+
     /// A single file (a .mbx being served).
     pub fn file(path: &Path) -> Snapshot {
         let mut s = Snapshot::default();
@@ -194,6 +207,9 @@ pub fn run(scan: &dyn Fn() -> Snapshot, mut built: Snapshot, mut build: impl FnM
 
 /// Where a game's files are, for messages.
 pub fn describe(dir: &Path) -> String {
+    if crate::studio::is_project(dir) {
+        return format!("{} (a Studio project: studio.toml, game/, sprites/, tiles/, maps/, sounds/, music/, debug/)", dir.display());
+    }
     let mut parts = vec!["src/"];
     if dir.join("assets").is_dir() {
         parts.push("assets/");

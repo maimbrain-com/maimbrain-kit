@@ -19,10 +19,12 @@ pub const MAX_FILES: usize = 512;
 pub const MAX_UNCOMPRESSED: u64 = 64 * MIB;
 const MIB: u64 = 1024 * 1024;
 
-pub const ASSET_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "ktx2", "glb", "ogg", "opus", "ttf", "mbf", "wgsl", "bin", "json", "txt"];
+/// `lua`, `map` and `toml` carry a Studio project (SPEC "Studio bundles").
+pub const ASSET_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "ktx2", "glb", "ogg", "opus", "ttf", "mbf", "wgsl", "bin", "json", "txt", "lua", "map", "toml"];
 /// Largest .glb asset (SPEC §1).
 pub const MAX_GLB: usize = 8 * MIB as usize;
-pub const SOURCE_EXTENSIONS: &[&str] = &["rs", "toml", "lock", "md", "txt", "wgsl"];
+/// `lua`: the Studio engine's own Lua (its prelude) is part of its source.
+pub const SOURCE_EXTENSIONS: &[&str] = &["rs", "toml", "lock", "md", "txt", "wgsl", "lua"];
 
 /// A validated, fully inflated bundle.
 #[derive(Debug)]
@@ -46,6 +48,8 @@ pub struct Report {
     /// The Maimbrain SDK version the game was built with, if it used the SDK
     /// (game.wasm's `maimbrain-sdk` section, SPEC §3).
     pub sdk_version: Option<String>,
+    /// A Studio bundle's engine (SPEC "Studio bundles").
+    pub studio: Option<crate::studio::Info>,
 }
 
 impl Report {
@@ -214,11 +218,14 @@ fn inspect(bytes: &[u8]) -> (Report, Option<BTreeMap<String, Vec<u8>>>) {
             r.wasm_size = wasm.len() as u64;
             if r.wasm_size > MAX_WASM {
                 r.errors.push(format!("game.wasm is {} bytes; the limit is {MAX_WASM}", r.wasm_size));
-            } else if r.wasm_size > MIB {
-                r.warnings.push(format!("game.wasm is {} KiB; it SHOULD be under 1 MiB", r.wasm_size / 1024));
             }
             crate::wasm::check(wasm, &m, &mut r.errors);
             r.sdk_version = crate::wasm::sdk_version(wasm);
+        }
+        r.studio = crate::studio::check(&m, &files, &mut r.errors, &mut r.warnings);
+        // A published Studio engine's size isn't the creator's to change.
+        if r.wasm_size > MIB && r.wasm_size <= MAX_WASM && !r.studio.as_ref().is_some_and(|s| s.published) {
+            r.warnings.push(format!("game.wasm is {} KiB; it SHOULD be under 1 MiB", r.wasm_size / 1024));
         }
     }
     let ok = r.errors.is_empty();

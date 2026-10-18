@@ -739,7 +739,9 @@ pub(crate) fn fit_screen(m: &mut Manifest, spec: &str) -> Result<String, String>
 
 /// The manifest of a game directory or .mbx.
 pub(crate) fn game_manifest(path: &Path) -> Result<Manifest, String> {
-    if path.is_dir() {
+    if crate::studio::is_project(path) {
+        crate::studio::manifest(path, Vec::new())
+    } else if path.is_dir() {
         devbuild::manifest(path).map_err(|f| f.text)
     } else if path.is_file() {
         Ok(open_bundle(path)?.manifest)
@@ -755,7 +757,27 @@ pub(crate) fn stage(path: &Path, site: &Path, seed: u64) -> Result<(), String> {
 
 /// `stage`, a game directory built with extra cargo `--config` settings.
 pub(crate) fn stage_with(path: &Path, site: &Path, seed: u64, config: &[String]) -> Result<(), String> {
-    if path.is_dir() { stage_dir(path, site, seed, config) } else { stage_bundle(path, site, seed) }
+    if crate::studio::is_project(path) {
+        stage_studio(path, site, seed)
+    } else if path.is_dir() {
+        stage_dir(path, site, seed, config)
+    } else {
+        stage_bundle(path, site, seed)
+    }
+}
+
+/// A Studio project, laid out as its bundle would be.
+fn stage_studio(dir: &Path, site: &Path, seed: u64) -> Result<(), String> {
+    let (manifest, files) = crate::studio::bundle_files(dir, None)?;
+    let game = site.join("game");
+    for (p, data) in &files {
+        let dest = game.join(p);
+        std::fs::create_dir_all(dest.parent().unwrap()).map_err(|e| e.to_string())?;
+        let data = if p == "game.wasm" { mb_format::meter::instrument(data)? } else { data.clone() };
+        std::fs::write(&dest, data).map_err(|e| format!("{}: {e}", dest.display()))?;
+    }
+    std::fs::write(game.join("boot.json"), serde_json::to_vec_pretty(&crate::boot_json(&manifest, seed, DATE)).unwrap()).map_err(|e| e.to_string())?;
+    serve::write_runtime(&site.join("runtime"))
 }
 
 fn open_bundle(path: &Path) -> Result<mb_format::Bundle, String> {

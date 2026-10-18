@@ -1,5 +1,13 @@
 # Creator kit changelog
 
+## 0.9.0
+
+Studio projects: Arcade games written in Lua, the first rung of Maimbrain Studio (docs/STUDIO.md). A project is a directory with `studio.toml` (and no `manifest.toml`): sprites and tiles in a 16-colour palette, maps, sounds and songs as small text files, and Lua in `game/` over the engine's things, behaviours and events (docs/STUDIO-API.md). `mb` takes a project wherever it takes a game directory; there's no new subcommand. Nothing changes for game crates. Players need the app released alongside this kit to play Studio games; older apps leave them out of the feed.
+
+- **`mb build`, `mb serve [--watch]`, `mb shot`, `mb measure` and `mb publish` take Studio projects.** `mb` packs them with the published Studio engine built into it, so no Rust toolchain is needed: about 0.7 s for a starter. It writes the manifest from `studio.toml`, checks sprites and tiles against the palette and their sizes, makes an icon from the hero when there's none, and renders `.sfx.toml` and `.song.toml` to Ogg. `mb serve --watch` reloads about 0.4 s after a save, replaying the session onto the new assets.
+- **`mb play`** runs a bundle or project headless and prints JSON: errors with their Lua file and line, the log, the events (rounds, scores, pickups, hurts, jumps), frames drawn as PNGs, and a summary in words of what's on screen. `--script` plays taps, swipes, keys and pad input; `--debug` makes debug picks or runs a scenario first.
+- **Debug menu:** every Studio game has one, made by the engine: the project's scenarios (`debug/scenarios.toml`), a Studio tab, spawning any kind, its knobs, and the game's own items.
+
 ## 0.8.3
 
 A debug menu for testing games. A build that isn't live yet (a draft, or one waiting for review) can be played in debug mode: the creator always, moderators reviewing it, and testers the creator allows. A live game too, by its creator only, with *Write your agent a note* in the menu: it files a to-do on that moment, with the run, for `mb feedback`. A Debug button on the game's card opens a menu the platform draws from the items the game declares: jump to any level or boss, set the state, turn on cheats, fire a rare event. Nothing played in debug mode ever counts.

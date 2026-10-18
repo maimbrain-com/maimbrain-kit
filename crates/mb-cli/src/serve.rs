@@ -488,7 +488,13 @@ pub fn watch(path: &Path, port: u16, pin: Option<&Pin>, boot: fn(&Manifest) -> V
     }
     let scan: Scan = {
         let p = path.to_path_buf();
-        if is_dir { Arc::new(move || Snapshot::scan(&p)) } else { Arc::new(move || Snapshot::file(&p)) }
+        if crate::studio::is_project(&p) {
+            Arc::new(move || Snapshot::scan_studio(&p))
+        } else if is_dir {
+            Arc::new(move || Snapshot::scan(&p))
+        } else {
+            Arc::new(move || Snapshot::file(&p))
+        }
     };
     let hub = {
         let scan = scan.clone();
@@ -526,11 +532,12 @@ type Scan = Arc<dyn Fn() -> Snapshot + Send + Sync>;
 
 /// Builds once, then after every debounced batch of changes, forever.
 fn builder(hub: &Arc<Hub>, path: &Path, is_dir: bool, boot: fn(&Manifest) -> Value, scan: Scan) {
-    let mut b = Builder { hub: hub.clone(), path: path.to_path_buf(), is_dir, boot, n: 0, package: None, page_owed: true };
+    let studio = crate::studio::is_project(path);
+    let mut b = Builder { hub: hub.clone(), path: path.to_path_buf(), is_dir, boot, n: 0, package: None, page_owed: true, studio: studio.then(Default::default) };
     let first = scan();
     b.run(Kind::Page, vec![], &first);
     watch::run(&*scan, first, |changed, snap| {
-        let kind = if is_dir { watch::classify(&changed) } else { Kind::Page };
+        let kind = if studio { Kind::Code } else if is_dir { watch::classify(&changed) } else { Kind::Page };
         b.run(kind, changed, snap);
     });
 }
@@ -546,10 +553,15 @@ struct Builder {
     /// The pages need a full reload with the next good build (the first
     /// one, or after a manifest change that didn't build).
     page_owed: bool,
+    /// A Studio project: its last good bundle files (empty before the first).
+    studio: Option<std::collections::BTreeMap<String, Vec<u8>>>,
 }
 
 impl Builder {
     fn run(&mut self, kind: Kind, changed: Vec<String>, snap: &Snapshot) {
+        if self.studio.is_some() {
+            return self.run_studio(changed, snap);
+        }
         self.n += 1;
         let n = self.n;
         let started = Instant::now();
@@ -601,6 +613,76 @@ impl Builder {
                 let o = outcome(reload, false);
                 status!("build {n} failed {:.2}s: {}", o.secs, f.summary());
                 self.page_owed |= page;
+                let msg = failed_json(n, o.secs, &f);
+                self.hub.update(|s| {
+                    s.building = false;
+                    s.fingerprint = fingerprint;
+                    s.failure = Some((n, f));
+                    s.last = Some(o);
+                });
+                self.hub.broadcast(&msg);
+            }
+        }
+    }
+
+    /// A Studio project changed: make its bundle files again (the engine's
+    /// wasm is built once and reused) and tell the pages which assets
+    /// changed, or to reload when the manifest or the engine did. The page
+    /// then replays the session onto the new project, as for any asset edit.
+    fn run_studio(&mut self, changed: Vec<String>, snap: &Snapshot) {
+        self.n += 1;
+        let n = self.n;
+        let started = Instant::now();
+        let edited = changed.iter().filter_map(|p| std::fs::metadata(self.path.join(p)).and_then(|m| m.modified()).ok()).max();
+        let what = if changed.is_empty() { "first build".to_string() } else { short_list(&changed) };
+        status!("build {n} started: {what}");
+        self.hub.update(|s| {
+            s.building = true;
+            s.build = n;
+        });
+        self.hub.broadcast(&json!({ "type": "building", "build": n, "changed": changed }));
+        let fingerprint = snap.fingerprint();
+        // The engine is built once per `mb serve`; edits to the project reuse it.
+        // (Unless what picks its build changed: studio.toml's inputs, a sprite's behaviour.)
+        let variant_may_change = changed.iter().any(|p| p == "studio.toml" || (p.starts_with("sprites/") && p.ends_with(".toml")));
+        let engine = self.studio.as_ref().filter(|_| !variant_may_change).and_then(|f| f.get("game.wasm").cloned());
+        let made = crate::studio::bundle_files(&self.path, engine).and_then(|(m, files)| {
+            let wasm = mb_format::meter::instrument(&files["game.wasm"])?;
+            Ok((m, wasm, files))
+        });
+        let before = self.studio.clone().unwrap_or_default();
+        match made {
+            Ok((manifest, wasm, files)) => {
+                let page = self.page_owed || before.get("manifest.toml") != files.get("manifest.toml") || before.get("game.wasm") != files.get("game.wasm");
+                let paths: Vec<String> = files.keys().chain(before.keys()).filter(|k| k.starts_with("assets/") && before.get(*k) != files.get(*k)).cloned().collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+                let kind = if page { "page" } else { "assets" };
+                let o = Outcome { build: n, kind, ok: true, secs: started.elapsed().as_secs_f64(), finished: Instant::now(), edited };
+                status!("build {n} ok {:.2}s {kind}{}", o.secs, if page { String::new() } else { format!(": {}", short_list(&paths)) });
+                let mut boot = (self.boot)(&manifest);
+                boot["dev"] = json!({ "server": self.hub.server, "build": n });
+                let boot = serde_json::to_vec_pretty(&boot).unwrap();
+                let files = Arc::new(files);
+                self.studio = Some((*files).clone());
+                self.page_owed = false;
+                self.hub.update(|s| {
+                    s.building = false;
+                    s.fingerprint = fingerprint;
+                    s.code_build = n;
+                    s.failure = None;
+                    s.site = Some(Arc::new(Site { wasm: Arc::new(wasm), boot: Arc::new(boot), files: Files::Memory(files) }));
+                    s.last = Some(o);
+                });
+                if page {
+                    self.hub.broadcast(&json!({ "type": "reload", "build": n, "codeBuild": n, "kind": "page" }));
+                } else {
+                    self.hub.broadcast(&json!({ "type": "assets", "build": n, "paths": paths }));
+                }
+            }
+            Err(e) => {
+                let file = e.split_once(": ").map(|(f, _)| f.to_string()).filter(|f| !f.contains(' ')).unwrap_or_default();
+                let f = devbuild::Failure::message(&file, e);
+                let o = Outcome { build: n, kind: "assets", ok: false, secs: started.elapsed().as_secs_f64(), finished: Instant::now(), edited };
+                status!("build {n} failed {:.2}s: {}", o.secs, f.summary());
                 let msg = failed_json(n, o.secs, &f);
                 self.hub.update(|s| {
                     s.building = false;
@@ -722,6 +804,7 @@ fn game_file(site: &Site, rel: &str) -> Option<Vec<u8>> {
     }
     match &site.files {
         Files::Bundle(b) => b.file(rel).map(<[u8]>::to_vec),
+        Files::Memory(m) => m.get(rel).cloned(),
         Files::Dir(root) if rel == "manifest.toml" => std::fs::read(root.join(rel)).ok(),
         Files::Dir(root) => {
             let ext = Path::new(rel).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);

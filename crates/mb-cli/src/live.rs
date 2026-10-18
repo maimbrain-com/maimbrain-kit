@@ -433,6 +433,8 @@ pub enum Files {
     Dir(PathBuf),
     /// A .mbx.
     Bundle(Arc<mb_format::Bundle>),
+    /// A Studio project's bundle files, made in memory (bundle path → bytes).
+    Memory(Arc<std::collections::BTreeMap<String, Vec<u8>>>),
 }
 
 #[cfg(test)]

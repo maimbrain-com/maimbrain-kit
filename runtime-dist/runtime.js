@@ -2651,6 +2651,7 @@ async function loadBoot() {
 // src/debug.ts
 var DEBUG_KIND = 15;
 var MAX_JSON = 64 * 1024;
+var MAX_LABEL = 48;
 var MAX_SECTIONS = 12;
 var MAX_ITEMS = 200;
 var MAX_OPTIONS = 24;
@@ -2678,7 +2679,7 @@ function parseMenu(json) {
       if (typeof id !== "number" || !Number.isInteger(id) || id < 1 || id > 2 ** 31) throw new Error(`"${String(r.label)}": id ${String(id)}`);
       if (ids.has(id)) throw new Error(`id ${id} used twice`);
       ids.add(id);
-      const label = str(r.label, 48, `item ${id} label`);
+      const label = str(r.label, MAX_LABEL, `item ${id} label`);
       const hint = typeof r.hint === "string" && r.hint ? [...r.hint].slice(0, 64).join("") : void 0;
       const base = { id, label, ...hint ? { hint } : {} };
       switch (r.kind) {
@@ -2885,6 +2886,18 @@ var DebugMenu = class {
     this.taint();
     if (it.kind === "action") this.enqueue(id, 0, it.label, false);
     else this.setValue(it, value ?? (it.kind === "toggle" ? 1 - it.value : it.value));
+  }
+  /** A pick by the item's label (a Studio scenario's name, "Invincible"), ignoring case; a
+   *  label the game cut to fit matches the start of `label`. The game's items before the
+   *  platform's. False when the menu has no such item (yet: the game declares it in mb_init). */
+  pickLabel(label, value) {
+    const want = label.trim().toLowerCase();
+    if (!want) return false;
+    const all = this.sections.flatMap((s) => s.items);
+    const it = all.find((i) => i.label.toLowerCase() === want) ?? all.find((i) => i.label.length >= MAX_LABEL && want.startsWith(i.label.toLowerCase()));
+    if (!it) return false;
+    this.pick(it.id, value);
+    return true;
   }
   /** Drops picks not yet delivered: a new session starts without the old one's. */
   forget() {
@@ -8275,6 +8288,10 @@ async function main() {
     },
     padTap: (button = 0, index = 0) => page2.gamepads?.tap(button, index),
     restart: (json) => restart(JSON.parse(json)),
+    invalidate: (paths) => {
+      if (!Array.isArray(paths)) page2.assets.clear();
+      else for (const p of paths) if (typeof p === "string") page2.assets.delete(p);
+    },
     tap: (x, y) => input.tapAt(x, y),
     sensors: (...a) => {
       const s = page2.sensors;
@@ -8325,6 +8342,7 @@ async function main() {
       close: () => page2.debug?.close(false),
       isOpen: () => page2.debug?.isOpen() ?? false,
       pick: (id, value) => page2.debug?.pick(id, value),
+      pickLabel: (label, value) => page2.debug?.pickLabel(label, value) ?? false,
       step: (n = 1) => page2.debug?.step(n),
       play: () => page2.debug?.play()
     },

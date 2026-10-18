@@ -362,3 +362,44 @@ fn one_daily_board_and_never_board_0() {
     assert_error(&errors(&m(&board(0, true)), wasm()), "board 0 can't be daily");
     assert_error(&errors(&m(&(board(1, true) + &board(2, true))), wasm()), "at most one board can be daily");
 }
+
+/// Studio bundles (SPEC "Studio bundles"): the project under assets/, the
+/// engine named in the manifest, and the engine's Lua in src/.
+#[test]
+fn studio_bundles() {
+    let studio = format!("{MANIFEST}engine = \"studio@1.0\"\n");
+    let project: &[(&str, &[u8])] = &[
+        ("assets/studio.toml", b"title = \"Cat Snack\"\n"),
+        ("assets/game/main.lua", b"function start() end\n"),
+        ("assets/maps/level1.map", b"[map]\n.\n"),
+        ("assets/files.txt", b"studio.toml\ngame/main.lua\nmaps/level1.map\n"),
+        ("src/src/prelude.lua", b"-- the engine's Lua\n"),
+    ];
+    let r = validate(&bundle(&studio, module(EXPORTS), project));
+    assert!(r.ok(), "{:#?}", r.errors);
+    let info = r.studio.expect("a Studio bundle");
+    assert_eq!((info.engine.as_str(), info.variant.as_str(), info.published), ("1.0", "plain", false));
+    assert!(r.warnings.iter().any(|w| w.contains("isn't a published Studio engine 1.0")), "{:?}", r.warnings);
+    assert_eq!(r.manifest.unwrap().needs_formats(), ["studio"]);
+
+    // The project has to be there, as files.txt says.
+    let r = validate(&bundle(&studio, module(EXPORTS), &project[..2]));
+    assert_error(&r.errors, "assets/files.txt is missing");
+    let listed: &[(&str, &[u8])] = &[project[0], project[1], ("assets/files.txt", b"studio.toml\ngame/main.lua\nsprites/cat.png\n")];
+    assert_error(&validate(&bundle(&studio, module(EXPORTS), listed)).errors, "lists sprites/cat.png, but assets/sprites/cat.png isn't in the bundle");
+    let escape: &[(&str, &[u8])] = &[project[0], project[1], ("assets/files.txt", b"../manifest.toml\n")];
+    assert_error(&validate(&bundle(&studio, module(EXPORTS), escape)).errors, "isn't a project path");
+    assert_error(&errors(&format!("{MANIFEST}engine = \"lua@1\"\n"), module(EXPORTS)), "the only engine is Studio's");
+
+    // A plain game may carry these types too, and needs nothing new.
+    let r = validate(&bundle(MANIFEST, module(EXPORTS), &[("assets/level.toml", b"a = 1"), ("assets/ai.lua", b"x = 1")]));
+    assert!(r.ok() && r.studio.is_none(), "{:#?}", r.errors);
+    assert!(r.manifest.unwrap().needs_formats().is_empty());
+
+    // The engine build with tilt is the tilt variant.
+    let tilt = format!("{studio}sensors = [\"tilt\"]\n");
+    let wasm = module(&format!(r#"(import "mb" "mb_tilt" (func (param i32) (result i32))) {EXPORTS}"#));
+    let r = validate(&bundle(&tilt, wasm, project));
+    assert!(r.ok(), "{:#?}", r.errors);
+    assert_eq!(r.studio.unwrap().variant.as_str(), "tilt");
+}

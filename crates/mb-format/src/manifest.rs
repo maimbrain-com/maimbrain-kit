@@ -50,6 +50,11 @@ pub struct Manifest {
     /// Where a replay card puts its "Beat …" banner (SPEC §5.2).
     #[serde(default)]
     pub replay_banner: ReplayBanner,
+    /// A Studio game: the engine its `game.wasm` is, `"studio@1.0"` (SPEC
+    /// "Studio bundles"). An app whose validator predates the field refuses
+    /// the manifest, so an older app never runs a Studio bundle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
 }
 
 /// Where the feed draws a replay card's "Beat …" banner (SPEC §5.2).
@@ -344,9 +349,20 @@ impl Manifest {
         if daily.len() > 1 {
             err("scores: at most one board can be daily".into());
         }
+        if let Some(e) = &self.engine
+            && crate::studio::parse_engine(e).is_none()
+        {
+            err(format!("engine = {e:?}: the only engine is Studio's, \"studio@<major>.<minor>\" (e.g. \"studio@1.0\")"));
+        }
         if self.capabilities.contains(&Capability::Net) {
             err("capability \"net\" is reserved and not available in v0".into());
         }
+    }
+
+    /// Bundle formats beyond the plain one this game needs the app to know
+    /// ([`crate::studio::FORMATS`]): `studio` for a Studio game.
+    pub fn needs_formats(&self) -> Vec<&'static str> {
+        if self.engine.is_some() { vec!["studio"] } else { Vec::new() }
     }
 
     pub fn has_stdlib(&self, name: &str) -> bool {

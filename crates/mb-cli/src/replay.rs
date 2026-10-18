@@ -39,7 +39,7 @@ pub fn replay(bundle: &Path, log: &Path, opts: &Options) -> Result<(), String> {
     let work = std::env::temp_dir().join(format!("mb-replay-{}-{}", std::process::id(), nanos()));
     let result = run(bundle, &log, &work, opts);
     let _ = std::fs::remove_dir_all(&work);
-    let mut r = result?;
+    let (mut r, _) = result?;
 
     // What it ran on, and whether that's the build the run was recorded on.
     r["bundle"] = b.sha256.clone().into();
@@ -64,7 +64,9 @@ fn read_log(path: &Path) -> Result<Value, String> {
     Ok(log)
 }
 
-fn run(bundle: &Path, log: &Value, work: &Path, opts: &Options) -> Result<Value, String> {
+/// Runs `log` on `bundle` in the headless runner: its result, and what the
+/// run wrote to stderr (the game's log lines, `[game] …`).
+pub(crate) fn run(bundle: &Path, log: &Value, work: &Path, opts: &Options) -> Result<(Value, String), String> {
     let game = work.join("game");
     let manifest = crate::unpack(bundle, &game)?;
     let boot = crate::boot_json(&manifest, 0, "2026-01-01");
@@ -128,7 +130,7 @@ fn run(bundle: &Path, log: &Value, work: &Path, opts: &Options) -> Result<Value,
     let (stdout, stderr) = (out.join().unwrap_or_default(), err.join().unwrap_or_default());
     let line = stdout.lines().rev().find(|l| l.starts_with('{'));
     match (status.success(), line) {
-        (true, Some(l)) => serde_json::from_str(l).map_err(|e| format!("the runner's output isn't JSON ({e}): {l}")),
+        (true, Some(l)) => serde_json::from_str(l).map(|v| (v, stderr.clone())).map_err(|e| format!("the runner's output isn't JSON ({e}): {l}")),
         // The error itself, not the last line of its stack trace.
         _ => Err(format!(
             "the runner failed ({status}): {}",

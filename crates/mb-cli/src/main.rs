@@ -53,6 +53,7 @@ mod scaffold;
 mod serve;
 mod shot;
 mod smooth;
+mod studio;
 mod upgrade;
 mod voicecheck;
 mod watch;
@@ -338,6 +339,12 @@ enum Cmd {
     /// The server runs this on prompts sent to Maimbrain's generation keys.
     #[command(hide = true)]
     IpCheck,
+    /// Play a Studio game headless (scripted touches, keys, pads and debug picks) and report its
+    /// errors, log, events and score, with frames drawn as PNGs (Studio's play_test and screenshot).
+    Play(studio::play::PlayArgs),
+    /// Build the Studio engine's two published builds into games/studio-engine/published/ (`just studio-engine`).
+    #[command(hide = true, name = "studio-engine")]
+    StudioEngine,
     /// Bake a font into a game: a library font (`mb fonts`) or a .ttf/.otf of your own becomes
     /// assets/fonts/<name>.mbf (a subset glyph atlas with metrics and kerning) plus its license,
     /// recorded in the game's fonts.toml so `mb build` re-bakes it when the entry changes.
@@ -565,6 +572,8 @@ fn run() -> ExitCode {
         Cmd::Keys { cmd } => generate::keys::run(cmd),
         Cmd::Models => generate::models(),
         Cmd::IpCheck => generate::ip::check_stdin(),
+        Cmd::StudioEngine => studio::publish_engine(),
+        Cmd::Play(a) => studio::play::run(a),
         Cmd::Font { cmd: FontCmd::Add { game, identity: Some(id), .. } } => fonts::add_identity(&game, &id),
         Cmd::Font { cmd: FontCmd::Add { game, font, weight, chars, em, name, bitmap, sdf, license, .. } } => {
             fonts::add(&game, font.as_deref().unwrap_or_default(), weight, chars, em, name, bitmap, sdf, license)
@@ -707,6 +716,9 @@ fn description_text(game: &str, text: Option<String>, file: Option<&Path>, clear
 }
 
 fn read_manifest(dir: &Path) -> Result<Manifest, String> {
+    if studio::is_project(dir) {
+        return studio::manifest(dir, Vec::new());
+    }
     let path = dir.join("manifest.toml");
     let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     Manifest::parse(&text).map_err(|e| format!("{}: {e}", path.display()))
@@ -728,6 +740,10 @@ fn package_name(dir: &Path) -> Result<String, String> {
 /// (a parallel `mb shot` or `mb build` of the game waits, then reuses it).
 fn build_and_pack(dir: &Path, out: &Path) -> Result<PathBuf, String> {
     let _lock = devbuild::lock(dir);
+    // A Studio project (studio.toml, no crate): the engine plus the project.
+    if studio::is_project(dir) {
+        return studio::build_and_pack(dir, out);
+    }
     build(dir).and_then(|wasm| pack(dir, &wasm, out))
 }
 
@@ -763,17 +779,24 @@ fn build(dir: &Path) -> Result<PathBuf, String> {
     }
     let target = workspace_target_dir(dir)?;
     let raw = target.join("wasm32-unknown-unknown/release").join(format!("{}.wasm", name.replace('-', "_")));
+    optimize_wasm(&raw)
+}
+
+/// wasm-opt's output for a built wasm (`<name>.opt.wasm` beside it), reused
+/// when it was made from these bytes with these flags; the wasm as it is
+/// without wasm-opt.
+fn optimize_wasm(raw: &Path) -> Result<PathBuf, String> {
     let opt = raw.with_extension("opt.wasm");
     let flags = [&["-O3", "--strip-debug", "--strip-producers"][..], &mb_format_features()[..]].concat();
     // wasm-opt is most of a build whose wasm didn't change (an asset edit, a
     // rebuild): reuse its output when it was made from these bytes with these flags.
     let stamp = raw.with_extension("opt.wasm.from");
-    let from = std::fs::read(&raw).map(|b| format!("{} {}", mb_format::bundle::hex(&<sha2::Sha256 as sha2::Digest>::digest(&b)), flags.join(" "))).unwrap_or_default();
+    let from = std::fs::read(raw).map(|b| format!("{} {}", mb_format::bundle::hex(&<sha2::Sha256 as sha2::Digest>::digest(&b)), flags.join(" "))).unwrap_or_default();
     if !from.is_empty() && opt.is_file() && std::fs::read_to_string(&stamp).is_ok_and(|s| s == from) {
         return Ok(opt);
     }
     let _ = std::fs::remove_file(&stamp);
-    let wasm_opt = Command::new("wasm-opt").args(&flags).arg(&raw).arg("-o").arg(&opt).status();
+    let wasm_opt = Command::new("wasm-opt").args(&flags).arg(raw).arg("-o").arg(&opt).status();
     match wasm_opt {
         Ok(s) if s.success() => {
             let _ = std::fs::write(&stamp, from);
@@ -782,7 +805,7 @@ fn build(dir: &Path) -> Result<PathBuf, String> {
         Ok(_) => Err("wasm-opt failed".into()),
         Err(_) => {
             eprintln!("warning: wasm-opt not found; packing unoptimized wasm");
-            Ok(raw)
+            Ok(raw.to_path_buf())
         }
     }
 }
@@ -1079,6 +1102,10 @@ fn validate(path: &Path, json: bool, icon: Option<&Path>) -> Result<(), String> 
                 "wasm_size": report.wasm_size,
                 "startup_size": report.startup_size,
                 "sdk_version": report.sdk_version,
+                // A Studio bundle: its engine version and build, and whether that's a published one.
+                "studio": report.studio,
+                // Bundle formats the app must know to play it (an app sends the ones it does).
+                "formats": report.manifest.as_ref().map(|m| m.needs_formats()).unwrap_or_default(),
                 "id": report.manifest.as_ref().map(|m| m.id.clone()),
                 "version": report.manifest.as_ref().map(|m| m.version.clone()),
                 "manifest": report.manifest,

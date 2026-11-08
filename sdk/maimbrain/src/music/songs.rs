@@ -74,6 +74,8 @@ pub struct Songs<O: Out = Live> {
     songs: Vec<(String, Director<O>)>,
     current: Option<usize>,
     pending: Option<Switch>,
+    /// The last song's grid until the cue the next one started on (it plays to there).
+    leaving: Option<(super::Grid, f64, usize)>,
 }
 
 impl Songs<Live> {
@@ -91,7 +93,7 @@ impl Default for Songs<Live> {
 impl<O: Out> Songs<O> {
     /// No songs yet, for any [`Out`] ([`super::Log`] in tests and renders).
     pub fn empty() -> Songs<O> {
-        Songs { songs: Vec::new(), current: None, pending: None }
+        Songs { songs: Vec::new(), current: None, pending: None, leaving: None }
     }
 
     /// Adds a zone's song; returns its index.
@@ -121,6 +123,43 @@ impl<O: Out> Songs<O> {
     /// When the waiting change of song happens (game time), if one is waiting.
     pub fn change_at(&self) -> Option<f64> {
         self.pending.map(|p| p.cue)
+    }
+
+    /// The grid heard at game time `t`: the playing song's, or from a waiting
+    /// change's cue on, the next song's (it starts on that bar line). None
+    /// when nothing plays.
+    pub fn grid_at(&self, t: f64) -> Option<super::Grid> {
+        if let Some(sw) = self.pending
+            && t >= sw.cue - 1e-9
+        {
+            let d = &self.songs[sw.to].1;
+            return Some(super::Grid { origin: sw.cue, beat: d.bar() / 4.0, beats_per_bar: 4 });
+        }
+        if let Some((g, cue, _)) = self.leaving
+            && t < cue - 1e-9
+        {
+            return Some(g);
+        }
+        self.songs.get(self.current?)?.1.grid()
+    }
+
+    /// The song heard at game time `t` (a change waits for its cue, and the
+    /// last song plays to it).
+    pub fn heard(&self, t: f64) -> Option<usize> {
+        if let Some(sw) = self.pending {
+            return if t >= sw.cue - 1e-9 { Some(sw.to) } else { self.current };
+        }
+        if let Some((_, cue, prev)) = self.leaving
+            && t < cue - 1e-9
+        {
+            return Some(prev);
+        }
+        self.current
+    }
+
+    /// The zones' names, in the order they were added.
+    pub fn zones(&self) -> impl Iterator<Item = &str> {
+        self.songs.iter().map(|s| s.0.as_str())
     }
 
     /// Starts `song` from its top (anything playing dies away first).
@@ -153,6 +192,11 @@ impl<O: Out> Songs<O> {
             self.pending = None;
             return;
         }
+        // Already on its way there: the cue stands (a game asking every frame
+        // would otherwise push it on to the next phrase, and never arrive).
+        if self.pending.is_some_and(|p| p.to == song) {
+            return;
+        }
         let new = &self.songs[song].1;
         let cover = new.cover_into(0);
         let lead = LOOKAHEAD + new.entry_pre(0) + cover.map_or(0.0, |c| c.1 as f64) + 0.05;
@@ -175,8 +219,10 @@ impl<O: Out> Songs<O> {
             let lead = LOOKAHEAD + new.entry_pre(0) + cover.map_or(0.0, |c| c.1 as f64) + 0.02;
             if now + lead >= sw.cue {
                 self.pending = None;
+                self.leaving = None;
                 if let Some(cur) = self.current {
                     let old = &mut self.songs[cur].1;
+                    self.leaving = old.grid().map(|g| (g, sw.cue, cur));
                     // Under a stinger the old song lets go half a beat before the cue, under the rise.
                     let from = if cover.is_some() { sw.cue - 0.5 * old.beat() } else { sw.cue };
                     old.stop(from.max(now), sw.fade);
@@ -205,6 +251,7 @@ impl<O: Out> Songs<O> {
     /// Stops every song ([`Director::stop`]) and forgets a waiting change.
     pub fn stop(&mut self, now: f64, fade: f32) {
         self.pending = None;
+        self.leaving = None;
         for (_, d) in &mut self.songs {
             if d.playing() {
                 d.stop(now, fade);
@@ -298,6 +345,39 @@ mod tests {
         assert!(new_log.contains("neon_take"));
         // Ids don't collide, so the two logs merge into one render.
         assert!(!new_log.contains(" id=1\n") && old_log.contains(" id=1"));
+    }
+
+    #[test]
+    fn asking_every_frame_keeps_the_cue_and_the_song_changes_on_it() {
+        let mut s = songs();
+        let (harbor, neon) = (0, 1);
+        s.start(harbor, 0.0);
+        let origin = s.director(harbor).unwrap().origin();
+        let bar = 240.0 / 128.0;
+        let dt = 1.0 / 60.0;
+        let mut t = 0.0;
+        while t < 3.0 {
+            s.update(t, dt as f32, Mood::default());
+            t += dt;
+        }
+        // What the docs' `if … music.zone ~= "neon" then music.go("neon") end` does: ask each frame until it's heard.
+        let mut cue = None;
+        while t < 20.0 && s.heard(t) != Some(neon) {
+            s.go(neon, Change::Auto, t);
+            // (From when it's started, a little before the cue, the change is made: nothing waits.)
+            if cue.is_none() {
+                cue = s.change_at();
+            }
+            if let Some(c) = s.change_at() {
+                assert_eq!(c, cue.unwrap(), "the cue moved at {t}");
+            }
+            s.update(t, dt as f32, Mood::default());
+            t += dt;
+        }
+        let cue = cue.unwrap();
+        assert!((cue - (origin + 4.0 * bar)).abs() < 1e-6, "the end of the first phrase: {cue}");
+        assert!(t >= cue && t < cue + 2.0 * dt, "heard from the cue on, not later ({t} vs {cue})");
+        assert!((s.director(neon).unwrap().origin() - cue).abs() < 1e-6);
     }
 
     #[test]

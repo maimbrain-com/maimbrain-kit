@@ -19,6 +19,7 @@
 //! ```
 
 mod anim;
+pub mod anim_tree;
 mod beauty;
 mod creature;
 mod gait;
@@ -31,12 +32,15 @@ mod retro;
 mod rig;
 mod skin;
 mod sky;
+pub mod surfaces;
+pub mod terrain;
 mod water;
 
 use std::num::NonZeroU32;
 
 pub use math::{Mat4, Quat, Transform, Vec3, look_at, srgb, srgba, vec3};
 pub use anim::{Animator, Clip, Mask, Play, additive};
+pub use anim_tree::{AnimTree, Motion, Transition};
 pub use creature::{Flight, Strike, WingBones, alive};
 pub use gait::{MechGait, Stomp};
 pub use ik::{LookAt, TwoBoneIk, arc, two_bone};
@@ -48,6 +52,7 @@ pub use retro::{Layer, Retro, backdrop, mode7_anchor, retro};
 pub use rig::{HUMANOID, Humanoid, Part, classify, humanoid_map};
 pub use skin::{Joint, Skeleton, Swim, Wave, attach_offset, heading};
 pub use sky::{Atmosphere, Clouds, SkyDisc, SkyTexture, atmosphere, clouds, sky_disc, sky_texture};
+pub use surfaces::{SurfaceLayer, SurfaceRule, SurfacesDesc};
 pub use water::{Ring, Splash, Water, ripple_height, water};
 
 use crate::ffi;
@@ -61,6 +66,23 @@ fn handle(h: i32) -> Option<NonZeroU32> {
 fn ptr<T>(v: &T) -> *const u8 {
     (v as *const T).cast()
 }
+
+/// One entry of [`Node::set_transforms`] (mb3d 3): a node and its local
+/// transform, packed as the host reads it (44 bytes).
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct NodeTransform {
+    pub node: u32,
+    pub transform: Transform,
+}
+
+impl NodeTransform {
+    pub fn new(node: Node, transform: Transform) -> NodeTransform {
+        NodeTransform { node: node.raw(), transform }
+    }
+}
+
+const _: () = assert!(std::mem::size_of::<NodeTransform>() == 44);
 
 /// A mesh uploaded to the host.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,6 +113,10 @@ impl MeshData {
 pub struct Texture(NonZeroU32);
 
 impl Texture {
+    /// The host's handle.
+    pub fn raw(self) -> u32 {
+        self.0.get()
+    }
     /// None until the asset is ready, if it isn't a valid PNG/JPEG (≤ 2048²),
     /// or if it doesn't fit mb3d's 64 textures / 96 MB (the page then logs
     /// `runtime: <asset> refused (−4): …` once, with the memory in use;
@@ -219,6 +245,12 @@ impl Node {
     }
     pub fn set_transform(self, t: &Transform) {
         unsafe { ffi::mb3d_node_transform(self.0.get(), ptr(t)) }
+    }
+    /// Sets many nodes' transforms in one host call (mb3d 3: declare
+    /// `stdlib = { mb3d = 3 }`): the same as [`Node::set_transform`] on
+    /// each, in order. False if the host refused it (more than 4096).
+    pub fn set_transforms(list: &[NodeTransform]) -> bool {
+        list.is_empty() || unsafe { ffi::mb3d_node_transforms(list.as_ptr().cast(), list.len() as u32) } >= 0
     }
     pub fn set_mesh(self, mesh: Mesh, material: Material) {
         unsafe { ffi::mb3d_node_mesh(self.0.get(), mesh.0.get(), material.0.get()) }
@@ -602,6 +634,10 @@ impl Mesh {
 }
 
 impl Material {
+    /// The host's handle.
+    pub fn raw(self) -> u32 {
+        self.0.get()
+    }
     /// Frees the material (mb3d 2). Nodes still using it draw with the default (white) material.
     pub fn free(self) -> bool {
         free(2, self.0)

@@ -1,0 +1,24 @@
+# Tilt Garden (docs/STUDIO-2.md §9.4 3e): Phase 3e's tilt scene. Tip the
+# phone to roll a marble round a walled garden and pick up the gems before
+# the time runs out; mind the wells. A finger held anywhere pulls the marble
+# toward it, and the arrows and the stick push it, so it plays without the
+# sensor too (touch parity). Its art is drawn from shapes in main.lua.
+title = "Tilt Garden"
+tagline = "tip the phone, roll the marble"
+kind = "2d"
+engine = "2.0"
+orientation = "portrait"
+identity = "storybook"
+sensors = ["haptics", "tilt"]
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.tiltgarden"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[[scores]]
+label = "Gems"
+order = "high"
+
+[text]
+over = "TIME'S UP"

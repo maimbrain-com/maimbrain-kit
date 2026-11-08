@@ -1,0 +1,8 @@
+# A crate hitting the ground: a metallic clank.
+wave = "square"
+duty = 0.3
+freq = 260
+freq_end = 120
+duration = 0.08
+decay = 0.3
+volume = 0.8

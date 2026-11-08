@@ -391,6 +391,43 @@ struct Playing {
 /// Lookahead for scheduling, seconds: anything heard sooner than this can't start from its top.
 pub const LOOKAHEAD: f64 = 0.12;
 
+/// The music's beat grid in game time: its tempo map. Every bar line a
+/// [`Director`] decides is `origin + k × bar` (jumps and zone changes land on
+/// bar lines, so a graph's grid never moves while it plays), and a beat is a
+/// quarter of a bar (4/4). [`Director::grid`] and [`Songs::grid_at`] give it,
+/// so a game can put gameplay on the beat from game time alone, never the
+/// audio clock: a replay lands every beat at the same game time.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Grid {
+    /// Game time of the first downbeat (bar 1, beat 1).
+    pub origin: f64,
+    /// Seconds per beat.
+    pub beat: f64,
+    pub beats_per_bar: u32,
+}
+
+impl Grid {
+    /// Beats since the first downbeat at game time `t` (fractional; negative before it).
+    pub fn beat_at(&self, t: f64) -> f64 {
+        (t - self.origin) / self.beat
+    }
+
+    /// Game time of beat `n` (0 is the first downbeat).
+    pub fn time_of(&self, n: f64) -> f64 {
+        self.origin + n * self.beat
+    }
+
+    /// The first beat strictly after game time `t`: its index and game time.
+    pub fn next_after(&self, t: f64) -> (i64, f64) {
+        let n = (self.beat_at(t) + 1e-9).floor() as i64 + 1;
+        (n, self.time_of(n as f64))
+    }
+
+    pub fn bpm(&self) -> f64 {
+        60.0 / self.beat
+    }
+}
+
 pub fn smoothstep(a: f32, b: f32, x: f32) -> f32 {
     let t = ((x - a) / (b - a)).clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
@@ -404,6 +441,8 @@ struct TakeVoice {
     /// Game time it starts (its pre-entry) and has died away by.
     from: f64,
     until: f64,
+    /// Seconds into the take it plays at `from`.
+    file_from: f64,
 }
 
 /// A zone change waiting for its bar line.
@@ -435,6 +474,8 @@ struct GraphPlay {
     recent: Vec<u32>,
     rng: u64,
     moves: Vec<Move>,
+    /// The take's bar heard from the origin on (until the first move).
+    start_bar: u32,
     /// The tension kit's place: at bar line .0 (game time) it plays its bar .1.
     kit: Option<(f64, u32)>,
     /// The tension kit's loop: bars, its 1 seconds in.
@@ -479,6 +520,8 @@ pub struct Director<O: Out = Live> {
     graph: Option<Box<GraphPlay>>,
     /// One-shots it started (stingers, the swell, heartbeats, the sting) and when, until they're surely over.
     shots: Vec<(Voice, f64)>,
+    /// A looped graph (`Graph::looped`), played as loops: its one zone's name.
+    loop_zone: Option<String>,
 }
 
 /// Seconds a one-shot the Director started is kept to be stopped by [`Director::stop`] (longer than any stinger).
@@ -534,6 +577,7 @@ impl<O: Out> Director<O> {
             seed: 0x9e37_79b9,
             graph: None,
             shots: Vec::new(),
+            loop_zone: None,
         }
     }
 
@@ -542,6 +586,25 @@ impl<O: Out> Director<O> {
         let f = graph.files.clone();
         let main = sound(f.take.as_deref().or(f.base.as_deref())?)?;
         let hi = if f.take.is_some() { None } else { f.hi.as_deref().and_then(&mut sound) };
+        if graph.looped {
+            // One seamless loop (and its layers): the loop mode, as one zone.
+            let bars = graph.end.saturating_sub(graph.first).max(1);
+            let mut d = Director::with_out(240.0 / graph.bar, bars, out);
+            d.levels = Levels::for_graph(&graph);
+            d.add(main, hi);
+            d.downbeat(graph.first_bar);
+            if let Some((s, land)) = &f.swell
+                && let Some(x) = sound(s)
+            {
+                d.swell(x, *land);
+            }
+            if let Some(t) = &f.tension {
+                d.tension(Tension { layer: sound(&t.layer), tick: sound(&t.tick), heartbeat: sound(&t.heartbeat), sting: sound(&t.sting) });
+            }
+            d.seed = (seed as u32 ^ (seed >> 32) as u32) | 1;
+            d.loop_zone = Some(graph.zones.first().map_or(graph.name.clone(), |z| z.name.clone()));
+            return Some(d);
+        }
         let mut d = Director::with_out(graph.bpm, graph.phrase_bars, out);
         d.levels = Levels::for_graph(&graph);
         if let Some((s, land)) = &f.swell
@@ -573,6 +636,7 @@ impl<O: Out> Director<O> {
             recent: Vec::new(),
             rng: seed ^ 0x6a09_e667_f3bc_c909,
             moves: Vec::new(),
+            start_bar: 0,
             kit: None,
             kit_bars,
             kit_downbeat,
@@ -586,6 +650,9 @@ impl<O: Out> Director<O> {
 
     /// The zone of the graph named `name`.
     pub fn zone(&self, name: &str) -> Option<usize> {
+        if self.loop_zone.as_deref() == Some(name) {
+            return Some(0);
+        }
         self.graph.as_ref().and_then(|p| p.g.zone(name))
     }
 
@@ -648,6 +715,40 @@ impl<O: Out> Director<O> {
     /// Game time of bar 0's downbeat (every loop's grid; a graph's first bar line).
     pub fn origin(&self) -> f64 {
         self.origin
+    }
+
+    /// The grid it plays on (its tempo map in game time), while it plays.
+    pub fn grid(&self) -> Option<Grid> {
+        self.started.then(|| Grid { origin: self.origin, beat: self.bar() / 4.0, beats_per_bar: 4 })
+    }
+
+    /// The zone heard at game time `t` (a change is decided a little ahead of
+    /// its bar line; this is the zone of the take's bar sounding at `t`).
+    /// Before the first downbeat, the zone it starts in.
+    pub fn zone_at(&self, t: f64) -> Option<&str> {
+        if let Some(z) = &self.loop_zone {
+            return Some(z.as_str());
+        }
+        let p = self.graph.as_ref()?;
+        if !self.started {
+            return None;
+        }
+        let (mut t0, mut b0) = (self.origin, p.start_bar);
+        for m in p.moves.iter().filter(|m| m.at >= self.origin - 1e-9 && m.at <= t + 1e-9) {
+            (t0, b0) = (m.at, m.to);
+        }
+        let k = b0 as i64 + ((t - t0) / p.g.bar + 1e-9).floor().max(0.0) as i64;
+        let z = p.g.zone_of(k.max(0) as u32).unwrap_or(p.zone);
+        Some(p.g.zones[z].name.as_str())
+    }
+
+    /// The zone playing (or the one a waiting change goes to), by name; None with loops.
+    pub fn zone_name(&self) -> Option<&str> {
+        if let Some(z) = &self.loop_zone {
+            return Some(z.as_str());
+        }
+        let p = self.graph.as_ref()?;
+        p.g.zones.get(self.current()).map(|z| z.name.as_str())
     }
 
     /// The first bar line at or after `t`.
@@ -915,6 +1016,46 @@ impl<O: Out> Director<O> {
         self.start(part, now);
     }
 
+    /// Puts a graph's sound back on its grid after game time lost time
+    /// (`sys::time_lost()` > 0, SPEC §5.1): voices already playing kept
+    /// playing through the hitch and are now that far ahead of the grid,
+    /// which hasn't moved. The take (and its high layer) and the tension
+    /// loops start again where the grid says they are, [`LOOKAHEAD`] from
+    /// `now`, as the old ones let go over a few milliseconds. Gameplay on the
+    /// grid never notices; loops (no graph) are left as they are.
+    pub fn resync(&mut self, now: f64) {
+        if !self.started {
+            return;
+        }
+        let at = now + LOOKAHEAD;
+        let Director { out, graph, tension, tension_voices, .. } = self;
+        let Some(p) = graph.as_mut() else { return };
+        const X: f32 = 0.03;
+        for v in p.takes.iter_mut().filter(|v| v.until.is_infinite() && v.from <= now) {
+            let pos = v.file_from + (at - v.from);
+            out.stop_at(v.main, at, X);
+            v.main = out.play_from(p.main, 1.0, at, pos, X, false, Bus::Music);
+            if let (Some(h), Some(hs)) = (v.hi, p.hi) {
+                out.stop_at(h, at, X);
+                v.hi = Some(out.play_from(hs, p.hi_vol, at, pos, X, false, Bus::Music));
+            }
+            (v.from, v.file_from) = (at, pos);
+        }
+        if let Some((t0, b0)) = p.kit {
+            let len = p.kit_bars.max(1) as f64 * p.g.bar;
+            let pos = (p.kit_downbeat + b0 as f64 * p.g.bar + (at - t0)).rem_euclid(len);
+            let t = *tension;
+            let old = *tension_voices;
+            *tension_voices = (
+                t.layer.map(|s| out.play_from(s, p.kit_vols.0, at, pos, X, true, Bus::Music)),
+                t.tick.map(|s| out.play_from(s, p.kit_vols.1, at, pos, X, true, Bus::Music)),
+            );
+            for v in [old.0, old.1].into_iter().flatten() {
+                out.stop_at(v, at, X);
+            }
+        }
+    }
+
     /// Whether it's playing: started and not stopped.
     pub fn playing(&self) -> bool {
         self.started
@@ -1079,10 +1220,11 @@ impl<O: Out> Director<O> {
         p.next_line = t0 + p.g.bar;
         p.next_bar = entry + 1;
         p.recent = vec![entry];
+        p.start_bar = entry;
         p.since_jump = 0;
         let main = self.out.play_from(p.main, 1.0, t0 - pre, take_at - pre, pre as f32, false, Bus::Music);
         let hi = p.hi.map(|h| self.out.play_from(h, p.hi_vol, t0 - pre, take_at - pre, pre as f32, false, Bus::Music));
-        p.takes = vec![TakeVoice { main, hi, from: t0 - pre, until: f64::INFINITY }];
+        p.takes = vec![TakeVoice { main, hi, from: t0 - pre, until: f64::INFINITY, file_from: take_at - pre }];
         // The tension kit, silent, on the take's phrase.
         let kb = kit_bar(&p.g, entry, p.kit_bars);
         let from = p.kit_downbeat + kb as f64 * p.g.bar;
@@ -1152,7 +1294,7 @@ impl<O: Out> Director<O> {
                 }
                 let main = self.out.play_from(p.main, 1.0, t - pre, take_at - pre, pre as f32, false, Bus::Music);
                 let hi = p.hi.map(|h| self.out.play_from(h, p.hi_vol, t - pre, take_at - pre, pre as f32, false, Bus::Music));
-                p.takes.push(TakeVoice { main, hi, from: t - pre, until: f64::INFINITY });
+                p.takes.push(TakeVoice { main, hi, from: t - pre, until: f64::INFINITY, file_from: take_at - pre });
                 if let Some((s, land)) = cover {
                     let at = t - land as f64;
                     let v = self.out.play_at(s, self.levels.stinger, 1.0, at, false, Bus::Music);
@@ -1755,5 +1897,87 @@ mod tests {
         assert!((g.sections[1].pre_entry - 0.5).abs() < 1e-9 && (g.sections[1].post_exit - 2.0).abs() < 1e-9);
         // Without its take, no Director.
         assert!(Director::with_graph(g, |_| None, 1, Log::default()).is_none());
+    }
+
+    #[test]
+    fn the_grid_is_the_graphs_bar_lines_in_game_time_and_never_moves_with_jumps_or_zones() {
+        let mut d = graph_director(3);
+        assert_eq!(d.grid(), None);
+        d.start(0, 1.0);
+        let g = d.grid().unwrap();
+        assert_eq!((g.origin, g.beat, g.beats_per_bar), (d.origin(), 0.5, 4));
+        assert!((g.bpm() - 120.0).abs() < 1e-9);
+        assert_eq!(g.next_after(g.origin), (1, g.origin + 0.5));
+        assert_eq!(g.next_after(g.origin - 0.01).0, 0);
+        run(&mut d, 1.0, 30.0, |_| Mood::default());
+        d.go(1, Change::NextBar, 30.0);
+        run(&mut d, 30.0, 90.0, |_| Mood { intensity: 0.5, danger: 0.8 });
+        assert!(!d.moves().is_empty());
+        // Every move (jumps, the change) lands on the grid's bar lines, and the grid is where it was.
+        for m in d.moves() {
+            let bars = (m.at - g.origin) / 2.0;
+            assert!((bars - bars.round()).abs() < 1e-9, "{m:?}");
+        }
+        assert_eq!(d.grid(), Some(g));
+        assert_eq!(d.zone_name(), Some("grove"));
+        d.stop(90.0, 0.5);
+        assert_eq!(d.grid(), None);
+    }
+
+    #[test]
+    fn resync_starts_the_take_and_the_tension_again_where_the_grid_says() {
+        let mut d = graph_director(3);
+        d.wander.chance = 0.0;
+        d.wander.chance_max = 0.0;
+        d.start(0, 0.0);
+        run(&mut d, 0.0, 5.0, |_| Mood { intensity: 0.0, danger: 0.5 });
+        let n = d.out.lines.len();
+        d.resync(5.0);
+        let new: Vec<&String> = d.out.lines[n..].iter().collect();
+        // Bar 0 (0.1 s into the take) is heard at the origin, 0.22: at 5.12 the take is 5.0 s in.
+        let base = new.iter().find(|l| l.contains("run_take_base") && op(l) == "").unwrap();
+        assert!(base.starts_with("5.120 ") && (field(base, "from").unwrap() - 5.0).abs() < 1e-3, "{base}");
+        assert!(new.iter().any(|l| l.contains("run_take_hi") && op(l) == ""));
+        assert!(new.iter().any(|l| l.starts_with("5.120 run_take_base 0 1 stop fade=0.030")));
+        // The tension loops (8 bars of 2 s, their 1 at 0.01 s, heard at the origin): 4.91 s in.
+        let t = new.iter().find(|l| l.contains("run_tension") && op(l) == "loop").unwrap();
+        assert!((field(t, "from").unwrap() - 4.91).abs() < 1e-3, "{t}");
+        // The grid didn't move.
+        assert_eq!(d.grid().unwrap().origin, d.origin());
+    }
+
+    #[test]
+    fn a_looped_graph_plays_its_layers_as_one_loop_in_step() {
+        let g = Graph::parse(
+            br#"{ "format": "maimbrain-music-graph", "version": 1, "name": "hum", "loop": true,
+              "files": { "base": "music/hum_base.ogg", "hi": "music/hum_hi.ogg",
+                         "tension": { "layer": "music/hum_tension.ogg", "tick": "music/hum_tick.ogg", "heartbeat": "music/hum_heartbeat.ogg",
+                                      "sting": "music/hum_sting.ogg", "bars": 8, "downbeat_seconds": 0.2 } },
+              "grid": { "bpm": 120.0, "beats_per_bar": 4, "bar_seconds": 2.0, "first_bar_seconds": 0.2, "phrase_bars": 4, "first_bar": 0, "end_bar": 8 },
+              "zones": [ { "name": "hum", "sections": [0] } ],
+              "sections": [ { "name": "hum", "zone": 0, "entry_bar": 0, "exit_bar": 8, "exit_cues": [4, 8],
+                              "segment": { "pre_entry_seconds": 0.2, "entry_seconds": 0.2, "exit_seconds": 16.2, "post_exit_seconds": 16.2 } } ],
+              "links": [] }"#,
+        )
+        .unwrap();
+        assert!(g.looped);
+        let files: Vec<String> = g.files().iter().map(|f| f.to_string()).collect();
+        let mut log = Log::default();
+        for (i, f) in files.iter().enumerate() {
+            log.name(Sound(i as u32 + 1), f.trim_start_matches("music/").trim_end_matches(".ogg"));
+        }
+        let mut d = Director::with_graph(g, |p| files.iter().position(|f| f == p).map(|i| Sound(i as u32 + 1)), 1, log).unwrap();
+        assert_eq!((d.zone("hum"), d.zone("other")), (Some(0), None));
+        d.start(0, 1.0);
+        assert_eq!(d.zone_name(), Some("hum"));
+        run(&mut d, 1.0, 20.0, |_| Mood { intensity: 0.0, danger: 0.9 });
+        // Base and high start looped together, the file 0.2 s early so its 1 lands on the origin.
+        let base = events(&d, "hum_base", "loop");
+        let hi = events(&d, "hum_hi", "loop");
+        assert_eq!((base.len(), hi.len()), (1, 1));
+        assert!((base[0].0 - (d.origin() - 0.2)).abs() < 1e-6 && (hi[0].0 - base[0].0).abs() < 1e-9);
+        assert_eq!(d.grid().unwrap().beat, 0.5);
+        // The tension rose with the danger.
+        assert!(events(&d, "hum_tension", "set").iter().any(|(_, l)| field(l, "id").is_some() && !l.contains(" 0.000 ")));
     }
 }

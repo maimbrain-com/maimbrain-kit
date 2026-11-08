@@ -285,7 +285,7 @@ pub mod synth {
     use std::collections::VecDeque;
 
     mod skill;
-    pub use skill::{Pointing, Skill, Swipe, gauss};
+    pub use skill::{Pointing, Skill, Swipe, Tracking, gauss};
 
     /// How often an iPhone's touch panel reports a moving finger (Hz).
     pub const PANEL_HZ: f32 = 120.0;

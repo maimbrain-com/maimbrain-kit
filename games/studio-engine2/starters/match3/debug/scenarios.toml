@@ -1,0 +1,36 @@
+# Named sets of debug picks: the debug menu's first tab ("Try it").
+[[scenario]]
+name = "Specials"
+note = "a line blaster, a bomb, a rainbow and another blaster side by side: swap two for a combo"
+[scenario.set]
+SPECIALS = true
+
+[[scenario]]
+name = "Rocks"
+note = "level 4: rocks drop in"
+[scenario.set]
+LEVEL = 4
+
+[[scenario]]
+name = "Star poppets"
+note = "level 6: six kinds, rocks and star poppets"
+[scenario.set]
+LEVEL = 6
+
+[[scenario]]
+name = "Nodding off"
+note = "the meter nearly empty: drooping faces, the night, the drone"
+[scenario.set]
+METER = 0.15
+
+[[scenario]]
+name = "Late game"
+note = "level 9, more rocks, the drain near its fastest"
+[scenario.set]
+LEVEL = 9
+
+[[scenario]]
+name = "Autoplay"
+note = "the round plays itself (the hinted move, a beat after each turn)"
+[scenario.set]
+AUTOPLAY = true

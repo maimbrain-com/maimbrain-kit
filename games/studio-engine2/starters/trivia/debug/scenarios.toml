@@ -1,0 +1,31 @@
+# Named sets of debug picks: the debug menu's first tab ("Try it").
+[[scenario]]
+name = "Autopilot"
+note = "every answer right, halfway through its clock"
+[scenario.set]
+AUTOPLAY = true
+
+[[scenario]]
+name = "Lights out"
+note = "every answer wrong: three misses blow the bulb"
+[scenario.set]
+AUTOPLAY = true
+AUTOPLAY_MISS = true
+
+[[scenario]]
+name = "Golden question"
+note = "starts at question 5, the first golden one"
+[scenario.set]
+START_AT = 4
+
+[[scenario]]
+name = "The hard end"
+note = "starts at question 10: hard questions on the tightest clock"
+[scenario.set]
+START_AT = 9
+
+[[scenario]]
+name = "Last heart"
+note = "one heart left"
+[scenario.set]
+HEARTS = 1

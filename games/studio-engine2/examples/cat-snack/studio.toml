@@ -1,0 +1,31 @@
+# Cat Snack on engine 2.0: engine 1.0's catch example
+# (games/studio-engine/examples/catch), moved up by upgrade_engine and
+# finished by hand. The Arcade preset keeps its 1.0 look.
+title = "Cat Snack"
+tagline = "catch every fish"
+kind = "2d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.catsnack"
+version = "0.1.0"
+creator = "@maimbrain"
+
+# 1.0's look and limits inside 2.0 (reference("arcade")): the 16 colours, 16- and 32-pixel art, the pixel font.
+preset = "arcade"
+palette = "sunset16"
+background = 11
+
+[identity]
+name = "cozy-pixel"
+
+[[scores]]
+label = "Fish"
+order = "high"
+
+[text]
+over = "MISSED!"
+
+[remix]
+allowed = true

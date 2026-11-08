@@ -1,0 +1,941 @@
+{
+  "files": {
+    "base": "music/drum_take_base.ogg",
+    "hi": "music/drum_take_hi.ogg",
+    "swell": {
+      "file": "music/drum_swell.ogg",
+      "land_seconds": 0.5
+    },
+    "tension": {
+      "bars": 8,
+      "downbeat_seconds": 0.01,
+      "heartbeat": "music/drum_heartbeat.ogg",
+      "layer": "music/drum_tension.ogg",
+      "sting": "music/drum_sting.ogg",
+      "tick": "music/drum_tick.ogg"
+    }
+  },
+  "format": "maimbrain-music-graph",
+  "grid": {
+    "bar_seconds": 1.999898,
+    "beats_per_bar": 4,
+    "bpm": 120.006,
+    "end_bar": 20,
+    "first_bar": 1,
+    "first_bar_seconds": 0.002365,
+    "phrase_bars": 4
+  },
+  "levels": {
+    "tension_gain": 1.28,
+    "tension_lift_phone_db": 4.5
+  },
+  "links": [
+    {
+      "from": 2,
+      "harmony": 0.79,
+      "level_db": 0.4,
+      "rhythm": 0.83,
+      "score": 0.87,
+      "to": 4
+    },
+    {
+      "from": 2,
+      "harmony": 0.96,
+      "level_db": 0.3,
+      "rhythm": 0.76,
+      "score": 1.0,
+      "to": 6
+    },
+    {
+      "from": 2,
+      "harmony": 0.76,
+      "level_db": 0.6,
+      "rhythm": 0.71,
+      "score": 0.85,
+      "to": 8
+    },
+    {
+      "from": 2,
+      "harmony": 0.88,
+      "into_zone": 1,
+      "level_db": 0.6,
+      "rhythm": 0.84,
+      "score": 0.94,
+      "to": 10
+    },
+    {
+      "from": 2,
+      "harmony": 0.9,
+      "into_zone": 1,
+      "level_db": 0.7,
+      "rhythm": 0.88,
+      "score": 0.96,
+      "to": 13
+    },
+    {
+      "from": 2,
+      "harmony": 0.89,
+      "into_zone": 1,
+      "level_db": 0.8,
+      "rhythm": 0.75,
+      "score": 0.95,
+      "to": 17
+    },
+    {
+      "from": 3,
+      "harmony": 0.76,
+      "level_db": 0.5,
+      "rhythm": 0.84,
+      "score": 0.85,
+      "to": 5
+    },
+    {
+      "from": 3,
+      "harmony": 0.96,
+      "level_db": 0.3,
+      "rhythm": 0.77,
+      "score": 1.0,
+      "to": 7
+    },
+    {
+      "from": 3,
+      "harmony": 0.91,
+      "into_zone": 1,
+      "level_db": 0.8,
+      "rhythm": 0.87,
+      "score": 0.97,
+      "to": 14
+    },
+    {
+      "from": 3,
+      "harmony": 0.69,
+      "into_zone": 1,
+      "level_db": 1.0,
+      "rhythm": 0.81,
+      "score": 0.79,
+      "to": 16
+    },
+    {
+      "from": 3,
+      "harmony": 0.89,
+      "into_zone": 1,
+      "level_db": 0.8,
+      "rhythm": 0.76,
+      "score": 0.95,
+      "to": 18
+    },
+    {
+      "from": 4,
+      "harmony": 0.79,
+      "level_db": 0.4,
+      "rhythm": 0.83,
+      "score": 0.87,
+      "to": 2
+    },
+    {
+      "from": 4,
+      "harmony": 0.97,
+      "level_db": 0.3,
+      "rhythm": 0.8,
+      "score": 1.0,
+      "to": 8
+    },
+    {
+      "from": 4,
+      "harmony": 0.7,
+      "into_zone": 1,
+      "level_db": 0.9,
+      "rhythm": 0.8,
+      "score": 0.8,
+      "to": 13
+    },
+    {
+      "from": 4,
+      "harmony": 0.9,
+      "into_zone": 1,
+      "level_db": 0.8,
+      "rhythm": 0.89,
+      "score": 0.96,
+      "to": 15
+    },
+    {
+      "from": 4,
+      "harmony": 0.89,
+      "into_zone": 1,
+      "level_db": 0.9,
+      "rhythm": 0.7,
+      "score": 0.95,
+      "to": 19
+    },
+    {
+      "from": 5,
+      "harmony": 0.76,
+      "level_db": 0.5,
+      "rhythm": 0.84,
+      "score": 0.85,
+      "to": 3
+    },
+    {
+      "from": 5,
+      "harmony": 0.95,
+      "level_db": 0.3,
+      "phrase": true,
+      "rhythm": 0.79,
+      "score": 1.0,
+      "to": 9
+    },
+    {
+      "from": 5,
+      "harmony": 0.9,
+      "into_zone": 1,
+      "level_db": 0.7,
+      "rhythm": 0.75,
+      "score": 0.96,
+      "to": 12
+    },
+    {
+      "from": 5,
+      "harmony": 0.7,
+      "into_zone": 1,
+      "level_db": 0.9,
+      "phrase": true,
+      "rhythm": 0.79,
+      "score": 0.8,
+      "to": 14
+    },
+    {
+      "from": 5,
+      "harmony": 0.89,
+      "into_zone": 1,
+      "level_db": 0.7,
+      "rhythm": 0.91,
+      "score": 0.95,
+      "to": 16
+    },
+    {
+      "from": 6,
+      "harmony": 0.96,
+      "level_db": 0.3,
+      "rhythm": 0.76,
+      "score": 1.0,
+      "to": 2
+    },
+    {
+      "from": 6,
+      "harmony": 0.77,
+      "level_db": 0.4,
+      "rhythm": 0.88,
+      "score": 0.86,
+      "to": 8
+    },
+    {
+      "from": 6,
+      "harmony": 0.92,
+      "into_zone": 1,
+      "level_db": 0.4,
+      "rhythm": 0.7,
+      "score": 0.98,
+      "to": 10
+    },
+    {
+      "from": 6,
+      "harmony": 0.89,
+      "into_zone": 1,
+      "level_db": 0.7,
+      "rhythm": 0.76,
+      "score": 0.95,
+      "to": 13
+    },
+    {
+      "from": 6,
+      "harmony": 0.88,
+      "into_zone": 1,
+      "level_db": 0.8,
+      "rhythm": 0.89,
+      "score": 0.95,
+      "to": 17
+    },
+    {
+      "from": 7,
+      "harmony": 0.96,
+      "level_db": 0.3,
+      "rhythm": 0.77,
+      "score": 1.0,
+      "to": 3
+    },
+    {
+      "from": 7,
+      "harmony": 0.89,
+      "into_zone": 1,
+      "level_db": 0.7,
+      "rhythm": 0.74,
+      "score": 0.95,
+      "to": 14
+    },
+    {
+      "from": 7,
+      "harmony": 0.66,
+      "into_zone": 1,
+      "level_db": 0.9,
+      "rhythm": 0.83,
+      "score": 0.77,
+      "to": 16
+    },
+    {
+      "from": 7,
+      "harmony": 0.88,
+      "into_zone": 1,
+      "level_db": 0.7,
+      "rhythm": 0.87,
+      "score": 0.95,
+      "to": 18
+    },
+    {
+      "from": 8,
+      "harmony": 0.76,
+      "level_db": 0.6,
+      "rhythm": 0.71,
+      "score": 0.85,
+      "to": 2
+    },
+    {
+      "from": 8,
+      "harmony": 0.97,
+      "level_db": 0.3,
+      "rhythm": 0.8,
+      "score": 1.0,
+      "to": 4
+    },
+    {
+      "from": 8,
+      "harmony": 0.77,
+      "level_db": 0.4,
+      "rhythm": 0.88,
+      "score": 0.86,
+      "to": 6
+    },
+    {
+      "from": 8,
+      "harmony": 0.73,
+      "into_zone": 1,
+      "level_db": 0.6,
+      "rhythm": 0.64,
+      "score": 0.83,
+      "to": 10
+    },
+    {
+      "from": 8,
+      "harmony": 0.89,
+      "into_zone": 1,
+      "level_db": 0.7,
+      "rhythm": 0.75,
+      "score": 0.95,
+      "to": 15
+    },
+    {
+      "from": 8,
+      "harmony": 0.88,
+      "into_zone": 1,
+      "level_db": 0.8,
+      "rhythm": 0.59,
+      "score": 0.94,
+      "to": 19
+    },
+    {
+      "from": 9,
+      "harmony": 0.95,
+      "level_db": 0.3,
+      "phrase": true,
+      "rhythm": 0.79,
+      "score": 1.0,
+      "to": 5
+    },
+    {
+      "from": 9,
+      "harmony": 0.9,
+      "into_zone": 1,
+      "level_db": 0.6,
+      "rhythm": 0.65,
+      "score": 0.96,
+      "to": 12
+    },
+    {
+      "from": 9,
+      "harmony": 0.71,
+      "into_zone": 1,
+      "level_db": 0.8,
+      "phrase": true,
+      "rhythm": 0.69,
+      "score": 0.81,
+      "to": 14
+    },
+    {
+      "from": 9,
+      "harmony": 0.9,
+      "into_zone": 1,
+      "level_db": 0.6,
+      "rhythm": 0.78,
+      "score": 0.96,
+      "to": 16
+    },
+    {
+      "from": 10,
+      "harmony": 0.88,
+      "level_db": 0.6,
+      "rhythm": 0.84,
+      "score": 0.94,
+      "to": 2
+    },
+    {
+      "from": 10,
+      "harmony": 0.92,
+      "level_db": 0.4,
+      "rhythm": 0.7,
+      "score": 0.98,
+      "to": 6
+    },
+    {
+      "from": 10,
+      "harmony": 0.87,
+      "into_zone": 1,
+      "level_db": 0.6,
+      "rhythm": 0.83,
+      "score": 0.93,
+      "to": 13
+    },
+    {
+      "from": 10,
+      "harmony": 0.68,
+      "into_zone": 1,
+      "level_db": 0.8,
+      "rhythm": 0.72,
+      "score": 0.78,
+      "to": 15
+    },
+    {
+      "from": 10,
+      "harmony": 0.86,
+      "into_zone": 1,
+      "level_db": 0.7,
+      "rhythm": 0.66,
+      "score": 0.93,
+      "to": 17
+    },
+    {
+      "from": 11,
+      "harmony": 0.54,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "rhythm": 0.82,
+      "score": 0.68,
+      "to": 3
+    },
+    {
+      "from": 11,
+      "harmony": 0.53,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "rhythm": 0.78,
+      "score": 0.67,
+      "to": 4
+    },
+    {
+      "from": 11,
+      "harmony": 0.6,
+      "into_zone": 0,
+      "level_db": 0.6,
+      "rhythm": 0.7,
+      "score": 0.72,
+      "to": 7
+    },
+    {
+      "from": 12,
+      "harmony": 0.68,
+      "into_zone": 0,
+      "level_db": 0.9,
+      "rhythm": 0.82,
+      "score": 0.79,
+      "to": 3
+    },
+    {
+      "from": 12,
+      "harmony": 0.9,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "rhythm": 0.75,
+      "score": 0.96,
+      "to": 5
+    },
+    {
+      "from": 12,
+      "harmony": 0.9,
+      "into_zone": 0,
+      "level_db": 0.6,
+      "rhythm": 0.65,
+      "score": 0.96,
+      "to": 9
+    },
+    {
+      "from": 12,
+      "harmony": 0.94,
+      "level_db": 0.4,
+      "rhythm": 0.77,
+      "score": 1.0,
+      "to": 16
+    },
+    {
+      "from": 13,
+      "harmony": 0.9,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "rhythm": 0.88,
+      "score": 0.96,
+      "to": 2
+    },
+    {
+      "from": 13,
+      "harmony": 0.7,
+      "into_zone": 0,
+      "level_db": 0.9,
+      "rhythm": 0.8,
+      "score": 0.8,
+      "to": 4
+    },
+    {
+      "from": 13,
+      "harmony": 0.89,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "rhythm": 0.76,
+      "score": 0.95,
+      "to": 6
+    },
+    {
+      "from": 13,
+      "harmony": 0.87,
+      "level_db": 0.6,
+      "rhythm": 0.83,
+      "score": 0.93,
+      "to": 10
+    },
+    {
+      "from": 13,
+      "harmony": 0.95,
+      "level_db": 0.4,
+      "rhythm": 0.77,
+      "score": 1.0,
+      "to": 17
+    },
+    {
+      "from": 14,
+      "harmony": 0.91,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "rhythm": 0.87,
+      "score": 0.97,
+      "to": 3
+    },
+    {
+      "from": 14,
+      "harmony": 0.89,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "rhythm": 0.74,
+      "score": 0.95,
+      "to": 7
+    },
+    {
+      "from": 14,
+      "harmony": 0.71,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "phrase": true,
+      "rhythm": 0.69,
+      "score": 0.81,
+      "to": 9
+    },
+    {
+      "from": 14,
+      "harmony": 0.79,
+      "level_db": 0.4,
+      "rhythm": 0.85,
+      "score": 0.87,
+      "to": 16
+    },
+    {
+      "from": 14,
+      "harmony": 0.94,
+      "level_db": 0.3,
+      "phrase": true,
+      "rhythm": 0.76,
+      "score": 0.99,
+      "to": 18
+    },
+    {
+      "from": 15,
+      "harmony": 0.69,
+      "into_zone": 0,
+      "level_db": 0.9,
+      "rhythm": 0.78,
+      "score": 0.79,
+      "to": 2
+    },
+    {
+      "from": 15,
+      "harmony": 0.9,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "rhythm": 0.89,
+      "score": 0.96,
+      "to": 4
+    },
+    {
+      "from": 15,
+      "harmony": 0.89,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "rhythm": 0.75,
+      "score": 0.95,
+      "to": 8
+    },
+    {
+      "from": 15,
+      "harmony": 0.79,
+      "level_db": 0.4,
+      "rhythm": 0.88,
+      "score": 0.87,
+      "to": 17
+    },
+    {
+      "from": 15,
+      "harmony": 0.93,
+      "level_db": 0.3,
+      "rhythm": 0.71,
+      "score": 0.99,
+      "to": 19
+    },
+    {
+      "from": 16,
+      "harmony": 0.69,
+      "into_zone": 0,
+      "level_db": 1.0,
+      "rhythm": 0.81,
+      "score": 0.79,
+      "to": 3
+    },
+    {
+      "from": 16,
+      "harmony": 0.89,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "rhythm": 0.91,
+      "score": 0.95,
+      "to": 5
+    },
+    {
+      "from": 16,
+      "harmony": 0.9,
+      "into_zone": 0,
+      "level_db": 0.6,
+      "rhythm": 0.78,
+      "score": 0.96,
+      "to": 9
+    },
+    {
+      "from": 16,
+      "harmony": 0.94,
+      "level_db": 0.4,
+      "rhythm": 0.77,
+      "score": 1.0,
+      "to": 12
+    },
+    {
+      "from": 16,
+      "harmony": 0.79,
+      "level_db": 0.4,
+      "rhythm": 0.85,
+      "score": 0.87,
+      "to": 14
+    },
+    {
+      "from": 17,
+      "harmony": 0.89,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "rhythm": 0.75,
+      "score": 0.95,
+      "to": 2
+    },
+    {
+      "from": 17,
+      "harmony": 0.88,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "rhythm": 0.89,
+      "score": 0.95,
+      "to": 6
+    },
+    {
+      "from": 17,
+      "harmony": 0.67,
+      "into_zone": 0,
+      "level_db": 0.9,
+      "rhythm": 0.82,
+      "score": 0.78,
+      "to": 8
+    },
+    {
+      "from": 17,
+      "harmony": 0.86,
+      "level_db": 0.7,
+      "rhythm": 0.66,
+      "score": 0.93,
+      "to": 10
+    },
+    {
+      "from": 17,
+      "harmony": 0.95,
+      "level_db": 0.4,
+      "rhythm": 0.77,
+      "score": 1.0,
+      "to": 13
+    },
+    {
+      "from": 17,
+      "harmony": 0.79,
+      "level_db": 0.4,
+      "rhythm": 0.88,
+      "score": 0.87,
+      "to": 15
+    },
+    {
+      "from": 18,
+      "harmony": 0.89,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "rhythm": 0.76,
+      "score": 0.95,
+      "to": 3
+    },
+    {
+      "from": 18,
+      "harmony": 0.88,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "rhythm": 0.87,
+      "score": 0.95,
+      "to": 7
+    },
+    {
+      "from": 18,
+      "harmony": 0.7,
+      "into_zone": 0,
+      "level_db": 0.9,
+      "phrase": true,
+      "rhythm": 0.81,
+      "score": 0.8,
+      "to": 9
+    },
+    {
+      "from": 18,
+      "harmony": 0.94,
+      "level_db": 0.3,
+      "phrase": true,
+      "rhythm": 0.76,
+      "score": 0.99,
+      "to": 14
+    },
+    {
+      "from": 19,
+      "harmony": 0.66,
+      "into_zone": 0,
+      "level_db": 1.0,
+      "rhythm": 0.74,
+      "score": 0.77,
+      "to": 2
+    },
+    {
+      "from": 19,
+      "harmony": 0.89,
+      "into_zone": 0,
+      "level_db": 0.9,
+      "rhythm": 0.7,
+      "score": 0.95,
+      "to": 4
+    },
+    {
+      "from": 19,
+      "harmony": 0.88,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "rhythm": 0.59,
+      "score": 0.94,
+      "to": 8
+    },
+    {
+      "from": 19,
+      "harmony": 0.93,
+      "level_db": 0.3,
+      "rhythm": 0.71,
+      "score": 0.99,
+      "to": 15
+    },
+    {
+      "from": 20,
+      "harmony": 0.89,
+      "into_zone": 0,
+      "level_db": 3.7,
+      "phrase": true,
+      "rhythm": 0.83,
+      "score": 0.77,
+      "to": 1
+    },
+    {
+      "from": 20,
+      "harmony": 0.88,
+      "into_zone": 0,
+      "level_db": 0.8,
+      "phrase": true,
+      "rhythm": 0.69,
+      "score": 0.94,
+      "to": 5
+    },
+    {
+      "from": 20,
+      "harmony": 0.91,
+      "into_zone": 0,
+      "level_db": 0.7,
+      "phrase": true,
+      "rhythm": 0.59,
+      "score": 0.97,
+      "to": 9
+    },
+    {
+      "from": 20,
+      "harmony": 0.88,
+      "level_db": 0.6,
+      "rhythm": 0.82,
+      "score": 0.94,
+      "to": 12
+    },
+    {
+      "from": 20,
+      "harmony": 0.93,
+      "level_db": 0.3,
+      "rhythm": 0.72,
+      "score": 0.99,
+      "to": 16
+    }
+  ],
+  "name": "drum",
+  "returns": [
+    {
+      "at_bar": 10,
+      "best_link": 0.94,
+      "section": 0,
+      "to_bar": 1,
+      "via": "link"
+    },
+    {
+      "at_bar": 20,
+      "best_link": 0.94,
+      "section": 1,
+      "to_bar": 10,
+      "via": "link"
+    }
+  ],
+  "risks": [],
+  "sections": [
+    {
+      "entry_bar": 1,
+      "entry_change": 0.0,
+      "entry_moved_bars": 1,
+      "exit_bar": 10,
+      "exit_cues": [
+        5,
+        9,
+        10
+      ],
+      "name": "calm",
+      "segment": {
+        "entry_seconds": 2.0023,
+        "exit_seconds": 20.0013,
+        "post_exit_seconds": 22.0012,
+        "pre_entry_seconds": 1.5023
+      },
+      "zone": 0
+    },
+    {
+      "entry_bar": 10,
+      "entry_change": 0.4,
+      "entry_moved_bars": -1,
+      "exit_bar": 20,
+      "exit_cues": [
+        14,
+        18,
+        20
+      ],
+      "name": "storm",
+      "segment": {
+        "entry_seconds": 20.0013,
+        "exit_seconds": 40.0003,
+        "post_exit_seconds": 42.0002,
+        "pre_entry_seconds": 19.5014
+      },
+      "zone": 1
+    }
+  ],
+  "splice": {
+    "link_post_beats": 1.0,
+    "link_pre_beats": 0.25,
+    "min_repeat_bars": 8,
+    "seamless": 0.8
+  },
+  "transitions": [
+    {
+      "best_link": 0.98,
+      "cover": "none",
+      "cues": 3,
+      "from": 0,
+      "seamless_cues": 3,
+      "take_runs_into_it": true,
+      "to": 1,
+      "when": "exit_cue"
+    },
+    {
+      "best_link": 0.97,
+      "cover": "none",
+      "cues": 3,
+      "from": 1,
+      "seamless_cues": 3,
+      "take_runs_into_it": false,
+      "to": 0,
+      "when": "exit_cue"
+    }
+  ],
+  "version": 1,
+  "zones": [
+    {
+      "link_threshold": 0.85,
+      "name": "calm",
+      "sections": [
+        0
+      ],
+      "stinger": {
+        "file": "music/drum_into_calm.ogg",
+        "land_seconds": 1.0
+      }
+    },
+    {
+      "link_threshold": 0.85,
+      "name": "storm",
+      "sections": [
+        1
+      ],
+      "stinger": {
+        "file": "music/drum_into_storm.ogg",
+        "land_seconds": 1.0
+      }
+    }
+  ]
+}

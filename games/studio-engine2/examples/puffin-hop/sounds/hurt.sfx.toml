@@ -1,0 +1,7 @@
+# Plays when the puffin is hurt.
+wave = "noise"
+freq = 900
+freq_end = 120
+duration = 0.35
+decay = 0.25
+volume = 0.8

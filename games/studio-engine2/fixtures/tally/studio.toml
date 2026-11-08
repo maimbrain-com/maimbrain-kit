@@ -1,0 +1,29 @@
+# Tally: Phase 4c's test game (docs/STUDIO-2.md §9.5), for the engine's
+# tests, mb-cli's and the server's (its progress verified by a real replay).
+# Not a game for players.
+title = "Tally"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+
+id = "dev.maimbrain.studio2.tally"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "TIME"
+
+# Board 0: round.score, the tower's height.
+[[scores]]
+label = "Height"
+order = "high"
+
+# Board 1: round.post("taps", n).
+[[scores]]
+id = "taps"
+label = "Taps"
+
+# Board 2: the daily board (round.score on the day's seed).
+[[scores]]
+id = "today"
+daily = true

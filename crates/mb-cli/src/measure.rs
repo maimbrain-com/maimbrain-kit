@@ -672,7 +672,7 @@ fn ab_params(specs: &[String]) -> Result<[Vec<String>; 2], String> {
 
 /// The SDK a game directory compiles against, as cargo resolves it: the
 /// `maimbrain` package's directory and its source (None for a path
-/// dependency, else e.g. "git+https://github.com/terracatta/maimbrain-kit#3f2a…").
+/// dependency, else e.g. "git+https://github.com/maimbrain-com/maimbrain-kit#3f2a…").
 fn sdk_of(dir: &std::path::Path, config: &[String]) -> Result<(PathBuf, Option<String>), String> {
     let out = std::process::Command::new("cargo")
         .args(["metadata", "--format-version", "1", "--manifest-path"])
@@ -690,7 +690,7 @@ fn sdk_of(dir: &std::path::Path, config: &[String]) -> Result<(PathBuf, Option<S
     Ok((dir, p["source"].as_str().map(String::from)))
 }
 
-/// "https://github.com/terracatta/maimbrain-kit" of "git+https://github.com/terracatta/maimbrain-kit?branch=x#3f2a…".
+/// "https://github.com/maimbrain-com/maimbrain-kit" of "git+https://github.com/maimbrain-com/maimbrain-kit?branch=x#3f2a…".
 fn git_url(source: &str) -> Option<&str> {
     let s = source.strip_prefix("git+")?;
     Some(s.split(['?', '#']).next().unwrap_or(s))
@@ -1338,8 +1338,8 @@ mod tests {
         assert!(ab_params(&s(&["shafts=1"])).unwrap_err().contains("expected NAME=A,B"));
         assert!(ab_params(&s(&["shafts=1,1"])).unwrap_err().contains("the same"));
         assert!(ab_params(&s(&["bad name=1,0"])).is_err());
-        assert_eq!(git_url("git+https://github.com/terracatta/maimbrain-kit#3f2a9c"), Some("https://github.com/terracatta/maimbrain-kit"));
-        assert_eq!(git_url("git+https://github.com/terracatta/maimbrain-kit?branch=main#3f2a9c"), Some("https://github.com/terracatta/maimbrain-kit"));
+        assert_eq!(git_url("git+https://github.com/maimbrain-com/maimbrain-kit#3f2a9c"), Some("https://github.com/maimbrain-com/maimbrain-kit"));
+        assert_eq!(git_url("git+https://github.com/maimbrain-com/maimbrain-kit?branch=main#3f2a9c"), Some("https://github.com/maimbrain-com/maimbrain-kit"));
         assert_eq!(git_url("registry+https://github.com/rust-lang/crates.io-index"), None);
         assert_eq!(toml_string(r#"C:\kit "x""#), r#""C:\\kit \"x\"""#);
     }

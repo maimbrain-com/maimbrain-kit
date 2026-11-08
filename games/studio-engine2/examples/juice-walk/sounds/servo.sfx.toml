@@ -1,0 +1,9 @@
+# A servo whine, held for looping.
+wave = "saw"
+freq = 140
+freq_end = 140
+duration = 1.0
+attack = 0.0
+decay = 0.0
+vibrato = [0.15, 9]
+volume = 0.4

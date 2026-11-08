@@ -1,0 +1,4 @@
+# The fox: a walker's body (the first cell) and one paw (the second), in
+# pixel art; mb build measures them.
+walker = true
+pixel = true

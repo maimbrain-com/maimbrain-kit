@@ -1,0 +1,13 @@
+character,line,text,emotion,tag
+gruk,halt,"Oi. Nobody crosses Gruk's bridge for free.",smug,
+pip,please,"I haven't got any coins. Can I pay some other way?",nervous,
+gruk,riddle1,"Riddle, then. What has a mouth but never speaks, and a bed but never sleeps?",smug,
+gruk,right1,"Hmph. Lucky guess. Go on, then.",annoyed,
+gruk,riddle2,"What can fill a room but takes up no space?",smug,
+gruk,right2,"Bah. Somebody told you that one.",annoyed,
+gruk,jeer1,"Wrong! Try again, tiny.",laughing,wrong
+gruk,jeer2,"Ha! No.",laughing,wrong
+gruk,jeer3,"Gruk could do this all day.",bored,wrong
+gruk,idle1,"Toll's going up, you know.",bored,idle
+gruk,idle2,"Lovely day for a riddle.",smug,idle
+pip,thanks,"Thank you, Mister Gruk!",happy,

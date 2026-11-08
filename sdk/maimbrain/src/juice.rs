@@ -438,8 +438,19 @@ impl Combo {
         if self.window > 0.0 { (self.left / self.window).clamp(0.0, 1.0) } else { 0.0 }
     }
 
+    /// [`draw`](Combo::draw) with its ring in the theme's style (stepped
+    /// blocks for a pixel identity, a glow for neon: `ui::ring_in`), as
+    /// Studio's HUD draws it.
+    pub fn draw_in(&self, cx: f32, cy: f32, theme: &Theme) {
+        self.draw_with(cx, cy, theme, true);
+    }
+
     /// Draws "×N" with a ring timer at (cx, cy), heating up with the count.
     pub fn draw(&self, cx: f32, cy: f32, theme: &Theme) {
+        self.draw_with(cx, cy, theme, false);
+    }
+
+    fn draw_with(&self, cx: f32, cy: f32, theme: &Theme, styled: bool) {
         let r = 30.0;
         if self.count < 2 {
             if self.broke.active() {
@@ -456,8 +467,12 @@ impl Combo {
         gfx2d::push();
         gfx2d::translate(cx, cy);
         gfx2d::scale(s, s);
-        disc(0.0, 0.0, r, with_alpha(theme.outline, 0.55));
-        widgets::ring_meter(0.0, 0.0, r, 5.0, self.remaining(), col, with_alpha(col, 0.25));
+        if styled {
+            crate::ui::ring_in(theme, r, self.remaining(), col, 1.0);
+        } else {
+            disc(0.0, 0.0, r, with_alpha(theme.outline, 0.55));
+            widgets::ring_meter(0.0, 0.0, r, 5.0, self.remaining(), col, with_alpha(col, 0.25));
+        }
         let label = format!("×{}", self.count);
         let size = theme.fit(theme.number_font, if self.count >= 100 { 18.0 } else { 24.0 });
         text(&label).font(theme.number_font).size(size).color(theme.text).outline(0.08, theme.outline).valign(VAlign::Middle).center().draw(0.0, 0.0);

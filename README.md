@@ -25,7 +25,7 @@ On Windows, install Rust with [rustup](https://rustup.rs) (it sets up the Visual
 In Claude Code:
 
 ```
-/plugin marketplace add terracatta/maimbrain-kit
+/plugin marketplace add maimbrain-com/maimbrain-kit
 /plugin install maimbrain@maimbrain-kit
 ```
 
@@ -96,7 +96,7 @@ No key of your own? If the Maimbrain team has given your account access to **Mai
 | `crates/mb-cli/` | The `mb` tool |
 | `crates/mb-format/` | The bundle format and validator (the same one the server runs) |
 
-Build `mb` from source: `cargo install --git https://github.com/terracatta/maimbrain-kit mb-cli`.
+Build `mb` from source: `cargo install --git https://github.com/maimbrain-com/maimbrain-kit mb-cli`.
 
 This repository is generated from the Maimbrain monorepo; open issues here.
 

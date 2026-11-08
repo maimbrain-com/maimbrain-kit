@@ -493,7 +493,7 @@ pub fn parse_song_zones(specs: &[String]) -> Result<Vec<(String, String, Option<
 }
 
 /// A tempo a prompt asks for: "128 bpm", "112 BPM", "90bpm".
-fn tempo_in(prompt: &str) -> Option<f32> {
+pub(crate) fn tempo_in(prompt: &str) -> Option<f32> {
     let low = prompt.to_ascii_lowercase();
     let i = low.find("bpm")?;
     let head = low[..i].trim_end();
@@ -939,7 +939,7 @@ fn load_raw(game: &Path, sc: &super::Sidecar) -> Result<(Vec<u8>, String, String
 }
 
 /// `--layers <list>` → (split into base and high, the tension kit).
-fn parse_layers(list: Option<&str>) -> Result<(bool, bool), String> {
+pub(crate) fn parse_layers(list: Option<&str>) -> Result<(bool, bool), String> {
     let Some(list) = list else {
         return Ok((false, false));
     };
@@ -1034,6 +1034,7 @@ pub fn execute(game: &Path, job: &SoundJob, dry_run: bool, limit: f64, raw: Opti
     if !game.is_dir() {
         return Err(format!("{} isn't a directory (pass the game directory first)", game.display()));
     }
+    super::maimbrain::making(game, &job.name);
     let (style, style_sha) = if job.no_style { (Style::default(), None) } else { Style::load(game)? };
     let style_ref = style_sha.map(|s| FileRef { path: "art/style.toml".into(), sha256: s });
     let verdict = super::ip::check(&[&job.subject, &style.kind(&job.kind).prompt], &job.allow_names);
@@ -1424,7 +1425,7 @@ fn fetch(game: &Path, job: &SoundJob, prov: &dyn provider::Provider, prompt: &st
 }
 
 /// Where a sectioned job's sections are in the piece asked for.
-fn plan_of(job: &SoundJob) -> score::Plan {
+pub(crate) fn plan_of(job: &SoundJob) -> score::Plan {
     score::plan(&job.sections, job.bars.unwrap_or(8), job.bpm.unwrap_or(score::DEFAULT_BPM), job.section_seconds)
 }
 

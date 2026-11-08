@@ -1,0 +1,9 @@
+# Out of balls: a falling, wobbly sigh.
+wave = "triangle"
+freq = 440
+freq_end = 150
+duration = 0.5
+attack = 0.01
+decay = 0.35
+vibrato = [0.6, 6]
+volume = 0.55

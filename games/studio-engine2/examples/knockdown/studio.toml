@@ -1,0 +1,29 @@
+# Knockdown: the Rust kit's fairground can toss (games/knockdown) rebuilt
+# in Studio 2.0, Lua only (docs/STUDIO-2.md §9.4, Phase 3's acceptance).
+# Tap where to throw; knock every can and crate off the table before the
+# balls run out. Godot's RigidBody3D cans, crates, planks and ball,
+# StaticBody3D table, floor and back wall; camera:ray and physics.raycast
+# to aim; bodyEntered signals for the clangs.
+title = "Knockdown"
+tagline = "Clear the table"
+kind = "3d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.knockdown"
+version = "0.2.0"
+creator = "@maimbrain"
+
+# A fairground stall at dusk: the cards in carnival red and cream.
+[identity]
+name = "gala"
+accent = 0xe63946
+results = "panel"
+
+[[scores]]
+label = "Knocked down"
+order = "high"
+
+[text]
+over = "OUT OF BALLS"

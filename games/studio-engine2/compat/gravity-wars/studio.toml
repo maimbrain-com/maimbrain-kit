@@ -1,0 +1,20 @@
+# Gravity Wars, a LÖVE game from outside, on Studio engine 2.0 (docs/STUDIO-2.md
+# §9.2, the acceptance's outside LÖVE game). By Boris (whyboris), MIT
+# (LICENSE beside this; basis33.ttf by Tristan Grimmer, MIT):
+# https://github.com/whyboris/Gravity-Wars at e66964fc33a37cc8d2a824ec4fad255d38c0d54f.
+#
+# Its Lua is the game's own, moved under game/ (its assets/ pictures to
+# images/, its font to fonts/), with one change: Luau has no goto, so
+# logic.lua's three `goto done` (to the end of its function) are `return`.
+# This file takes the place of conf.lua: the game has none, and asks for a
+# 1000×800 window with love.window.setMode.
+title = "Gravity Wars"
+engine = "2.0"
+kind = "2d"
+orientation = "landscape"
+size = [1000, 800]
+
+# The manifest's identity for `mb build`.
+id = "dev.maimbrain.studio2.gravitywars"
+version = "0.1.0"
+creator = "@maimbrain"

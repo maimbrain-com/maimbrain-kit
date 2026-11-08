@@ -1,0 +1,6 @@
+mblips 1
+hz 30
+dur 0.631
+mouth 1133300000022222000
+text Ha! No.
+reveal 19 69 159 319 369 419 509

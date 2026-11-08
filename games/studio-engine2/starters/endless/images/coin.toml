@@ -1,0 +1,3 @@
+# A coin spinning: 6 frames.
+frame = [48, 48]
+pixel = true

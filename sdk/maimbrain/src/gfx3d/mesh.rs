@@ -374,6 +374,65 @@ impl MeshData {
         m
     }
 
+    /// A jagged boulder about `size` meters across, the same for the same
+    /// `seed`: a once-subdivided icosahedron (80 faces) pushed in and out at
+    /// each corner, stretched a little, cut flat by four planes (one of them
+    /// the base, so it sits), and flat-shaded. Integer hashing and
+    /// + − × ÷ sqrt only, so every phone makes the same rock.
+    pub fn rock(size: f32, seed: u32) -> MeshData {
+        // A hash to [0, 1).
+        let mut state = seed.wrapping_mul(0x9E37_79B9) ^ 0x85EB_CA6B;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            (state >> 8) as f32 / (1u32 << 24) as f32
+        };
+        for _ in 0..4 {
+            next();
+        }
+        let ico = MeshData::icosphere(1.0, 1);
+        let stretch = vec3(1.0 + 0.3 * next(), 0.6 + 0.25 * next(), 0.8 + 0.3 * next());
+        let mut pos: Vec<Vec3> = ico.positions.iter().map(|p| *p * (0.78 + 0.34 * next()) * stretch).collect();
+        // Cuts: a flat base a little above the bottom, and three random
+        // faces sliced off the sides and top.
+        let mut cuts = vec![(vec3(0.0, -1.0, 0.0), stretch.y * 0.55)];
+        for _ in 0..3 {
+            let n = vec3(next() * 2.0 - 1.0, next() * 1.4 - 0.3, next() * 2.0 - 1.0);
+            if n.length() > 0.2 {
+                cuts.push((n.normalize(), 0.62 + 0.25 * next()));
+            }
+        }
+        for p in &mut pos {
+            for (n, d) in &cuts {
+                let over = p.dot(*n) - d;
+                if over > 0.0 {
+                    *p -= *n * over;
+                }
+            }
+        }
+        // `size` across its widest, a fifth of it under its origin, as a
+        // boulder sits.
+        let (lo, hi) = pos.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(l, h), p| (l.min(*p), h.max(*p)));
+        let k = size / (hi.x - lo.x).max(hi.z - lo.z).max(1e-3);
+        let lift = vec3(0.0, -(lo.y + 0.2 * (hi.y - lo.y)) * k, 0.0);
+        let mut m = MeshData::new();
+        for t in ico.indices.chunks_exact(3) {
+            let [a, b, c] = [pos[t[0] as usize] * k + lift, pos[t[1] as usize] * k + lift, pos[t[2] as usize] * k + lift];
+            let n = (b - a).cross(c - a);
+            if n.length() < 1e-6 * k * k {
+                continue;
+            }
+            let n = n.normalize();
+            let i = m.positions.len() as u32;
+            for p in [a, b, c] {
+                m.push(p, n, [p.x / size + 0.5, p.z / size + 0.5]);
+            }
+            m.tri(i, i + 1, i + 2);
+        }
+        m
+    }
+
     /// Every triangle gets its own vertices and its face normal: the faceted low-poly look.
     pub fn flat_shaded(&self) -> MeshData {
         let mut m = MeshData::new();
@@ -652,6 +711,20 @@ mod tests {
         let rock = m.flat_shaded().with_vertex_colors_by(|p, _| if p.y > 0.3 { 0xb8b0a8ff } else { 0x6b625cff });
         check_winding(&rock, "rock");
         assert!(rock.upload().is_some());
+    }
+
+    #[test]
+    fn rock_is_the_same_for_a_seed_and_jagged() {
+        let (a, b, c) = (MeshData::rock(1.2, 3), MeshData::rock(1.2, 3), MeshData::rock(1.2, 4));
+        assert_eq!(a.pack(), b.pack());
+        assert_ne!(a.pack(), c.pack());
+        for m in [&a, &c] {
+            assert!(m.indices.len() / 3 >= 60 && m.indices.len() / 3 <= 80);
+            assert!(m.normals.iter().all(|n| (n.length() - 1.0).abs() < 1e-3));
+            let (lo, hi) = m.positions.iter().fold((Vec3::splat(f32::MAX), Vec3::splat(f32::MIN)), |(l, h), p| (l.min(*p), h.max(*p)));
+            assert!(hi.x - lo.x <= 1.201 && hi.z - lo.z <= 1.201 && (hi.x - lo.x).max(hi.z - lo.z) > 1.19, "{lo:?} {hi:?}");
+            assert!(lo.y < 0.0 && hi.y > 0.2, "sits a little in the ground: {lo:?} {hi:?}");
+        }
     }
 
     #[test]

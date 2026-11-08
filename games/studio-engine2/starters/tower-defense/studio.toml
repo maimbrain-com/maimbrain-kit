@@ -1,0 +1,42 @@
+# The tower-defense starter: the tower-defense kit's Cake Keep, rebuilt in
+# Lua. Its rules and knobs are the kit's (game/sim.lua). Its painted clay
+# art, sounds, music, words and identity are the starter's (a candy-garden
+# lawn, angry jellies, a cake with a face): make them the game's own
+# (game/main.lua says where each part lives).
+title = "Cake Keep"
+tagline = "they want the cake"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+# The cake's hearts (game/sim.lua's HEARTS): the HUD's hearts are round.lives.
+lives = 5
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.tower-defense"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "DEVOURED!"
+
+[[scores]]
+label = "Jellies popped"
+order = "high"
+
+# How far a round got, posted when the cake falls.
+[[scores]]
+id = "wave"
+label = "Wave reached"
+order = "high"
+
+# The cards and HUD: bubblegum's bouncy pill panels, in the key art's
+# colours (images/icon.png: the cake on its candy lawn), with the kit's
+# strawberry accent.
+[identity]
+name = "bubblegum"
+colors = "art"
+art = "icon"
+accent = 0xff5d7c
+
+[remix]
+allowed = true

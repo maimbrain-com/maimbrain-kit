@@ -1,0 +1,8 @@
+# Plays on every jump.
+wave = "square"
+duty = 0.25
+freq = 220
+freq_end = 520
+duration = 0.12
+decay = 0.05
+volume = 0.6

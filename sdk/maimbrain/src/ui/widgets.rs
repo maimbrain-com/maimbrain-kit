@@ -279,6 +279,21 @@ impl Button {
         }
     }
 
+    /// [`Button::handle`] with the button's box on the screen given (a
+    /// button drawn somewhere other than its `rect`: a scene node's).
+    pub fn handle_at(&mut self, e: &Event, on_screen: Rect) -> Option<Tap> {
+        let rect = self.rect;
+        self.rect = on_screen;
+        let t = self.handle(e);
+        self.rect = rect;
+        t
+    }
+
+    /// The pop a click gives it (Enter or a pad's A on a focused button).
+    pub fn pop(&mut self) {
+        self.pop.kick(0.12);
+    }
+
     /// Forgets a press in progress (e.g. when the screen changes).
     pub fn reset(&mut self) {
         self.held = None;

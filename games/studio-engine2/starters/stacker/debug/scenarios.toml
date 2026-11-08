@@ -1,0 +1,32 @@
+# Named sets of debug picks: the debug menu's first tab ("Try it").
+[[scenario]]
+name = "Autopilot"
+note = "the round plays itself (a careful player: over the top, never into a twist)"
+[scenario.set]
+AUTO = true
+
+[[scenario]]
+name = "Golden hour"
+note = "builds 12 snacks first (fast): cheese is next, the sky turns gold"
+[scenario.set]
+BUILD = 12
+
+[[scenario]]
+name = "Sunset"
+note = "builds 22 snacks first (fast): every snack in the mix, a sunset sky, the widest sweep"
+[scenario.set]
+BUILD = 22
+AUTO = true
+
+[[scenario]]
+name = "Wind"
+note = "the first twist (a gust) comes at once"
+[scenario.set]
+TWIST_NOW = true
+
+[[scenario]]
+name = "Last heart"
+note = "one heart left: the red edge throbs, the music's tense; the next fall tips the plate"
+[scenario.set]
+LIVES = 1
+

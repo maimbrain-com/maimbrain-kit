@@ -2,7 +2,7 @@
 name = "maimbrain"
 edition.workspace = true
 # The creator kit's version (crates/mb-cli); mb-cli's tests keep them equal.
-version = "0.9.0"
+version = "0.10.0"
 publish.workspace = true
 description = "Guest SDK for Maimbrain games"
 
@@ -11,8 +11,26 @@ description = "Guest SDK for Maimbrain games"
 # game: `maimbrain = { path = "…", features = ["physics2d"] }` (docs/PHYSICS.md).
 physics2d = ["dep:rapier2d", "dep:libm"]
 physics3d = ["dep:rapier3d", "dep:libm"]
+# The retained 2D scene (`scene`): nodes with properties, drawn through
+# gfx2d with a camera, and the immediate layer between them (Studio engine
+# 2.0's nodes; docs/STUDIO-2.md §4.1–4.3).
+scene = []
+# Games' shaders (mb3d 5's materials, mb2d 4's sprite shaders; `shaders`):
+# Studio engine 2.0's shader builds. Natively they're always in.
+shaders = []
+# Navigation (docs/STUDIO-2.md §4.14, Decided 45–48): `nav` bakes navmeshes
+# and runs a crowd on Recast, Detour and DetourCrowd (C++, crates/recast:
+# its wasm build needs the clang crates/luau does); `gridpath` is A* on a
+# grid alone (`nav::grid_path`, for tile maps).
+nav = ["dep:recast", "gridpath"]
+gridpath = ["dep:pathfinding"]
 
 [dependencies]
+# Terrain's noise (`gfx3d::terrain`): FastNoise Lite's Rust port (MIT). One
+# small implementation that gives the same heights everywhere (it calls no
+# libm), with ridged and domain-warp modes; 9 KB of wasm, and nothing in a
+# game that doesn't make a terrain (spike S11, tag spike/s11-terrain-final).
+fastnoise-lite = { version = "=1.1.1" }
 # Pinned to 0.34: 0.35+ always compiles in soft bodies, which more than
 # doubles the wasm (docs/PHYSICS.md, "Bundle size"). `enhanced-determinism`
 # makes every float op and every map iteration order reproducible.
@@ -20,4 +38,9 @@ rapier2d = { version = "=0.34.0", optional = true, default-features = false, fea
 # Trig in the physics modules goes through libm (as Rapier's does), so a
 # native `cargo test` simulates bit-for-bit what the wasm does on a phone.
 libm = { version = "0.2", optional = true }
+# Recast, Detour and DetourCrowd 1.6.0, built from source (`nav`).
+recast = { path = "../../crates/recast", optional = true }
+# A* with a fixed tie order (`gridpath`; spike S10: +18 KB, the same path
+# among equal ones everywhere).
+pathfinding = { version = "=4.16.0", optional = true, default-features = false }
 rapier3d = { version = "=0.34.0", optional = true, default-features = false, features = ["dim3", "f32", "alloc", "enhanced-determinism"] }

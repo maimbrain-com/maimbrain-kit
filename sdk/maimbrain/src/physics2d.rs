@@ -34,6 +34,10 @@ use rapier2d::parry::shape::TypedShape;
 use rapier2d::prelude as rp;
 
 use crate::gfx2d;
+
+#[path = "character2d.rs"]
+pub mod character;
+pub use character::{Character, CharacterSettings};
 use crate::physics_clock::{Clock, Inbox, angle_delta};
 pub use crate::physics_clock::{DEFAULT_STEP_RATE, MAX_STEPS_PER_CALL};
 
@@ -400,6 +404,8 @@ pub struct Shape {
     sensor: bool,
     groups: (u32, u32),
     events: bool,
+    bounce_max: bool,
+    one_way: bool,
 }
 
 impl Shape {
@@ -415,6 +421,8 @@ impl Shape {
             sensor: false,
             groups: (1, u32::MAX),
             events: true,
+            bounce_max: false,
+            one_way: false,
         }
     }
     /// A `w`×`h` box.
@@ -510,6 +518,22 @@ impl Shape {
         self.groups = (member, collides_with);
         self
     }
+    /// Box2D's rules, as near as Rapier has them: two shapes bounce by the
+    /// larger of their restitutions, and slide with the smaller of their
+    /// frictions (Box2D's √(a·b) has no Rapier rule; the smaller keeps a
+    /// frictionless shape frictionless, as Box2D does). Rapier averages
+    /// both unless asked.
+    pub fn box2d_mixing(mut self) -> Shape {
+        self.bounce_max = true;
+        self
+    }
+    /// A one-way platform for characters ([`character::Character`]): they
+    /// land on its top and pass up through it from below and the sides.
+    /// Rigid bodies meet it from every side.
+    pub fn one_way(mut self) -> Shape {
+        self.one_way = true;
+        self
+    }
     /// No contact events for this shape (saves a little work in big piles).
     pub fn quiet(mut self) -> Shape {
         self.events = false;
@@ -556,12 +580,18 @@ impl Shape {
             rp::Group::from_bits_retain(self.groups.1),
             rp::InteractionTestMode::And,
         );
+        let b = if self.bounce_max {
+            b.restitution_combine_rule(rp::CoefficientCombineRule::Max).friction_combine_rule(rp::CoefficientCombineRule::Min)
+        } else {
+            b
+        };
         let b = b
             .position(RPose::new(to_m(self.offset), self.angle))
             .friction(self.friction)
             .restitution(self.restitution)
             .sensor(self.sensor)
             .collision_groups(groups)
+            .user_data(if self.one_way { ONE_WAY } else { 0 })
             .active_events(if self.events { rp::ActiveEvents::COLLISION_EVENTS } else { rp::ActiveEvents::empty() });
         match self.mass {
             Some(m) => b.mass(m),
@@ -569,6 +599,9 @@ impl Shape {
         }
     }
 }
+
+/// A collider's user data: a one-way platform ([`Shape::one_way`]).
+const ONE_WAY: u128 = 1;
 
 fn warn(msg: &str) {
     crate::sys::log(crate::sys::Level::Warn, &format!("physics2d: {msg}"));
@@ -583,6 +616,9 @@ enum JointKind {
     Fixed,
     Rope(Vec2, Vec2),
     Spring(Vec2, Vec2),
+    Distance(Vec2, Vec2),
+    Wheel(Vec2, Vec2),
+    Mouse(Vec2),
 }
 
 /// How to connect two bodies. Anchors are world (screen) points where the
@@ -625,6 +661,24 @@ impl Joint {
     /// (or [`Joint::length`]); tune it with [`Joint::spring`].
     pub fn spring(a: BodyId, b: BodyId, anchor_a: Vec2, anchor_b: Vec2) -> Joint {
         Joint::new(a, b, JointKind::Spring(anchor_a, anchor_b))
+    }
+    /// Keeps `anchor_a` (on `a`) and `anchor_b` (on `b`) exactly as far
+    /// apart as they are now (or [`Joint::length`]): Box2D's distance joint
+    /// with no spring.
+    pub fn distance(a: BodyId, b: BodyId, anchor_a: Vec2, anchor_b: Vec2) -> Joint {
+        Joint::new(a, b, JointKind::Distance(anchor_a, anchor_b))
+    }
+    /// A wheel on `b` at `anchor`: free to spin, sprung along `axis` (the
+    /// suspension; tune it with [`Joint::stiffness`]), held across it. A
+    /// motor drives the spin, as Box2D's wheel joint's does.
+    pub fn wheel(a: BodyId, b: BodyId, anchor: Vec2, axis: Vec2) -> Joint {
+        Joint::new(a, b, JointKind::Wheel(anchor, axis))
+    }
+    /// Pulls `b`'s point at `anchor` toward `a`'s (a body you move to where
+    /// the finger is) by a spring ([`Joint::stiffness`]), at most
+    /// [`Joint::motor`]'s force: Box2D's mouse joint, for dragging.
+    pub fn mouse(a: BodyId, b: BodyId, anchor: Vec2) -> Joint {
+        Joint::new(a, b, JointKind::Mouse(anchor))
     }
     /// Revolute: min/max angle in radians relative to now. Prismatic: min/max px along the axis.
     pub fn limits(mut self, min: f32, max: f32) -> Joint {
@@ -717,6 +771,19 @@ impl Event {
         let (a, b) = self.bodies();
         a == id || b == id
     }
+}
+
+/// Two solid shapes touching now ([`World::touches`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Touch {
+    pub shape_a: ShapeId,
+    pub shape_b: ShapeId,
+    /// Unit normal from `shape_a` toward `shape_b`.
+    pub normal: Vec2,
+    /// Up to two points where they touch (screen px).
+    pub points: [Option<Vec2>; 2],
+    pub normal_impulse: f32,
+    pub tangent_impulse: f32,
 }
 
 /// A raycast hit.
@@ -848,6 +915,11 @@ impl World {
         }
     }
 
+    /// Solver iterations per step: Rapier's substeps, so a joint's impulse
+    /// ([`World::joint_force`]) is one substep's, and × this is the step's.
+    pub fn solver_iterations(&self) -> u32 {
+        self.w.integration_parameters.num_solver_iterations as u32
+    }
     pub fn gravity(&self) -> Vec2 {
         to_px(self.w.gravity)
     }
@@ -1307,6 +1379,15 @@ impl World {
             c.set_sensor(sensor);
         }
     }
+    /// Makes a shape a one-way platform for characters, or not ([`Shape::one_way`]).
+    pub fn set_one_way(&mut self, shape: ShapeId, on: bool) {
+        if let Some(c) = self.w.colliders.get_mut(shape.0) {
+            c.user_data = if on { c.user_data | ONE_WAY } else { c.user_data & !ONE_WAY };
+        }
+    }
+    pub fn is_one_way(&self, shape: ShapeId) -> bool {
+        self.w.colliders.get(shape.0).is_some_and(|c| c.user_data & ONE_WAY != 0)
+    }
 
     // ------------------------------------------------------------ joints
 
@@ -1364,6 +1445,41 @@ impl World {
                     .build()
                     .into()
             }
+            JointKind::Distance(a, b) => {
+                let len = j.length.unwrap_or_else(|| a.distance(b)) * MPP;
+                let mut g: rp::GenericJoint = rp::RopeJointBuilder::new(len).local_anchor1(local_a(a)).local_anchor2(local_b(b)).build().into();
+                g.set_limits(rp::JointAxis::LinX, [len, len]);
+                g
+            }
+            JointKind::Wheel(anchor, axis) => {
+                let axis = if axis.length() > 0.0 { axis.normalize() } else { Vec2::Y };
+                let world = axis.angle();
+                let mut g = rp::GenericJoint::new(rp::JointAxesMask::LIN_Y);
+                g.local_frame1 = RPose::new(local_a(anchor), world - pa.rotation.angle());
+                g.local_frame2 = RPose::new(local_b(anchor), world - pb.rotation.angle());
+                let w = std::f32::consts::TAU * j.spring.0;
+                g.set_motor_model(rp::JointAxis::LinX, rp::MotorModel::AccelerationBased);
+                g.set_motor_position(rp::JointAxis::LinX, 0.0, w * w, 2.0 * j.spring.1 * w);
+                if let Some((speed, max)) = j.motor {
+                    g.set_motor_velocity(rp::JointAxis::AngX, speed, MOTOR_GAIN);
+                    g.set_motor_max_force(rp::JointAxis::AngX, max * MPP * MPP);
+                }
+                g
+            }
+            JointKind::Mouse(anchor) => {
+                let mut g = rp::GenericJoint::new(rp::JointAxesMask::empty());
+                g.local_frame1 = RPose::new(local_a(anchor), -pa.rotation.angle());
+                g.local_frame2 = RPose::new(local_b(anchor), -pb.rotation.angle());
+                let w = std::f32::consts::TAU * j.spring.0;
+                for axis in [rp::JointAxis::LinX, rp::JointAxis::LinY] {
+                    g.set_motor_model(axis, rp::MotorModel::AccelerationBased);
+                    g.set_motor_position(axis, 0.0, w * w, 2.0 * j.spring.1 * w);
+                    if let Some((_, max)) = j.motor {
+                        g.set_motor_max_force(axis, max * MPP);
+                    }
+                }
+                g
+            }
         };
         data.set_contacts_enabled(j.collide);
         JointId(self.w.impulse_joints.insert(j.a.0, j.b.0, data, true))
@@ -1396,7 +1512,7 @@ impl World {
     /// Changes a revolute/prismatic joint's motor (units as [`Joint::motor`]).
     pub fn set_motor(&mut self, id: JointId, speed: f32, max_force: f32) {
         let Some(j) = self.w.impulse_joints.get_mut(id.0, true) else { return };
-        let (axis, s, f) = if j.data.locked_axes.contains(rp::JointAxesMask::LIN_X) {
+        let (axis, s, f) = if j.data.locked_axes.contains(rp::JointAxesMask::LIN_X) || !j.data.locked_axes.contains(rp::JointAxesMask::ANG_X) {
             (rp::JointAxis::AngX, speed, max_force * MPP * MPP)
         } else {
             (rp::JointAxis::LinX, speed * MPP, max_force * MPP)
@@ -1413,6 +1529,157 @@ impl World {
     /// Every joint, in a deterministic order.
     pub fn joints(&self) -> impl Iterator<Item = JointId> + '_ {
         self.w.impulse_joints.iter().map(|(h, _)| JointId(h))
+    }
+
+
+    /// Changes a revolute (radians) or prismatic (px) joint's limits; None frees it.
+    pub fn set_limits(&mut self, id: JointId, limits: Option<(f32, f32)>) {
+        let Some(j) = self.w.impulse_joints.get_mut(id.0, true) else { return };
+        let (axis, k) = if j.data.locked_axes.contains(rp::JointAxesMask::LIN_X) { (rp::JointAxis::AngX, 1.0) } else { (rp::JointAxis::LinX, MPP) };
+        match limits {
+            Some((lo, hi)) => {
+                j.data.set_limits(axis, [lo.min(hi) * k, lo.max(hi) * k]);
+            }
+            None => {
+                j.data.limit_axes.remove(axis.into());
+            }
+        }
+    }
+    /// A rope's longest or a distance or spring joint's length, px.
+    pub fn set_joint_length(&mut self, id: JointId, px: f32) {
+        let Some(j) = self.w.impulse_joints.get_mut(id.0, true) else { return };
+        let m = px.max(0.0) * MPP;
+        if j.data.motor_axes.contains(rp::JointAxesMask::LIN_X) && j.data.coupled_axes.contains(rp::JointAxesMask::LIN_AXES) {
+            // A spring: its rest length.
+            let (stiff, damp) = (j.data.motors[0].stiffness, j.data.motors[0].damping);
+            j.data.set_motor_position(rp::JointAxis::LinX, m, stiff, damp);
+        } else if j.data.limit_axes.contains(rp::JointAxesMask::LIN_X) {
+            let lo = if j.data.limits[0].min > 0.0 { m } else { 0.0 };
+            j.data.set_limits(rp::JointAxis::LinX, [lo, m]);
+        }
+    }
+    /// A spring, wheel or mouse joint's stiffness (Hz) and damping ratio.
+    pub fn set_joint_spring(&mut self, id: JointId, hz: f32, damping_ratio: f32) {
+        let Some(j) = self.w.impulse_joints.get_mut(id.0, true) else { return };
+        let w = std::f32::consts::TAU * hz.max(0.0);
+        for (i, axis, mask) in [(0, rp::JointAxis::LinX, rp::JointAxesMask::LIN_X), (1, rp::JointAxis::LinY, rp::JointAxesMask::LIN_Y)] {
+            if i == 0 || j.data.motor_axes.contains(mask) {
+                let target = j.data.motors[i].target_pos;
+                j.data.set_motor_position(axis, target, w * w, 2.0 * damping_ratio.max(0.0) * w);
+            }
+        }
+    }
+    /// A mouse joint's most force (kg·px/s²).
+    pub fn set_joint_max_force(&mut self, id: JointId, max_force: f32) {
+        let Some(j) = self.w.impulse_joints.get_mut(id.0, true) else { return };
+        for axis in [rp::JointAxis::LinX, rp::JointAxis::LinY] {
+            j.data.set_motor_max_force(axis, max_force * MPP);
+        }
+    }
+    pub fn is_fixed_rotation(&self, id: BodyId) -> bool {
+        self.body(id).is_some_and(|b| b.locked_axes().contains(rp::LockedAxes::ROTATION_LOCKED))
+    }
+    pub fn is_bullet(&self, id: BodyId) -> bool {
+        self.body(id).is_some_and(|b| b.is_ccd_enabled())
+    }
+    pub fn gravity_scale(&self, id: BodyId) -> f32 {
+        self.body(id).map_or(1.0, |b| b.gravity_scale())
+    }
+    /// Linear and angular damping.
+    pub fn damping(&self, id: BodyId) -> (f32, f32) {
+        self.body(id).map_or((0.0, 0.0), |b| (b.linear_damping(), b.angular_damping()))
+    }
+
+    /// Changes a shape's collision layers (see [`Shape::groups`]).
+    pub fn set_groups(&mut self, shape: ShapeId, member: u32, collides_with: u32) {
+        if let Some(c) = self.w.colliders.get_mut(shape.0) {
+            c.set_collision_groups(rp::InteractionGroups::new(
+                rp::Group::from_bits_retain(member),
+                rp::Group::from_bits_retain(collides_with),
+                rp::InteractionTestMode::And,
+            ));
+        }
+    }
+    /// Changes a shape's density (kg per 100×100 px); its body's mass follows.
+    pub fn set_density(&mut self, shape: ShapeId, d: f32) {
+        if let Some(c) = self.w.colliders.get_mut(shape.0) {
+            c.set_density(d.max(0.0));
+        }
+    }
+    /// A shape's own mass in kg.
+    pub fn shape_mass(&self, shape: ShapeId) -> f32 {
+        self.w.colliders.get(shape.0).map_or(0.0, |c| c.mass())
+    }
+    /// A shape's mass in kg, instead of from its density.
+    pub fn set_shape_mass(&mut self, shape: ShapeId, kg: f32) {
+        if let Some(c) = self.w.colliders.get_mut(shape.0) {
+            c.set_mass(kg.max(0.0));
+        }
+    }
+    /// The body's moment of inertia about its centre of mass, kg·px².
+    pub fn inertia(&self, id: BodyId) -> f32 {
+        self.body(id).map_or(0.0, |b| b.mass_properties().local_mprops.principal_inertia() * PPM * PPM)
+    }
+    /// The body's centre of mass in the world (px).
+    pub fn center_of_mass(&self, id: BodyId) -> Vec2 {
+        self.body(id).map_or(Vec2::ZERO, |b| to_px(b.center_of_mass()))
+    }
+    /// Whether the body may fall asleep when it settles.
+    pub fn set_can_sleep(&mut self, id: BodyId, on: bool) {
+        if let Some(b) = self.body_mut(id) {
+            let a = b.activation_mut();
+            a.normalized_linear_threshold = if on { rp::RigidBodyActivation::default_normalized_linear_threshold() } else { -1.0 };
+            a.angular_threshold = if on { rp::RigidBodyActivation::default_angular_threshold() } else { -1.0 };
+            if !on {
+                b.wake_up(true);
+            }
+        }
+    }
+    /// Continuous collision detection on or off.
+    pub fn set_bullet(&mut self, id: BodyId, on: bool) {
+        if let Some(b) = self.body_mut(id) {
+            b.enable_ccd(on);
+        }
+    }
+
+    /// Every pair of solid shapes touching now, in a deterministic order:
+    /// where they touch, the normal from `shape_a` to `shape_b`, and the
+    /// impulses the last step pushed them apart (along the normal) and
+    /// held them from sliding with (along the surface), kg·px/s.
+    pub fn touches(&self) -> Vec<Touch> {
+        let mut out: Vec<Touch> = self.w.narrow_phase.contact_pairs().filter(|p| p.has_any_active_contact()).filter_map(|p| self.touch_of(p)).collect();
+        out.sort_by_key(|t| (t.shape_a, t.shape_b));
+        out
+    }
+    /// How two shapes touch now, if they do (the normal from `a` to `b`).
+    pub fn touch(&self, a: ShapeId, b: ShapeId) -> Option<Touch> {
+        let p = self.w.narrow_phase.contact_pair(a.0, b.0)?;
+        let mut t = self.touch_of(p)?;
+        if t.shape_a != a {
+            std::mem::swap(&mut t.shape_a, &mut t.shape_b);
+            t.normal = -t.normal;
+        }
+        Some(t)
+    }
+    fn touch_of(&self, p: &rp::ContactPair) -> Option<Touch> {
+        let m = p.manifolds.iter().find(|m| !m.data.solver_contacts.is_empty())?;
+        let mut points = [None, None];
+        for (i, sc) in m.data.solver_contacts.iter().take(2).enumerate() {
+            points[i] = Some(to_px(sc.point));
+        }
+        let (mut normal_impulse, mut tangent_impulse) = (0.0, 0.0);
+        for pt in &m.points {
+            normal_impulse += pt.data.impulse;
+            tangent_impulse += pt.data.tangent_impulse.x;
+        }
+        Some(Touch {
+            shape_a: ShapeId(p.collider1),
+            shape_b: ShapeId(p.collider2),
+            normal: to_px(m.data.normal).normalize(),
+            points,
+            normal_impulse: normal_impulse * PPM,
+            tangent_impulse: tangent_impulse * PPM,
+        })
     }
 
     // ------------------------------------------------------------ queries
@@ -1445,6 +1712,57 @@ impl World {
             normal: to_px(hit.normal).normalize(),
             distance: hit.time_of_impact * PPM,
         })
+    }
+
+
+    /// Every shape along the segment `from` → `to`, sensors included,
+    /// nearest first (Box2D's `RayCast` sees them all).
+    pub fn raycast_all(&self, from: Vec2, to: Vec2) -> Vec<RayHit> {
+        let d = to - from;
+        let len = d.length();
+        if !(len > 0.0) {
+            return Vec::new();
+        }
+        let dir = d / len;
+        let ray = rp::Ray::new(to_m(from), RVec::new(dir.x, dir.y));
+        let mut out: Vec<RayHit> = self
+            .w
+            .query_pipeline()
+            .intersect_ray(ray, len * MPP, true)
+            .filter_map(|(c, col, hit)| {
+                Some(RayHit { body: BodyId(col.parent()?), shape: ShapeId(c), point: from + dir * (hit.time_of_impact * PPM), normal: to_px(hit.normal).normalize(), distance: hit.time_of_impact * PPM })
+            })
+            .collect();
+        out.sort_by(|a, b| a.distance.total_cmp(&b.distance).then(a.shape.cmp(&b.shape)));
+        out
+    }
+    /// The shapes whose bounding boxes overlap the box `min`–`max`, sorted.
+    pub fn shapes_in_rect(&self, min: Vec2, max: Vec2) -> Vec<ShapeId> {
+        let aabb = rapier2d::parry::bounding_volume::Aabb::new(to_m(min), to_m(max));
+        let mut out: Vec<ShapeId> = self
+            .w
+            .query_pipeline()
+            .intersect_aabb_conservative(aabb)
+            .filter(|(_, c)| {
+                let b = c.compute_aabb();
+                b.mins.x <= aabb.maxs.x && b.maxs.x >= aabb.mins.x && b.mins.y <= aabb.maxs.y && b.maxs.y >= aabb.mins.y
+            })
+            .map(|(h, _)| ShapeId(h))
+            .collect();
+        out.sort();
+        out.dedup();
+        out
+    }
+    /// A shape's bounding box in the world (px): min, max.
+    pub fn shape_bounds(&self, shape: ShapeId) -> (Vec2, Vec2) {
+        self.w.colliders.get(shape.0).map_or((Vec2::ZERO, Vec2::ZERO), |c| {
+            let b = c.compute_aabb();
+            (to_px(b.mins), to_px(b.maxs))
+        })
+    }
+    /// Whether a shape covers a world point.
+    pub fn shape_contains(&self, shape: ShapeId, point: Vec2) -> bool {
+        self.w.colliders.get(shape.0).is_some_and(|c| c.shape().contains_point(c.position(), to_m(point)))
     }
 
     /// The bodies whose shapes contain `point` (sensors included), in a

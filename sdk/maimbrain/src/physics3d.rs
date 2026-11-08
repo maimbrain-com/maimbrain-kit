@@ -27,11 +27,18 @@ use rapier3d::parry::shape::TypedShape;
 use rapier3d::prelude as rp;
 
 use crate::gfx3d::{MeshData, Node, Quat, Transform, Vec3, vec3};
+
+#[path = "character3d.rs"]
+pub mod character;
+pub use character::{Character, CharacterSettings};
 use crate::physics_clock::{Clock, Inbox};
 pub use crate::physics_clock::{DEFAULT_STEP_RATE, MAX_STEPS_PER_CALL};
 
 /// Earth gravity, m/s² (the default for [`World::new`], along −y).
 pub const GRAVITY: f32 = 9.81;
+/// How far ahead a [`World::set_bullet`] body's contacts are predicted in a
+/// step at most (m): 120 m/s at 60 Hz. Faster, the sweep alone catches it.
+const SOFT_CCD: f32 = 2.0;
 
 fn rv(v: Vec3) -> RVec {
     RVec::new(v.x, v.y, v.z)
@@ -237,6 +244,8 @@ enum Geom {
     Cone(f32, f32),
     Convex(Vec<Vec3>),
     Trimesh(Vec<Vec3>, Vec<[u32; 3]>),
+    /// Heights in rows along z (x fastest), `nx` × `nz` of them, `step` m apart.
+    HeightField(Vec<f32>, usize, usize, f32),
 }
 
 /// A collision shape and its material: `Shape::cuboid(vec3(1.0, 0.2, 0.5)).friction(0.8)`.
@@ -252,6 +261,8 @@ pub struct Shape {
     restitution: f32,
     sensor: bool,
     groups: (u32, u32),
+    /// Godot's rule for `groups`: either's layer in the other's mask.
+    either: bool,
     events: bool,
 }
 
@@ -267,6 +278,7 @@ impl Shape {
             restitution: 0.0,
             sensor: false,
             groups: (1, u32::MAX),
+            either: false,
             events: true,
         }
     }
@@ -314,6 +326,15 @@ impl Shape {
         Shape::new(Geom::Trimesh(mesh.positions.clone(), tris))
     }
 
+    /// Ground from a grid of heights, centered on the body: `heights` in
+    /// rows along z with x fastest, `nx` × `nz` of them (2 or more each),
+    /// `step` meters apart. Fixed scenery only (a terrain's tiles). Its
+    /// internal edges are smoothed, so things slide and roll across the
+    /// grid without catching on it.
+    pub fn heightfield(heights: &[f32], nx: usize, nz: usize, step: f32) -> Shape {
+        Shape::new(Geom::HeightField(heights.to_vec(), nx, nz, step.abs()))
+    }
+
     /// Moves the shape within its body (compound bodies).
     pub fn at(mut self, offset: Vec3) -> Shape {
         self.offset = offset;
@@ -355,6 +376,14 @@ impl Shape {
         self.groups = (member, collides_with);
         self
     }
+    /// Godot's collision layers: the shape is on `layer` and looks for
+    /// `mask`, and two shapes touch when either's layer is in the other's
+    /// mask (where [`Shape::groups`] needs both).
+    pub fn layers(mut self, layer: u32, mask: u32) -> Shape {
+        self.groups = (layer, mask);
+        self.either = true;
+        self
+    }
     /// No contact events for this shape.
     pub fn quiet(mut self) -> Shape {
         self.events = false;
@@ -384,7 +413,7 @@ impl Shape {
             }
             Geom::Cylinder(r, hh) => MeshData::cylinder(*r, hh * 2.0, n),
             Geom::Cone(r, hh) => MeshData::cone(*r, hh * 2.0, n),
-            Geom::Convex(_) | Geom::Trimesh(..) => return None,
+            Geom::Convex(_) | Geom::Trimesh(..) | Geom::HeightField(..) => return None,
         };
         Some(m.transformed(&Transform::at(self.offset).with_rot(self.rot).matrix()))
     }
@@ -417,11 +446,28 @@ impl Shape {
                     })
                 }
             }
+            Geom::HeightField(h, nx, nz, step) => {
+                if *nx < 2 || *nz < 2 || h.len() != nx * nz || h.iter().any(|v| !v.is_finite()) {
+                    warn("Shape::heightfield: needs nx × nz finite heights, 2 or more each way; using a dot");
+                    fallback()
+                } else {
+                    // parry's grid is column-major, rows along z: (i, j) at i + j × rows.
+                    let mut data = vec![0.0; h.len()];
+                    for i in 0..*nz {
+                        for j in 0..*nx {
+                            data[i + j * nz] = h[i * nx + j];
+                        }
+                    }
+                    let grid = rapier3d::parry::utils::Array2::new(*nz, *nx, data);
+                    let scale = RVec::new((nx - 1) as f32 * step, 1.0, (nz - 1) as f32 * step);
+                    rp::ColliderBuilder::heightfield_with_flags(grid, scale, rapier3d::parry::shape::HeightFieldFlags::FIX_INTERNAL_EDGES)
+                }
+            }
         };
         let groups = rp::InteractionGroups::new(
             rp::Group::from_bits_retain(self.groups.0),
             rp::Group::from_bits_retain(self.groups.1),
-            rp::InteractionTestMode::And,
+            if self.either { rp::InteractionTestMode::Or } else { rp::InteractionTestMode::And },
         );
         let b = b
             .position(rpose(self.offset, self.rot))
@@ -667,6 +713,8 @@ pub struct World {
     moved: Vec<rp::RigidBodyHandle>,
     targets: Vec<(rp::RigidBodyHandle, Vec3, Quat)>,
     steps: u64,
+    /// Ray-cast vehicles, by [`VehicleId`] (None once removed).
+    vehicles: Vec<Option<Vehicle>>,
 }
 
 impl Default for World {
@@ -697,9 +745,15 @@ impl World {
             targets: Vec::new(),
             moved: Vec::new(),
             steps: 0,
+            vehicles: Vec::new(),
         }
     }
 
+    /// Solver iterations per step: Rapier's substeps, so a joint's impulse
+    /// ([`World::joint_force`]) is one substep's, and × this is the step's.
+    pub fn solver_iterations(&self) -> u32 {
+        self.w.integration_parameters.num_solver_iterations as u32
+    }
     pub fn gravity(&self) -> Vec3 {
         sv(self.w.gravity)
     }
@@ -771,6 +825,7 @@ impl World {
             if i == n - 1 && self.interpolate {
                 self.snapshot();
             }
+            self.update_vehicles();
             self.w.step_with_events(&(), &self.inbox);
             self.steps += 1;
             self.collect_events();
@@ -1104,6 +1159,47 @@ impl World {
         }
     }
 
+
+    /// Moves a shape to collision layers by Godot's rule (see [`Shape::layers`]).
+    pub fn set_layers(&mut self, shape: ShapeId, layer: u32, mask: u32) {
+        if let Some(c) = self.w.colliders.get_mut(shape.0) {
+            c.set_collision_groups(rp::InteractionGroups::new(
+                rp::Group::from_bits_retain(layer),
+                rp::Group::from_bits_retain(mask),
+                rp::InteractionTestMode::Or,
+            ));
+        }
+    }
+    /// A shape's mass in kg (its body's mass is its shapes' together).
+    pub fn set_shape_mass(&mut self, shape: ShapeId, kg: f32) {
+        if let Some(c) = self.w.colliders.get_mut(shape.0) {
+            c.set_mass(kg.max(1e-4));
+        }
+    }
+    /// Continuous collision detection on or off (small, fast things): the
+    /// sweep, and contacts predicted along the step's motion (Rapier's soft
+    /// CCD). The sweep alone lets a body a step into what it meets, and a
+    /// ball 0.06 m into a box's front near its corner is nearer the side
+    /// face, so the contact pushed it out sideways and on through.
+    /// [`Body::bullet`] is the sweep alone, as kit games have it.
+    pub fn set_bullet(&mut self, id: BodyId, on: bool) {
+        if let Some(b) = self.body_mut(id) {
+            b.enable_ccd(on);
+            b.set_soft_ccd_prediction(if on { SOFT_CCD } else { 0.0 });
+        }
+    }
+    /// Whether the body may fall asleep when it settles.
+    pub fn set_can_sleep(&mut self, id: BodyId, on: bool) {
+        if let Some(b) = self.body_mut(id) {
+            let a = b.activation_mut();
+            a.normalized_linear_threshold = if on { rp::RigidBodyActivation::default_normalized_linear_threshold() } else { -1.0 };
+            a.angular_threshold = if on { rp::RigidBodyActivation::default_angular_threshold() } else { -1.0 };
+            if !on {
+                b.wake_up(true);
+            }
+        }
+    }
+
     // ------------------------------------------------------------ joints
 
     pub fn join(&mut self, j: Joint) -> JointId {
@@ -1238,6 +1334,26 @@ impl World {
             distance: hit.time_of_impact,
         })
     }
+
+    /// The first shape along `from` → `to` whose layer is in `mask`, past
+    /// the bodies in `ignore`; sensors too when `sensors` (Godot's
+    /// `intersect_ray` with `collide_with_areas`).
+    pub fn raycast_masked(&self, from: Vec3, to: Vec3, mask: u32, ignore: &[BodyId], sensors: bool) -> Option<RayHit> {
+        let d = to - from;
+        let len = d.length();
+        if !(len > 0.0) {
+            return None;
+        }
+        let pred = |_h: rp::ColliderHandle, c: &rp::Collider| {
+            c.collision_groups().memberships.bits() & mask != 0 && (sensors || !c.is_sensor()) && !c.parent().is_some_and(|p| ignore.iter().any(|i| i.0 == p))
+        };
+        let filter = rp::QueryFilter::new().predicate(&pred);
+        let dir = d / len;
+        let ray = rp::Ray::new(rv(from), rv(dir));
+        let (c, hit) = self.w.query_pipeline_with_filter(filter).cast_ray_and_get_normal(&ray, len, true)?;
+        let body = self.w.colliders.get(c)?.parent()?;
+        Some(RayHit { body: BodyId(body), shape: ShapeId(c), point: from + dir * hit.time_of_impact, normal: sv(hit.normal).normalize(), distance: hit.time_of_impact })
+    }
     /// The bodies whose shapes contain `point`, sorted.
     pub fn bodies_at(&self, point: Vec3) -> Vec<BodyId> {
         let mut out: Vec<BodyId> =
@@ -1314,6 +1430,104 @@ impl World {
         node.set_transform(&t);
     }
 
+
+    /// Every shape within `radius` of `center` as line segments in the
+    /// world (at their draw transforms), for a debug view: each with its
+    /// colour (`0xRRGGBBAA`: dynamic orange, sleeping grey, fixed
+    /// blue-grey, kinematic green, sensors faint cyan). Heightfields draw
+    /// their grid near `center`. At most `max` segments.
+    pub fn debug_lines(&self, center: Vec3, radius: f32, max: usize, out: &mut Vec<(Vec3, Vec3, u32)>) {
+        for (_, c) in self.w.colliders.iter() {
+            if out.len() >= max {
+                return;
+            }
+            let Some(bh) = c.parent() else { continue };
+            let Some(b) = self.w.bodies.get(bh) else { continue };
+            let aabb = c.compute_aabb();
+            let (lo, hi) = (sv(aabb.mins), sv(aabb.maxs));
+            let near = vec3(center.x.clamp(lo.x, hi.x), center.y.clamp(lo.y, hi.y), center.z.clamp(lo.z, hi.z));
+            if near.distance(center) > radius {
+                continue;
+            }
+            let color = if c.is_sensor() {
+                0x5ee6ff80
+            } else if b.is_fixed() {
+                0x8fa3b8ff
+            } else if b.is_kinematic() {
+                0x57e389ff
+            } else if b.is_sleeping() {
+                0x9a9a9aff
+            } else {
+                0xff9f43ff
+            };
+            // The body's draw transform, then the shape within it.
+            let body_t = self.draw_transform(BodyId(bh));
+            let local = c.position_wrt_parent().copied().unwrap_or(RPose::IDENTITY);
+            let m = body_t.matrix() * transform_from(&local).matrix();
+            let mut seg = |a: Vec3, b: Vec3| {
+                if out.len() < max {
+                    out.push((m.transform_point(a), m.transform_point(b), color));
+                }
+            };
+            match c.shape().as_typed_shape() {
+                TypedShape::Cuboid(k) => box_lines(sv(k.half_extents), &mut seg),
+                TypedShape::RoundCuboid(k) => box_lines(sv(k.inner_shape.half_extents) + Vec3::splat(k.border_radius), &mut seg),
+                TypedShape::Ball(k) => ring_lines(k.radius, 0.0, &mut seg, true),
+                TypedShape::Capsule(k) => {
+                    let (r, hh) = (k.radius, k.half_height());
+                    ring_lines(r, hh, &mut seg, false);
+                    ring_lines(r, -hh, &mut seg, false);
+                    for (x, z) in [(r, 0.0), (-r, 0.0), (0.0, r), (0.0, -r)] {
+                        seg(vec3(x, -hh, z), vec3(x, hh, z));
+                    }
+                }
+                TypedShape::Cylinder(k) => {
+                    let (r, hh) = (k.radius, k.half_height);
+                    ring_lines(r, hh, &mut seg, false);
+                    ring_lines(r, -hh, &mut seg, false);
+                    for (x, z) in [(r, 0.0), (-r, 0.0), (0.0, r), (0.0, -r)] {
+                        seg(vec3(x, -hh, z), vec3(x, hh, z));
+                    }
+                }
+                TypedShape::Cone(k) => {
+                    let (r, hh) = (k.radius, k.half_height);
+                    ring_lines(r, -hh, &mut seg, false);
+                    for (x, z) in [(r, 0.0), (-r, 0.0), (0.0, r), (0.0, -r)] {
+                        seg(vec3(x, -hh, z), vec3(0.0, hh, 0.0));
+                    }
+                }
+                TypedShape::ConvexPolyhedron(k) => {
+                    let v = k.points();
+                    for e in k.edges() {
+                        seg(sv(v[e.vertices[0] as usize]), sv(v[e.vertices[1] as usize]));
+                    }
+                }
+                TypedShape::TriMesh(k) => {
+                    for t in k.triangles().take(4000) {
+                        let (a, b2, c2) = (sv(t.a), sv(t.b), sv(t.c));
+                        seg(a, b2);
+                        seg(b2, c2);
+                    }
+                }
+                TypedShape::HeightField(k) => {
+                    // Only the cells near `center` (in the shape's frame).
+                    let lc = m.inverse().transform_point(center);
+                    let r2 = radius * radius * 0.25;
+                    for t in k.triangles() {
+                        let (a, b2, c2) = (sv(t.a), sv(t.b), sv(t.c));
+                        let (dx, dz) = (a.x - lc.x, a.z - lc.z);
+                        if dx * dx + dz * dz > r2 {
+                            continue;
+                        }
+                        seg(a, b2);
+                        seg(b2, c2);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     /// Equal hashes mean bit-identical worlds.
     pub fn state_hash(&self) -> u64 {
         let mut h: u64 = 0xcbf29ce484222325;
@@ -1348,6 +1562,7 @@ impl World {
             Some(TypedShape::Cone(_)) => "cone",
             Some(TypedShape::ConvexPolyhedron(_)) => "convex",
             Some(TypedShape::TriMesh(_)) => "trimesh",
+            Some(TypedShape::HeightField(_)) => "heightfield",
             Some(_) => "other",
             None => "none",
         }
@@ -1360,6 +1575,208 @@ impl World {
 }
 
 const MOTOR_GAIN: f32 = 60.0;
+
+// ---------------------------------------------------------------- vehicles
+
+/// A ray-cast vehicle (Godot's `VehicleBody3D`, on Rapier's port of
+/// Bullet's `btRaycastVehicle`): a dynamic chassis held up by wheels that
+/// are rays with springs. It catches air off a crest when its speed carries
+/// it past where the springs reach, and lands on them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct VehicleId(usize);
+
+/// A wheel: where its suspension starts on the chassis (the chassis's own
+/// frame), and its tuning. The suspension points down the chassis's −y.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Wheel {
+    pub at: Vec3,
+    pub radius: f32,
+    /// The spring's length at rest, m.
+    pub rest: f32,
+    /// How far it can go either side of `rest`, m.
+    pub travel: f32,
+    /// Spring stiffness (Godot's `suspension_stiffness`; scaled by the
+    /// chassis's mass, so it holds any car up alike).
+    pub stiffness: f32,
+    /// Damping as it compresses and as it relaxes.
+    pub compression: f32,
+    pub relaxation: f32,
+    /// Grip: how hard it can push before it slides (Godot's `wheel_friction_slip`).
+    pub friction_slip: f32,
+    /// Sideways grip (1 is full).
+    pub side_friction: f32,
+    /// The most force its spring makes, N.
+    pub max_force: f32,
+}
+
+impl Default for Wheel {
+    fn default() -> Wheel {
+        Wheel { at: Vec3::ZERO, radius: 0.5, rest: 0.15, travel: 0.2, stiffness: 5.88, compression: 0.83, relaxation: 0.88, friction_slip: 10.5, side_friction: 1.0, max_force: 6000.0 }
+    }
+}
+
+/// How a wheel is now (world space).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct WheelState {
+    /// The wheel's centre.
+    pub center: Vec3,
+    /// How far it has turned about its axle, radians.
+    pub rotation: f32,
+    pub steering: f32,
+    pub on_ground: bool,
+    /// The spring's length now, m.
+    pub suspension: f32,
+    /// What it stands on.
+    pub ground: Option<BodyId>,
+}
+
+struct Vehicle {
+    ctrl: rapier3d::control::DynamicRayCastVehicleController,
+}
+
+impl World {
+    /// Makes `chassis` (a dynamic body) a vehicle on these wheels. It drives
+    /// toward the chassis's −z (every 2.0 node's front), and its springs
+    /// point down its −y.
+    pub fn add_vehicle(&mut self, chassis: BodyId, wheels: &[Wheel]) -> VehicleId {
+        let mut ctrl = rapier3d::control::DynamicRayCastVehicleController::new(chassis.0);
+        ctrl.index_up_axis = 1;
+        ctrl.index_forward_axis = 2;
+        for w in wheels {
+            let tuning = rapier3d::control::WheelTuning {
+                suspension_stiffness: w.stiffness,
+                suspension_compression: w.compression,
+                suspension_damping: w.relaxation,
+                max_suspension_travel: w.travel,
+                side_friction_stiffness: w.side_friction,
+                friction_slip: w.friction_slip,
+                max_suspension_force: w.max_force,
+            };
+            ctrl.add_wheel(rv(w.at), RVec::new(0.0, -1.0, 0.0), RVec::new(-1.0, 0.0, 0.0), w.rest, w.radius, &tuning);
+        }
+        self.vehicles.push(Some(Vehicle { ctrl }));
+        VehicleId(self.vehicles.len() - 1)
+    }
+
+    /// Adds a wheel to a vehicle; returns its index.
+    pub fn add_wheel(&mut self, id: VehicleId, w: &Wheel) -> usize {
+        let Some(Some(v)) = self.vehicles.get_mut(id.0) else { return usize::MAX };
+        let tuning = rapier3d::control::WheelTuning {
+            suspension_stiffness: w.stiffness,
+            suspension_compression: w.compression,
+            suspension_damping: w.relaxation,
+            max_suspension_travel: w.travel,
+            side_friction_stiffness: w.side_friction,
+            friction_slip: w.friction_slip,
+            max_suspension_force: w.max_force,
+        };
+        v.ctrl.add_wheel(rv(w.at), RVec::new(0.0, -1.0, 0.0), RVec::new(-1.0, 0.0, 0.0), w.rest, w.radius, &tuning);
+        v.ctrl.wheels().len() - 1
+    }
+
+    pub fn remove_vehicle(&mut self, id: VehicleId) {
+        if let Some(v) = self.vehicles.get_mut(id.0) {
+            *v = None;
+        }
+    }
+
+    /// Drive, brake and steer one wheel: `engine` N forward (toward −z),
+    /// `brake` N, `steering` radians (positive turns left).
+    pub fn set_wheel(&mut self, id: VehicleId, wheel: usize, engine: f32, brake: f32, steering: f32) {
+        let Some(Some(v)) = self.vehicles.get_mut(id.0) else { return };
+        let chassis = v.ctrl.chassis;
+        if let Some(w) = v.ctrl.wheels_mut().get_mut(wheel) {
+            // A parked car asleep wakes when it's driven or steered.
+            let wake = engine != 0.0 && w.engine_force != -engine || w.steering != steering;
+            w.engine_force = -engine;
+            w.brake = brake.max(0.0);
+            w.steering = steering;
+            if wake {
+                self.w.wake_up(chassis, true);
+            }
+        }
+    }
+
+    /// Changes a wheel's tuning (not where it is).
+    pub fn tune_wheel(&mut self, id: VehicleId, wheel: usize, t: &Wheel) {
+        let Some(Some(v)) = self.vehicles.get_mut(id.0) else { return };
+        if let Some(w) = v.ctrl.wheels_mut().get_mut(wheel) {
+            w.radius = t.radius;
+            w.suspension_rest_length = t.rest;
+            w.max_suspension_travel = t.travel;
+            w.suspension_stiffness = t.stiffness;
+            w.damping_compression = t.compression;
+            w.damping_relaxation = t.relaxation;
+            w.friction_slip = t.friction_slip;
+            w.side_friction_stiffness = t.side_friction;
+            w.max_suspension_force = t.max_force;
+        }
+    }
+
+    /// The wheels as they are after the last step.
+    pub fn wheels(&self, id: VehicleId) -> Vec<WheelState> {
+        let Some(Some(v)) = self.vehicles.get(id.0) else { return Vec::new() };
+        v.ctrl
+            .wheels()
+            .iter()
+            .map(|w| {
+                let info = w.raycast_info();
+                WheelState {
+                    center: sv(w.center()),
+                    rotation: w.rotation,
+                    steering: w.steering,
+                    on_ground: info.is_in_contact,
+                    suspension: info.suspension_length,
+                    ground: info.ground_object.and_then(|c| self.w.colliders.get(c)).and_then(|c| c.parent()).map(BodyId),
+                }
+            })
+            .collect()
+    }
+
+    /// The vehicle's speed along its front, m/s (negative backing up).
+    pub fn vehicle_speed(&self, id: VehicleId) -> f32 {
+        let Some(Some(v)) = self.vehicles.get(id.0) else { return 0.0 };
+        let Some(b) = self.w.bodies.get(v.ctrl.chassis) else { return 0.0 };
+        let front = b.position().rotation * RVec::new(0.0, 0.0, -1.0);
+        b.linvel().dot(front)
+    }
+
+    fn update_vehicles(&mut self) {
+        let h = self.clock.h();
+        let w = &mut self.w;
+        for v in self.vehicles.iter_mut().flatten() {
+            let chassis = v.ctrl.chassis;
+            if !w.bodies.contains(chassis) {
+                continue;
+            }
+            let filter = rp::QueryFilter::new().exclude_rigid_body(chassis).exclude_sensors();
+            let q = w.broad_phase.as_query_pipeline_mut(w.narrow_phase.query_dispatcher(), &mut w.bodies, &mut w.colliders, filter);
+            v.ctrl.update_vehicle(h, q);
+        }
+    }
+}
+
+fn box_lines(h: Vec3, seg: &mut impl FnMut(Vec3, Vec3)) {
+    let c = |i: u32| vec3(if i & 1 == 0 { -h.x } else { h.x }, if i & 2 == 0 { -h.y } else { h.y }, if i & 4 == 0 { -h.z } else { h.z });
+    for (a, b) in [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7), (0, 4), (1, 5), (2, 6), (3, 7)] {
+        seg(c(a), c(b));
+    }
+}
+
+/// A ring of radius `r` at height `y` (and, for a ball, two more upright).
+fn ring_lines(r: f32, y: f32, seg: &mut impl FnMut(Vec3, Vec3), ball: bool) {
+    const N: u32 = 16;
+    for i in 0..N {
+        let (a0, a1) = (std::f32::consts::TAU * i as f32 / N as f32, std::f32::consts::TAU * (i + 1) as f32 / N as f32);
+        let (s0, c0) = libm::sincosf(a0);
+        let (s1, c1) = libm::sincosf(a1);
+        seg(vec3(c0 * r, y, s0 * r), vec3(c1 * r, y, s1 * r));
+        if ball {
+            seg(vec3(c0 * r, s0 * r, 0.0), vec3(c1 * r, s1 * r, 0.0));
+            seg(vec3(0.0, c0 * r, s0 * r), vec3(0.0, c1 * r, s1 * r));
+        }
+    }
+}
 
 #[cfg(test)]
 #[path = "physics3d_tests.rs"]

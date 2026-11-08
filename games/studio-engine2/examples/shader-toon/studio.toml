@@ -1,0 +1,24 @@
+# Blob Bonk: Phase 5's toon-outline shader (docs/STUDIO-2.md §9.6). Cartoon
+# blobs hop about an island, everything drawn by shaders/toon.wgsl (flat
+# bands, warm shadows, a rim and an inner ink line) with the material's own
+# outline; tap a blob to bonk it.
+title = "Blob Bonk"
+tagline = "Tap the blobs"
+kind = "3d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.blobbonk"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[identity]
+name = "comic"
+
+[[scores]]
+label = "Bonks"
+order = "high"
+
+[text]
+over = "TIME!"

@@ -1,0 +1,3 @@
+# The basket: idle, then catching (pixel art: each art pixel is 2 units).
+frame = [64, 40]
+pixel = true

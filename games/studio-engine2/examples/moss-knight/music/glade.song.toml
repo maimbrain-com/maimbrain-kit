@@ -1,0 +1,19 @@
+# Glade: a slow, hushed loop in E minor for the moonlit hill (a stand-in for a generated one).
+bpm = 76
+order = ["a", "a", "b", "c"]
+
+[voices.pulse1]
+duty = 0.125
+volume = 0.09
+
+[patterns.a]
+pulse1   = "E5 . . . B4 . . . G4 . . . B4 . . ."
+triangle = "E2 . . . . . . . B1 . . . . . . ."
+
+[patterns.b]
+pulse1   = "C5 . . . G4 . . . E4 . . . G4 . A4 ."
+triangle = "C2 . . . . . . . G1 . . . . . . ."
+
+[patterns.c]
+pulse1   = "D5 . . . A4 . . . F#4 . . . B4 - - ."
+triangle = "D2 . . . . . . . B1 . . . . . . ."

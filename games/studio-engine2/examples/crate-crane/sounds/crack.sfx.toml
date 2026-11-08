@@ -1,0 +1,7 @@
+# Mortar giving way: a short dry crack.
+wave = "noise"
+freq = 2400
+freq_end = 600
+duration = 0.05
+decay = 0.12
+volume = 0.55

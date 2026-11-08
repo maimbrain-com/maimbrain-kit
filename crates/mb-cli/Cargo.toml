@@ -2,13 +2,18 @@
 name = "mb-cli"
 description = "The `mb` command: build, pack and validate Maimbrain games"
 edition.workspace = true
-version = "0.9.0"
+version = "0.10.0"
 publish.workspace = true
 
 [dependencies]
 base64 = "0.23"
 clap = { version = "4.6.7", features = ["derive"] }
 mb-format = { version = "0.0.0", path = "../mb-format" }
+# Shader materials' checks (docs/STUDIO-2.md §4.15): the same crate the app's mb-host runs, so
+# write_files and mb build refuse exactly what a phone would.
+mb-shader = { path = "../mb-shader" }
+# Luau's compiler: Studio 2.0 projects' Lua is compiled to bytecode when packed (docs/STUDIO-2.md §4.13).
+luau = { version = "0.0.0", path = "../luau", features = ["compiler", "analyze"] }
 png = "0.18"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.151"
@@ -27,6 +32,10 @@ jpeg-encoder = "0.7"
 # Ogg Vorbis encoding (libvorbis with aoTuV, built from source), so no oggenc is needed.
 vorbis_rs = { version = "0.5.6", default-features = false }
 zune-jpeg = "0.5.15"
+# Engine 2.0 natively, for `mb difficulty`'s native runner (the bot's rounds on the SDK's
+# stubbed host), and the SDK's difficulty report.
+studio-engine2 = { path = "../../games/studio-engine2" }
+maimbrain = { path = "../../sdk/maimbrain", features = ["scene"] }
 
 [[bin]]
 name = "mb"
@@ -35,5 +44,3 @@ path = "src/main.rs"
 [dev-dependencies]
 # Stand-in servers for the integration tests (mb serve has its own: serve.rs).
 tiny_http = "0.12"
-# The music Director, run over a real take in tests (generate/tension_mix.rs).
-maimbrain = { path = "../../sdk/maimbrain" }

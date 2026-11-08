@@ -29,11 +29,33 @@ pub fn styled<'a>(th: &Theme, s: &'a str, font: Font, size: f32, color: u32) -> 
     }
 }
 
-/// A size at which `s` fits `max_w` (never bigger than `size`).
+/// A size at which `s` fits `max_w` (never bigger than `size`). A bitmap
+/// font's size rounds down to its grid, so it still fits.
 fn fit_width(th: &Theme, s: &str, font: Font, size: f32, max_w: f32) -> f32 {
-    let w = text(s).font(font).size(size).tracking(th.style.tracking).measure().0;
-    let size = if w > max_w && w > 0.0 { size * max_w / w } else { size };
-    th.fit(font, size)
+    text(s).font(font).size(th.fit(font, size)).tracking(th.style.tracking).max_width(max_w).fitted_size()
+}
+
+/// A heading (a game-over card's: a game can pass its own, like "PUSHIN'
+/// UP DAISIES") on one line, shrunk to fit `max_w`. One that would shrink
+/// below 60% of its size wraps to two lines instead when that's bigger
+/// ("FASTEST IN / THE WEST!"); `lines()` says which it took.
+pub fn fit_heading<'a>(t: Text<'a>, max_w: f32) -> Text<'a> {
+    let one = t.max_width(max_w);
+    let one_size = one.fitted_size();
+    if one_size >= t.size * 0.6 {
+        return one;
+    }
+    let step = t.font.pixel_em();
+    let mut size = t.size;
+    while size > one_size {
+        let two = t.size(size).wrap(max_w);
+        if two.lines().len() <= 2 {
+            // Still shrunk if one word is wider than a line.
+            return two.max_width(max_w);
+        }
+        size = if step > 0.0 { size - step } else { size * 0.9 };
+    }
+    one
 }
 
 /// Everything a title layout needs.
@@ -454,9 +476,9 @@ fn receipt(th: &Theme, a: &ResultsArgs) {
     let dim = fade(th.text_dim, al);
     let (x0, x1) = (p.x + 16.0, p.right() - 16.0);
     let mut y = y0 + 18.0;
-    let hs = th.fit(th.title_font, 30.0);
-    text(&th.case(a.heading)).font(th.title_font).size(hs).color(ink).tracking(th.style.tracking).center().draw(p.cx(), y);
-    y += metrics(th.title_font).line * hs + 2.0;
+    let heading = th.case(a.heading);
+    let ht = text(&heading).font(th.title_font).size(th.fit(th.title_font, 30.0)).color(ink).tracking(th.style.tracking).center();
+    y = fit_heading(ht, x1 - x0).draw(p.cx(), y).bottom() + 2.0;
     let body = th.fit(th.body_font, 16.0);
     let dashes = |y: f32| {
         let mut x = x0;
@@ -514,7 +536,7 @@ fn scoreboard(th: &Theme, a: &ResultsArgs) {
     style::frame(&th.style, p, th.radius, fade(th.panel_top, al), fade(th.panel_bottom, al), fade(th.panel_border, al), fade(th.shadow, al), th.accent);
     gfx2d::pop();
     let hs = th.fit(th.body_font, 16.0);
-    text(&th.case(a.heading)).font(th.body_font).size(hs).color(fade(th.text, al)).tracking(0.2).center().draw(p.cx(), p.y + 16.0);
+    text(&th.case(a.heading)).font(th.body_font).size(hs).color(fade(th.text, al)).tracking(0.2).max_width(p.w - 32.0).center().draw(p.cx(), p.y + 16.0);
     // Digit tiles.
     let digits = fmt_int(a.shown);
     let n = digits.chars().count();
@@ -566,8 +588,10 @@ fn stamp_results(th: &Theme, a: &ResultsArgs) {
     gfx2d::pop();
     let e = m.enter(((a.t - 0.15) / 0.35).clamp(0.0, 1.0));
     if a.t > 0.15 {
-        let hs = th.fit(th.title_font, 40.0);
-        stamp(th, &th.case(a.heading), th.title_font, p.cx(), p.y + 30.0, hs, -0.08, th.bad, e);
+        // As the stamp title: room for the box and its turn.
+        let heading = th.case(a.heading);
+        let hs = fit_width(th, &heading, th.title_font, 40.0, p.w - 90.0);
+        stamp(th, &heading, th.title_font, p.cx(), p.y + 30.0, hs, -0.08, th.bad, e);
     }
     let by = ny + ns * 0.62 + 18.0;
     if a.landed && a.new_best {
@@ -585,10 +609,10 @@ fn editorial(th: &Theme, a: &ResultsArgs) {
     let p = results_rect(th, a.area);
     let al = (a.t / 0.25).min(1.0);
     let x = p.x + 4.0;
-    let hs = th.fit(th.title_font, 44.0);
+    let heading = th.case(a.heading);
     let k0 = m.enter(m.progress(a.t, 0));
-    styled(th, &th.case(a.heading), th.title_font, hs, th.text).alpha(al).draw(x - (1.0 - k0.min(1.0)) * 30.0, p.y);
-    let mut y = p.y + metrics(th.title_font).line * hs + 4.0;
+    let ht = fit_heading(styled(th, &heading, th.title_font, th.fit(th.title_font, 44.0), th.text), p.w - 8.0);
+    let mut y = ht.alpha(al).draw(x - (1.0 - k0.min(1.0)) * 30.0, p.y).bottom() + 4.0;
     let k1 = m.enter(m.progress(a.t, 1)).clamp(0.0, 1.0);
     gfx2d::rect(x, y, (p.w - 8.0) * k1, 2.0, th.text);
     y += 12.0;
@@ -617,34 +641,112 @@ fn editorial(th: &Theme, a: &ResultsArgs) {
 
 // --- HUD.
 
-/// Draws the score in `th.style.hud`'s layout; returns the y under it.
-pub fn hud_score(th: &Theme, l: &Layout, s: &str, size: f32, punch: f32, color: u32) -> (f32, f32, Align) {
+/// How far a styled score's ink reaches above (and below) its middle, the
+/// capitals centred on it: half the font's cap height, its outline, and a
+/// glow or a shadow cast upward. Fonts differ a lot here (a pixel font's
+/// capitals fill its em; Inter's are under three quarters of it).
+pub fn score_ink(th: &Theme, font: Font, size: f32) -> f32 {
+    ink_for_cap(th, ink_cap(font), size)
+}
+
+/// The height (in ems) a font's ink is taken to span, centred on its
+/// capitals: its line box above the baseline, mirrored about the capitals'
+/// middle. A font's cap metric can understate its glyphs (Press Start 2P's
+/// digits overran it); nothing in a font reaches above its ascent.
+fn ink_cap(font: Font) -> f32 {
+    let m = metrics(font);
+    (2.0 * m.ascent - m.cap).max(m.cap)
+}
+
+/// `score_ink` for a font whose capitals are `cap` ems tall.
+fn ink_for_cap(th: &Theme, cap: f32, size: f32) -> f32 {
+    let mut up = cap * size * 0.5;
+    if th.style.outlined {
+        up += th.outline_em * size;
+    }
+    match th.style.shadow {
+        Shadow::Glow => up += 0.1 * size,
+        Shadow::Hard(_, dy) if dy < 0.0 => up += (-dy * 0.6).min(4.0),
+        _ => {}
+    }
+    up
+}
+
+/// The score's middle in the HUD for each layout, and its size: `(x, y,
+/// size)`. Its ink stays at least `HUD_TOP` under the HUD's top (the safe
+/// area's: under the notch or the Dynamic Island), whatever the font.
+pub fn hud_score_at(th: &Theme, l: &Layout, size: f32) -> (f32, f32, f32) {
+    hud_score_at_cap(th, l, size, ink_cap(th.number_font), metrics(th.number_font).cap)
+}
+
+/// `hud_score_at` for a number font whose ink spans `ink` ems, centred, and
+/// whose capitals are `cap` ems tall (a badge's height).
+fn hud_score_at_cap(th: &Theme, l: &Layout, size: f32, ink: f32, cap: f32) -> (f32, f32, f32) {
     use super::style::HudLayout as H;
+    let below_top = |size: f32, y: f32| y.max(l.hud.y + HUD_TOP + ink_for_cap(th, ink, size) * PUNCH_ROOM);
     match th.style.hud {
         H::Center => {
             let size = th.fit(th.number_font, size);
-            let (cx, y) = (l.hud.cx(), l.hud.y + 14.0 + size * 0.45);
+            (l.hud.cx(), below_top(size, l.hud.y + 14.0 + size * 0.45), size)
+        }
+        H::Corner => {
+            let size = th.fit(th.number_font, size * 0.72);
+            (l.hud.right() - 16.0, below_top(size, l.hud.y + 12.0 + size * 0.45), size)
+        }
+        H::Badge => {
+            let size = th.fit(th.number_font, size * 0.7);
+            let h = cap * size + 26.0;
+            (l.hud.cx(), (l.hud.y + 14.0 + size * 0.55).max(l.hud.y + HUD_TOP + h / 2.0 * PUNCH_ROOM), size)
+        }
+    }
+}
+
+/// The least room above a HUD score's ink (or its badge), under the HUD's
+/// top, punched or not.
+pub const HUD_TOP: f32 = 14.0;
+
+/// How much a score may punch (grow about its middle) before it reaches
+/// `HUD_TOP`: its place leaves that room.
+pub const PUNCH_ROOM: f32 = 1.2;
+
+/// The punch (a scale about the score's middle `y`, which grows its ink
+/// `half` above it) that keeps it `HUD_TOP` under the HUD's top `top`. A
+/// score that changes every frame keeps its punch near 1.5, and a new best
+/// kicks it to 2; where there's room (an Inter score sits lower) it shows.
+pub fn fit_punch(punch: f32, y: f32, half: f32, top: f32) -> f32 {
+    if half <= 0.0 { punch } else { punch.min(((y - top - HUD_TOP) / half).max(1.0)) }
+}
+
+/// Draws the score in `th.style.hud`'s layout; returns the y under it.
+pub fn hud_score(th: &Theme, l: &Layout, s: &str, size: f32, punch: f32, color: u32) -> (f32, f32, Align) {
+    use super::style::HudLayout as H;
+    let (x, y, size) = hud_score_at(th, l, size);
+    let half = match th.style.hud {
+        H::Badge => (metrics(th.number_font).cap * size + 26.0) / 2.0,
+        _ => score_ink(th, th.number_font, size),
+    };
+    let punch = fit_punch(punch, y, half, l.hud.y);
+    match th.style.hud {
+        H::Center => {
+            let cx = x;
             gfx2d::push();
             gfx2d::translate(cx, y);
             gfx2d::scale(punch, punch);
             styled(th, s, th.number_font, size, color).tracking(0.0).middle().draw(0.0, 0.0);
             gfx2d::pop();
-            (cx, y + size * 0.62, Align::Center)
+            (cx, y + (size * 0.62).max(score_ink(th, th.number_font, size) + 6.0), Align::Center)
         }
         H::Corner => {
-            let size = th.fit(th.number_font, size * 0.72);
-            let (x, y) = (l.hud.right() - 16.0, l.hud.y + 12.0 + size * 0.45);
             gfx2d::push();
             gfx2d::translate(x, y);
             gfx2d::scale(punch, punch);
             styled(th, s, th.number_font, size, color).tracking(0.0).right().valign(VAlign::Middle).draw(0.0, 0.0);
             gfx2d::pop();
-            (x, y + size * 0.6, Align::Right)
+            (x, y + (size * 0.6).max(score_ink(th, th.number_font, size) + 6.0), Align::Right)
         }
         H::Badge => {
-            let size = th.fit(th.number_font, size * 0.7);
             let tw = text(s).font(th.number_font).size(size).measure().0;
-            let r = Rect::centered(l.hud.cx(), l.hud.y + 14.0 + size * 0.55, (tw + 40.0).max(96.0), metrics(th.number_font).cap * size + 26.0);
+            let r = Rect::centered(x, y, (tw + 40.0).max(96.0), metrics(th.number_font).cap * size + 26.0);
             gfx2d::push();
             gfx2d::translate(r.cx(), r.cy());
             gfx2d::scale(punch, punch);
@@ -685,6 +787,46 @@ mod tests {
             let (_, ry) = retry_center(&th, p);
             assert!(p.x >= l.results.x && p.right() <= l.results.right() + 0.5, "{name}");
             assert!(ry + 34.0 <= l.results.bottom(), "{name}: retry at {ry}, clear of the challenge strip");
+        }
+    }
+
+    /// A 4-digit HUD score stays on the screen and under the top inset (the
+    /// notch or the Dynamic Island) in every identity, whatever its number
+    /// font: ink from Inter's capitals (0.73 em) to past the em (a line box
+    /// mirrored about them, as `ink_cap` takes it). It used to sit by
+    /// Inter's capitals: Bun Run's Press Start 2P "404" touched the top of
+    /// the screen.
+    #[test]
+    fn a_big_score_stays_under_the_top_inset() {
+        use crate::sys::Screen;
+        use super::super::style::HudLayout as H;
+        for inset in [0.0, 59.0] {
+            let l = Layout::from_screen(&Screen { width: 360.0, height: 640.0, inset_top: inset, inset_bottom: 34.0, ..Default::default() });
+            for name in IDENTITIES {
+                for hud in [H::Center, H::Corner, H::Badge] {
+                    let mut th = Theme::preset(name);
+                    th.style.hud = hud;
+                    for cap in [0.65, 0.727, 0.875, 1.0, 1.15, 1.25] {
+                        let (_, y, size) = hud_score_at_cap(&th, &l, 56.0, cap, cap.min(1.0));
+                        let top = match hud {
+                            H::Badge => y - (cap.min(1.0) * size + 26.0) / 2.0,
+                            _ => y - ink_for_cap(&th, cap, size),
+                        };
+                        assert!(top >= inset + HUD_TOP - 0.01, "{name} {hud:?} cap {cap} inset {inset}: the score's top at {top}");
+                        // Punched (a score that changes every frame, a new best), still under
+                        // it, with at least PUNCH_ROOM of the punch showing.
+                        let half = y - top;
+                        for punch in [1.25, 1.5, 2.0] {
+                            let p = fit_punch(punch, y, half, l.hud.y);
+                            assert!(y - half * p >= inset + HUD_TOP - 0.01, "{name} {hud:?} cap {cap} punch {punch}: top at {}", y - half * p);
+                            assert!(p >= PUNCH_ROOM.min(punch) - 0.01, "{name} {hud:?} cap {cap}: punch {punch} cut to {p}");
+                        }
+                        assert!(y + ink_for_cap(&th, cap, size) < l.hud.bottom(), "{name} {hud:?}: below the HUD");
+                        let w = text("9,999").font(th.number_font).size(size).measure().0;
+                        assert!(w < l.hud.w - 32.0, "{name} {hud:?}: 9,999 is {w} wide");
+                    }
+                }
+            }
         }
     }
 }

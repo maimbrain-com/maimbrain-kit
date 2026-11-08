@@ -1,0 +1,52 @@
+[package]
+name = "studio-engine2"
+edition.workspace = true
+# The engine's own version is ENGINE_VERSION in src/lib.rs (a project's
+# studio.toml pins it as `engine = "2.0"`); the crate's stays the workspace's.
+version.workspace = true
+publish.workspace = true
+description = "Studio engine 2.0: plays a Studio project written as LÖVE-style Lua, on Luau over the SDK's retained scene"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# The 3D build, for 3D games (`kind = "3d"`): engine 1.0's 3D names over
+# the scene's 3D side and mb3d 2 (api/three.rs, prelude3d.lua), so its
+# manifest declares stdlib mb3d and perf_tier = "full" (docs/STUDIO-2.md
+# §4.5). Native builds always have it (build.rs, `cfg(three)`).
+3d = []
+# The sensor builds (docs/STUDIO-2.md §4.5, Phase 3e): `motion` imports
+# mb_tilt, mb_motion and mb_attitude (CoreMotion, which asks no
+# permission), `mic` those and mb_loudness, so its manifest declares them.
+# Haptics are in every build.
+motion = []
+mic = ["motion"]
+# The shader builds, for projects with shaders/*.wgsl (docs/STUDIO-2.md
+# §4.15): they import mb3d 5 (shader materials) and mb2d 4 (sprite
+# shaders), so their manifests declare those and need the app that opens
+# them. Games without shaders keep the builds without.
+shaders = ["maimbrain/shaders"]
+
+[dependencies]
+# Physics (Phase 3a): love.physics on Rapier 2D in the 2D build, Godot's
+# bodies on Rapier 3D in the 3D build. Both are compiled in; each build's
+# code reaches only its own (build.rs's `phys2`, `three`), so the linker
+# leaves the other out.
+maimbrain = { path = "../../sdk/maimbrain", features = ["scene", "physics2d", "physics3d", "nav"] }
+# Trig the engine's own Rust does on game state (an agent's turn), the same
+# natively and in wasm.
+libm = "0.2"
+# The VM only: the project's Lua arrives as bytecode (Decided 36).
+luau = { path = "../../crates/luau", features = ["vm"] }
+# studio.toml, image tables and what mb build packed.
+toml = { version = "1.1.6", default-features = false, features = ["parse", "serde", "std"] }
+
+[build-dependencies]
+# The engine's own Lua (src/prelude.lua) is compiled when the engine is built.
+luau = { path = "../../crates/luau", features = ["compiler"] }
+
+[dev-dependencies]
+# Native tests compile projects' Lua as mb build does, and type-check it
+# against types/*.d.luau (api_reference.rs).
+luau = { path = "../../crates/luau", features = ["vm", "compiler", "analyze"] }

@@ -1,0 +1,7 @@
+# A hop: a soft upward blip.
+wave = "triangle"
+freq = 300
+freq_end = 620
+duration = 0.1
+decay = 0.08
+volume = 0.35

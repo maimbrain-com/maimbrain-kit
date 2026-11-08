@@ -1,0 +1,3 @@
+# A firefly: a little light (pixel art, drawn twice as big).
+frame = [16, 16]
+pixel = true

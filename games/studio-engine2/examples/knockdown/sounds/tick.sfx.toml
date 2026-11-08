@@ -1,0 +1,7 @@
+# A can counted down: a bright tick, pitched up the pentatonic scale per can in a throw.
+wave = "triangle"
+freq = 660
+duration = 0.03
+attack = 0.002
+decay = 0.13
+volume = 0.5

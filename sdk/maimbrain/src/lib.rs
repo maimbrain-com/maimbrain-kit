@@ -26,11 +26,15 @@
 //!
 //! Optional Cargo features: `physics2d` and `physics3d` add deterministic
 //! rigid-body physics (Rapier) as [`physics2d`] / [`physics3d`]; see
-//! docs/PHYSICS.md.
+//! docs/PHYSICS.md. `scene` adds a retained 2D scene, [`scene`]. `nav`
+//! adds navmeshes, paths and a crowd (Recast, Detour, DetourCrowd), and
+//! `gridpath` A* on a grid alone, as [`nav`].
 
 pub mod audio;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod bot;
+#[cfg(feature = "scene")]
+pub mod bump;
 pub mod debug;
 pub mod foley;
 pub mod gfx2d;
@@ -40,13 +44,18 @@ pub mod input;
 pub mod juice;
 pub mod motion;
 pub mod music;
+#[cfg(any(feature = "nav", feature = "gridpath"))]
+pub mod nav;
 #[cfg(feature = "physics2d")]
 pub mod physics2d;
 #[cfg(feature = "physics3d")]
 pub mod physics3d;
 pub mod progress;
 pub mod rounds;
+#[cfg(feature = "scene")]
+pub mod scene;
 pub mod sensors;
+pub mod shaders;
 pub mod store;
 pub mod sys;
 pub mod ui;

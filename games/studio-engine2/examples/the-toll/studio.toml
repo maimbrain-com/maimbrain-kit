@@ -1,0 +1,31 @@
+# The Toll (docs/STUDIO-2.md §6.4): Phase 4a's acceptance game, a short
+# voiced-dialogue moment. Pip walks up to a bridge, and Gruk the troll
+# wants a riddle answered. Its art is placeholder (placeholder_art.py) and
+# its voices are `mb voice`'s offline stand-ins (babble with real timing);
+# its code is §6.4's, with the crossing as a cutscene with credits.
+title = "The Toll"
+tagline = "answer the troll"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+level = true
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.the-toll"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "TURNED BACK"
+
+[[scores]]
+label = "Riddles"
+order = "high"
+
+[identity]
+name = "storybook"
+colors = "art"
+art = "bridge"
+
+[remix]
+allowed = true

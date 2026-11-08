@@ -1,0 +1,9 @@
+# A speed-up or something new on the road: blips up (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 523
+duration = 0.2
+arp = [0, 7, 12]
+arp_speed = 0.07
+decay = 0.08
+volume = 0.45

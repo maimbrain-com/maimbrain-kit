@@ -510,9 +510,13 @@ impl StatsCard {
         }
     }
 
-    /// Draws the card with an empty frame in the teaser.
+    /// Draws the card with no portrait: the teaser is the name and its
+    /// line, without the empty frame [`draw_with`](StatsCard::draw_with) fills.
     pub fn draw(&self) {
-        self.draw_with(|_, _| {});
+        if !self.covered {
+            self.draw_card(None);
+        }
+        self.draw_wipe();
     }
 
     /// Draws the card; `teaser(rect, reveal)` draws the next opponent's
@@ -520,12 +524,18 @@ impl StatsCard {
     /// `|r, _| portrait.draw(r, "smug", 0, sys::time())`.
     pub fn draw_with(&self, teaser: impl Fn(Rect, f32)) {
         if !self.covered {
-            self.draw_card(&teaser);
+            self.draw_card(Some(&teaser));
         }
         self.draw_wipe();
     }
 
-    fn draw_card(&self, teaser: &dyn Fn(Rect, f32)) {
+    /// The teaser's portrait frame, where `below` is the rows' bottom and
+    /// `x`, `w` its column; none without a portrait.
+    fn teaser_frame(x: f32, w: f32, below: f32) -> Rect {
+        Rect::new(x + (w - 96.0) / 2.0, below + 10.0, 96.0, 96.0)
+    }
+
+    fn draw_card(&self, teaser: Option<&dyn Fn(Rect, f32)>) {
         let th = &self.theme;
         let a = self.area;
         let t = self.t;
@@ -543,6 +553,7 @@ impl StatsCard {
         gfx2d::scale(s, s);
         super::layouts::styled(th, &th.case(&self.title), th.title_font, tsize, th.gold)
             .outline(th.outline_em.max(0.06), th.outline)
+            .max_width(a.w - 8.0)
             .alpha(k.min(1.0))
             .middle()
             .draw(0.0, 0.0);
@@ -565,8 +576,10 @@ impl StatsCard {
         let bad = readable(th.bad, bg, 3.0);
         let accent = readable(th.accent, bg, 3.0);
         if !self.rows.is_empty() {
+            // The identity's card: its shape, border, shadow and texture, in one panel colour.
             let pa = ((t - FIRST_ROW + 0.2) / 0.2).clamp(0.0, 1.0);
-            rrect(panel, th.radius.min(14.0), fade(th.panel_bottom, pa));
+            let f = |c: u32| fade(c, pa);
+            super::style::frame(&super::style::for_cards(&th.style), panel, th.radius.min(14.0), f(th.panel_bottom), f(th.panel_bottom), f(th.panel_border), f(th.shadow), f(th.accent));
         }
         for i in 0..self.rows.len() {
             let r = &self.rows[i];
@@ -628,11 +641,17 @@ impl StatsCard {
             let k = Ease::BackOut.at(((t - self.teaser_at()) / 0.4).min(1.0));
             let w = if self.rank.is_some() { a.w * 0.5 } else { a.w * 0.7 };
             let x = a.right() - w + (1.0 - k) * (w + 40.0);
-            let frame = Rect::new(x + (w - 96.0) / 2.0, below + 10.0, 96.0, 96.0);
+            let mut frame = Self::teaser_frame(x, w, below);
             text(&th.case("NEXT")).font(th.body_font).size(th.fit(th.body_font, 13.0)).color(accent).tracking(0.2).align(Align::Center).draw(frame.cx(), below - 14.0);
-            rrect(frame.inset(-3.0), 12.0, th.outline);
-            rrect(frame, 10.0, with_alpha(th.panel_top, 0.95));
-            teaser(frame, k);
+            match teaser {
+                Some(teaser) => {
+                    rrect(frame.inset(-3.0), 12.0, th.outline);
+                    rrect(frame, 10.0, with_alpha(th.panel_top, 0.95));
+                    teaser(frame, k);
+                }
+                // No portrait: the name and its line sit where it would, by the rank.
+                None => frame = Rect::new(frame.x, frame.y + 30.0, frame.w, 0.0),
+            }
             let name_size = th.fit(th.title_font, 22.0);
             // An outline that stands apart from the ink.
             let edge = if super::color::contrast(ink, th.outline) < 2.0 { readable(th.outline, ink, 3.0) } else { th.outline };
@@ -729,6 +748,40 @@ mod tests {
             }
         }
         out
+    }
+
+    /// `draw` (no portrait, as Studio's `ui.stats` has none) leaves out
+    /// the teaser's empty frame that `draw_with` fills; a card with no
+    /// teaser draws the same either way.
+    #[test]
+    fn without_a_portrait_the_teaser_has_no_frame() {
+        use crate::sys::test::Host;
+        thread_local! { static CASE: std::cell::Cell<(bool, bool)> = const { std::cell::Cell::new((false, false)) }; }
+        struct G(StatsCard, bool);
+        impl crate::Game for G {
+            fn init() -> G {
+                let (next, with) = CASE.with(|c| c.get());
+                let c = StatsCard::new("FIGHT 1 CLEAR", Theme::default(), &Layout::default()).int("PARTS", 4).rank("A");
+                G(if next { c.next("BOSS", "he doesn't miss") } else { c }, with)
+            }
+            fn update(&mut self, dt: f32) {
+                self.0.update(dt);
+            }
+            fn render(&self) {
+                if self.1 { self.0.draw_with(|_, _| {}) } else { self.0.draw() }
+            }
+        }
+        let drawn = |next: bool, with: bool| {
+            CASE.with(|c| c.set((next, with)));
+            let host = Host::start(1);
+            let mut g: G = host.init();
+            host.run(&mut g, 4.0, 1.0 / 60.0);
+            host.drawn()
+        };
+        assert_eq!(drawn(false, false), drawn(false, true), "no teaser: the same card");
+        let (plain, framed) = (drawn(true, false), drawn(true, true));
+        let first_teaser = plain.iter().zip(&framed).position(|(a, b)| a != b).expect("the frame is only draw_with's");
+        assert!(first_teaser > 60, "they differ once the teaser slides in, not before (frame {first_teaser})");
     }
 
     #[test]

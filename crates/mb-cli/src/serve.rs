@@ -28,12 +28,11 @@ macro_rules! runtime_file {
     };
 }
 
-const RUNTIME: [(&str, &[u8]); 5] = [
+const RUNTIME: [(&str, &[u8]); 4] = [
     runtime_file!("index.html"),
     runtime_file!("runtime.js"),
     runtime_file!("probe-worker.js"),
     runtime_file!("mb_host_bg.wasm"),
-    runtime_file!("silence.wav"),
 ];
 
 fn require_runtime() -> Result<(), String> {
@@ -715,7 +714,7 @@ impl Builder {
         } else {
             let fail = |e: String| devbuild::Failure::message("", e);
             let bytes = std::fs::read(&self.path).map_err(|e| fail(format!("{}: {e}", self.path.display())))?;
-            let b = mb_format::Bundle::open(&bytes).map_err(|r| fail(format!("{} is invalid: {}", self.path.display(), r.errors.join("; "))))?;
+            let b = crate::engines::open_bytes(&bytes, crate::engines::cache_dir().as_deref()).map_err(|r| fail(format!("{} is invalid: {}", self.path.display(), r.errors.join("; "))))?;
             let wasm = b.runtime_wasm().to_vec();
             (b.manifest.clone(), wasm, Files::Bundle(Arc::new(b)), 0.0)
         };

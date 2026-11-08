@@ -11,7 +11,7 @@ Physics is an opt-in Cargo feature of the SDK, because it adds 0.4–0.75 MB to 
 ```toml
 [dependencies]
 maimbrain = { path = "../../sdk/maimbrain", features = ["physics2d"] }   # or "physics3d"
-# outside the monorepo: maimbrain = { git = "https://github.com/terracatta/maimbrain-kit", features = ["physics2d"] }
+# outside the monorepo: maimbrain = { git = "https://github.com/maimbrain-com/maimbrain-kit", features = ["physics2d"] }
 ```
 
 Nothing changes in `manifest.toml`: physics imports nothing from the host. 3D games still declare `stdlib = { mb3d = 1 }` to draw.

@@ -1,0 +1,6 @@
+# A fish to catch: worth `value` when the cat touches it.
+behaviour = "pickup"
+hitbox = [3, 4, 13, 8]
+
+[knobs]
+value = 1

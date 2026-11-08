@@ -1,0 +1,3 @@
+# A vulture at head height (two frames, drawn with anim8 in love.draw): stay
+# under it, or jump high over it.
+pixel = true

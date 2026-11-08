@@ -1,0 +1,31 @@
+# The Rust UI Gallery's VOICE page (games/gallery, page 9) rebuilt from the
+# Studio 2.0 API (docs/STUDIO-2.md §9.5, Phase 4 acceptance): Rocko and
+# Granny face off, four voiced lines play with lip-synced portraits, blinks
+# and expressions while the music ducks under them; a tap lands a hit and
+# the one hit barks. Its portraits and voices are the gallery's own
+# (mb art portrait, mb voice), copied into Studio's layout.
+title = "Trash Talk"
+tagline = "two pilots, one mic"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.gallery-voice"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "KNOCKED OUT"
+
+[[scores]]
+label = "Hits"
+order = "high"
+
+# The gallery's default theme: the first of Theme::identities().
+[identity]
+name = "riso"
+body_font = "work-sans"    # the gallery draws riso's boxes in a sans (Inter); riso's Space Mono overflows them
+
+[remix]
+allowed = true

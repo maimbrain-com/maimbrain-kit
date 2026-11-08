@@ -137,7 +137,7 @@ pub fn kit_list() -> String {
 }
 
 /// Where the SDK comes from outside this monorepo.
-const SDK_GIT: &str = "https://github.com/terracatta/maimbrain-kit";
+const SDK_GIT: &str = "https://github.com/maimbrain-com/maimbrain-kit";
 /// Used when there's no `--id` and nobody is signed in.
 const PLACEHOLDER_NAMESPACE: &str = "com.maimbrain.yourname";
 const PLACEHOLDER_CREATOR: &str = "yourname";

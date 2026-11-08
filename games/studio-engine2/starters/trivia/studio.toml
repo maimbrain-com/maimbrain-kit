@@ -1,0 +1,41 @@
+# The trivia starter: Bright Spark, the trivia kit's quiz show on engine
+# 2.0, with its own printed art, sounds and identity (not a greybox). Its
+# art, sounds, words, questions and identity are the starter's: make them
+# the game's own (game/main.lua says where each part lives).
+title = "Bright Spark"
+tagline = "how bright are you?"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+lives = 1
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.trivia"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "LIGHTS OUT!"
+
+[[scores]]
+label = "Points"
+order = "high"
+
+[[scores]]
+id = "daily"
+label = "Daily points"
+daily = true
+
+# 1950s TV game-show print: paper cards with ink rims on hard print
+# shadows, tomato red, mustard and teal, a marquee title.
+[identity]
+name = "comic"
+accent = 0xfbf1dc
+title_font = "Luckiest Guy"
+number_font = "Luckiest Guy"
+title = "marquee"
+results = "floating"
+hud = "center"
+
+[remix]
+allowed = true

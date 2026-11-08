@@ -407,6 +407,14 @@ impl Animator {
         })
     }
 
+    /// [`samples`](Self::samples), each with whether its clip loops.
+    pub fn samples_looping(&self) -> impl Iterator<Item = (Clip, f32, f32, bool)> + '_ {
+        self.layers.iter().filter(|l| l.weight > 0.0).map(|l| {
+            let w = l.weight;
+            (l.clip, l.time, w * w * (3.0 - 2.0 * w), l.mode == Play::Loop)
+        })
+    }
+
     /// The clip playing (or fading in) now.
     pub fn current(&self) -> Option<Clip> {
         self.layers.last().map(|l| l.clip)

@@ -1,0 +1,8 @@
+# A jump: a plain blip up (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 330
+freq_end = 520
+duration = 0.08
+decay = 0.04
+volume = 0.5

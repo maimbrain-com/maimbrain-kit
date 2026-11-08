@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:02Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Riddle, then. What has a mouth but never speaks, and a bed but never sleeps?",
+  "full_prompt": "[smug] Riddle, then. What has a mouth but never speaks, and a bed but never sleeps?",
+  "seed": 1752787959,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "061901800e70c620b1f47614af890abe8edbc99e8f2a0f00bf594a450df95b2f"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/riddle1.wav",
+  "raw_sha256": "57e85300b35bb3f61e5a91738550aaf58629d41aecb1191e2328f0206bee7759",
+  "output_sha256": "22e56717f1169d15db1a0a0c836bb1087c151374dc7d35e9047ac5c192df4257",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "smug",
+    "kind": "voice",
+    "line": "riddle1",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/riddle1.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1752787959,
+    "speed": null,
+    "style": null,
+    "text": "Riddle, then. What has a mouth but never speaks, and a bed but never sleeps?",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "0d53a8a14e660adf",
+    "lips": "assets/vo/gruk/riddle1.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -15.984685897827148,
+    "peak_db": -3.2910752296447754,
+    "phone_loss_db": -4.0,
+    "seconds": 5.057369709014893,
+    "subtitle": "Riddle, then. What has a mouth but never speaks, and a bed but never sleeps?",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

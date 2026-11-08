@@ -1,0 +1,34 @@
+# The endless runner starter: the runner kit's Bun Run, with its own art.
+# Its pixel art, sounds, music, words and identity below are the starter's
+# (a bun in red sneakers in a sunny meadow), for the game to replace with
+# its own (game/main.lua says where each part lives).
+title = "Bun Run"
+tagline = "how far can a bun go?"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+lives = 1
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.endless"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "BONK!"
+
+[[scores]]
+label = "Score"
+order = "high"
+
+# The cards and the score in the art's colours: its red, the pixel font.
+[identity]
+name = "cozy-pixel"
+accent = 0xec3b35
+title_font = "Press Start 2P"
+number_font = "Press Start 2P"
+results = "floating"
+hud = "center"
+
+[remix]
+allowed = true

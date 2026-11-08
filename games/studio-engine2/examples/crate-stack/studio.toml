@@ -1,0 +1,23 @@
+# Crate Stack: Phase 3a's love.physics scene (docs/STUDIO-2.md §9.4, §6.3's
+# Crate Crane drawn with shapes): crates dropped from a swinging hook weld
+# where they land soft, welds that twist too far snap, and the sea takes
+# what falls. Written as a LÖVE programmer would.
+title = "Crate Stack"
+tagline = "Tap to drop the crate"
+kind = "2d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.cratestack"
+version = "0.1.0"
+creator = "@maimbrain"
+
+lives = 3
+
+[[scores]]
+label = "Height"
+order = "high"
+
+[text]
+over = "SUNK!"

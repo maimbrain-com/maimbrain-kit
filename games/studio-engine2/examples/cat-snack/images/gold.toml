@@ -1,0 +1,6 @@
+# The rare gold fish.
+behaviour = "pickup"
+hitbox = [3, 4, 13, 8]
+
+[knobs]
+value = 5

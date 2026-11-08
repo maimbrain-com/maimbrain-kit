@@ -553,6 +553,141 @@ fn median_color(px: &[[u8; 3]]) -> [u8; 3] {
     out
 }
 
+/// The flat colours a keyed picture can be asked to have behind it, in the
+/// order a tie goes (`key = "auto"` in art/style.toml).
+pub const KEYS: [[u8; 3]; 4] = [[255, 0, 255], [0, 255, 0], [0, 255, 255], [0, 0, 255]];
+
+/// How far (Oklab) a scene's nearest colours may come to magenta before
+/// another key is picked: about three times keying's tolerance.
+const KEY_CLEAR: f32 = 0.25;
+
+/// The key colour for a scene: magenta, unless the scene comes near it, then
+/// the one farthest from the scene's colours: from `pictures` (a set's
+/// far layer, as it came back) and `palette` (the style's). A key near a
+/// colour the scene has (magenta and a dusk sky) keys the scene away with
+/// it, so what counts is how close the key comes to the scene's nearest
+/// colours: the closest 0.5% of the pictures' pixels (a few stray ones
+/// don't), and every palette colour.
+pub fn key_away_from(pictures: &[Image], palette: &[[u8; 3]]) -> [u8; 3] {
+    let mut labs: Vec<[f32; 3]> = Vec::new();
+    for p in pictures {
+        let step = (p.px.len() / 40_000).max(1);
+        labs.extend(p.px.iter().step_by(step).filter(|c| c[3] >= 128).map(|c| oklab([c[0], c[1], c[2]])));
+    }
+    let pal: Vec<[f32; 3]> = palette.iter().map(|c| oklab(*c)).collect();
+    let score = |k: &[u8; 3]| -> f32 {
+        let kl = oklab(*k);
+        let mut d: Vec<f32> = labs.iter().map(|c| oklab_dist(*c, kl)).collect();
+        let near = if d.is_empty() {
+            f32::MAX
+        } else {
+            let at = d.len() / 200;
+            *d.select_nth_unstable_by(at, |a, b| a.partial_cmp(b).unwrap()).1
+        };
+        pal.iter().map(|c| oklab_dist(*c, kl)).fold(near, f32::min)
+    };
+    // Magenta, the usual key, unless the scene comes near it.
+    if score(&KEYS[0]) >= KEY_CLEAR {
+        return KEYS[0];
+    }
+    let mut best = (KEYS[0], f32::MIN);
+    for k in &KEYS {
+        let s = score(k);
+        if s > best.1 + 1e-4 {
+            best = (*k, s);
+        }
+    }
+    best.0
+}
+
+/// How much of the key colour a pixel shows: its key channels' mean over its
+/// other channels' highest (0 or less for a pixel with none of the key's hue;
+/// 255 for the key itself). A crimson fleck shows magenta's this way.
+pub fn spill(p: Rgba, key: [u8; 3]) -> i32 {
+    let on: Vec<i32> = (0..3).filter(|&c| key[c] >= 128).map(|c| p[c] as i32).collect();
+    let on = if on.is_empty() { 0 } else { on.iter().sum::<i32>() / on.len() as i32 };
+    let off = (0..3).filter(|&c| key[c] < 128).map(|c| p[c] as i32).max().unwrap_or(0);
+    on - off
+}
+
+/// How far (RGB) a pixel may be from the mix of the key and the scenery
+/// beside it and still count as one: a red flower among leaves is far from
+/// any mix of magenta and green, a magenta fleck in a pine isn't.
+const SPILL_FIT: f32 = 60.0;
+
+/// Clears what keying left of the key colour inside a keyed picture: specks
+/// in gaps too small to hold one clean key pixel (between a tree's needles),
+/// where the model blended the key into the scenery. Each such pixel is
+/// unmixed against the least key-coloured solid pixel near it (observed =
+/// a·scene + (1−a)·key, as at the edges [`key_out_with`] makes): its alpha
+/// drops by `a` and the key leaves its colour; one that's mostly key goes.
+/// A pixel the key's hue with only its own colour around it (bright grass
+/// on a green key) unmixes to itself and stays, and so does one no mix of the
+/// key and its neighbour explains (a red berry on a magenta key). Returns
+/// the pixels changed.
+pub fn clear_key_spill(im: &mut Image, key: [u8; 3]) -> usize {
+    let src = im.clone();
+    let (w, h) = (im.w as usize, im.h as usize);
+    let kf = [key[0] as f32, key[1] as f32, key[2] as f32];
+    let mut changed = 0;
+    for y in 0..h {
+        for x in 0..w {
+            let i = y * w + x;
+            let p = src.px[i];
+            let s = spill(p, key);
+            if p[3] == 0 || s <= 24 {
+                continue;
+            }
+            // The most scenery-like solid pixel within 3 px.
+            let mut fg: Option<(i32, Rgba)> = None;
+            for yy in y.saturating_sub(3)..(y + 4).min(h) {
+                for xx in x.saturating_sub(3)..(x + 4).min(w) {
+                    let q = src.px[yy * w + xx];
+                    let qs = spill(q, key);
+                    if q[3] >= 200 && qs < s - 24 && fg.is_none_or(|(best, _)| qs < best) {
+                        fg = Some((qs, q));
+                    }
+                }
+            }
+            let a = match fg {
+                Some((_, q)) => {
+                    let dir: Vec<f32> = (0..3).map(|c| q[c] as f32 - kf[c]).collect();
+                    let len2: f32 = dir.iter().map(|v| v * v).sum();
+                    let a = if len2 < 1.0 { 1.0 } else { ((0..3).map(|c| (p[c] as f32 - kf[c]) * dir[c]).sum::<f32>() / len2).clamp(0.0, 1.0) };
+                    let off: f32 = (0..3).map(|c| (p[c] as f32 - (kf[c] + a * dir[c])).powi(2)).sum::<f32>().sqrt();
+                    if off > SPILL_FIT {
+                        continue;
+                    }
+                    a
+                }
+                // Nothing solid near: only a pixel that's almost the key itself goes.
+                None if s >= 200 => 0.0,
+                None => continue,
+            };
+            if a > 0.97 {
+                continue;
+            }
+            changed += 1;
+            if a < 0.15 {
+                im.px[i] = [0; 4];
+                continue;
+            }
+            let mut q = [0u8; 4];
+            for c in 0..3 {
+                q[c] = ((p[c] as f32 - (1.0 - a) * kf[c]) / a).round().clamp(0.0, 255.0) as u8;
+            }
+            q[3] = (p[3] as f32 * a).round() as u8;
+            im.px[i] = q;
+        }
+    }
+    changed
+}
+
+/// The share of a picture that's solid (alpha at least half).
+pub fn cover(im: &Image) -> f32 {
+    im.px.iter().filter(|p| p[3] >= 128).count() as f32 / im.px.len().max(1) as f32
+}
+
 /// Clears connected groups of visible pixels smaller than `min_area`.
 pub fn remove_specks(img: &mut Image, min_area: usize) {
     let (w, h) = (img.w as usize, img.h as usize);

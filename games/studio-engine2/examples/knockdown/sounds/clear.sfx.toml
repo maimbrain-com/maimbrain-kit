@@ -1,0 +1,10 @@
+# The table's clear: a little fanfare.
+wave = "square"
+duty = 0.3
+freq = 523
+duration = 0.36
+attack = 0.005
+decay = 0.3
+arp = [0, 4, 7, 12, 16]
+arp_speed = 0.07
+volume = 0.5

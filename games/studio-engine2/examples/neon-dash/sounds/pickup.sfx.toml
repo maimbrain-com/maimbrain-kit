@@ -1,0 +1,9 @@
+# Plays on every coin.
+wave = "square"
+duty = 0.5
+freq = 1047
+duration = 0.1
+arp = [0, 5, 12]
+arp_speed = 0.03
+decay = 0.08
+volume = 0.5

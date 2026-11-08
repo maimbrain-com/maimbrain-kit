@@ -1,0 +1,9 @@
+# A bonus: two plain blips up (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 660
+duration = 0.16
+arp = [0, 12]
+arp_speed = 0.08
+decay = 0.06
+volume = 0.6

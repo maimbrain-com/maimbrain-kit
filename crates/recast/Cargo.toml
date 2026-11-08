@@ -1,0 +1,21 @@
+[package]
+name = "recast"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+description = "Recast, Detour and DetourCrowd 1.6.0 (C++, zlib), built from source: the navmesh baker, pathfinder and crowd behind the SDK's `nav`"
+# Navigation is Recast + Detour + DetourCrowd (docs/STUDIO-2.md §4.14,
+# spike S10, Decided 45). Its C++ is fetched by hash (build.rs) and compiled
+# with cc, as crates/luau's is, without exceptions or RTTI and with nothing
+# from libc: memory comes from the game's allocator, `qsort` is a stable
+# sort and the trig is Rust's `libm`, so a native build bakes the same bytes
+# as the wasm.
+
+[dependencies]
+# cosf, sinf and atan2f for Recast and DetourCrowd (csrc/portable.h): the
+# same bits natively and in wasm, as the SDK's physics does.
+libm = "0.2"
+
+[build-dependencies]
+cc = "1.6.0"
+sha2 = "0.11.0"

@@ -1,0 +1,31 @@
+# The tunnel starter (3D): a spark of fire threads the gaps in the rock
+# rings of a lava tube. Its look (game/look.lua, and the identity) is the
+# starter's: a stand-in to replace with the game's own, in DESIGN.md's look
+# (docs/STUDIO.md "The first version").
+title = "Ember Tube"
+tagline = "thread the gaps"
+engine = "2.0"
+kind = "3d"
+orientation = "portrait"
+lives = 1
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.tunnel"
+version = "0.1.0"
+creator = "@maimbrain"
+
+# The cards and HUD (the reference topic "identity"): the starter's, like its look.
+[identity]
+name = "gothic"
+accent = 0xff7a2a
+title_font = "Grenze Gotisch"   # blackletter that still reads at a glance
+
+[text]
+over = "BURNT OUT!"
+
+[[scores]]
+label = "Rings"
+order = "high"
+
+[remix]
+allowed = true

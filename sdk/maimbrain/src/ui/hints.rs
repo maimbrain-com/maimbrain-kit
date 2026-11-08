@@ -72,11 +72,14 @@ pub struct Hint {
     /// Seconds it stays wanted after the last frame that wanted it (for a
     /// one-off moment).
     pub linger: f32,
+    /// Where its target is on the screen now, when the game knows (a node
+    /// the hint follows): the pill draws by it and the bot touches it.
+    pub at: Option<(f32, f32)>,
 }
 
 impl Hint {
     fn new(text: &str, ask: Ask) -> Hint {
-        Hint { text: text.to_string(), ask, target: None, priority: Priority::Teach, linger: 0.0 }
+        Hint { text: text.to_string(), ask, target: None, priority: Priority::Teach, linger: 0.0, at: None }
     }
     /// "TAP HER": tap `target`.
     pub fn tap(text: &str, target: &'static str) -> Hint {
@@ -113,6 +116,27 @@ impl Hint {
     pub fn linger(mut self, secs: f32) -> Hint {
         self.linger = secs.max(0.0);
         self
+    }
+    /// Its target is at (x, y) on the screen now.
+    pub fn at(mut self, x: f32, y: f32) -> Hint {
+        self.at = Some((x, y));
+        self
+    }
+    /// Reads "TAP", "HOLD", "KEEP HOLDING", "LET GO", "RELEASE" off the
+    /// front of a hint's words (any case): what a player takes it to ask.
+    /// Anything else asks nothing of a finger ([`Ask::Look`]).
+    pub fn ask_in(text: &str) -> Ask {
+        let t = text.trim().to_ascii_lowercase();
+        let starts = |w: &str| t == w || t.starts_with(&format!("{w} ")) || t.starts_with(&format!("{w}!"));
+        if starts("let go") || starts("release") || starts("lift") {
+            Ask::LetGo
+        } else if starts("hold") || starts("keep holding") || starts("press and hold") || starts("tap and hold") {
+            Ask::Hold
+        } else if starts("tap") || starts("press") || starts("click") || starts("touch") || starts("hit") {
+            Ask::Tap
+        } else {
+            Ask::Look
+        }
     }
 }
 
@@ -267,6 +291,37 @@ impl Hints {
         &self.unseen
     }
 
+    /// Each hint in its pill where `place` says (by the hint: over its
+    /// target, say), kept inside `bounds`, with a pointer toward the target
+    /// when it has one ([`Hint::at`]); hints `place` gives no place go at
+    /// (cx, cy), stacked.
+    pub fn draw_each(&self, theme: &Theme, cx: f32, cy: f32, bounds: super::layout::Rect, place: impl Fn(&Hint) -> Option<(f32, f32)>) {
+        for s in &self.shown {
+            let a = s.alpha.clamp(0.0, 1.0);
+            if a <= 0.0 {
+                continue;
+            }
+            let pulse = 1.0 + 0.06 * (s.age * std::f32::consts::TAU * 1.2).sin().max(0.0);
+            let bg = if s.hint.priority == Priority::Threat { theme.bad } else { theme.accent };
+            let h = 34.0 * pulse;
+            let (x, y) = place(&s.hint).unwrap_or((cx, cy + s.row as f32 * 44.0));
+            let half = super::widgets::pill_width(&s.hint.text, h, theme.body_font, false) / 2.0 + 4.0;
+            let x = if bounds.w > 2.0 * half { x.clamp(bounds.x + half, bounds.right() - half) } else { bounds.cx() };
+            if let Some((tx, ty)) = s.hint.at
+                && ty > y + h * 0.5
+            {
+                // A pointer from the pill's foot toward what it's about.
+                let tip = (ty - 4.0).min(y + h * 0.5 + 12.0);
+                let w = 9.0;
+                // Its foot under the target, as near as the pill allows.
+                let bx = tx.clamp(x - half + 4.0 + w * 1.5, x + half - 4.0 - w * 1.5);
+                let dx = (tx - bx).clamp(-w, w) * 0.3;
+                super::shape::poly(&[bx - w, y + h * 0.5 - 1.0, bx + w, y + h * 0.5 - 1.0, bx + dx, tip], with_alpha(bg, a));
+            }
+            pill_in(theme, &s.hint.text, x, y, h, with_alpha(bg, a), with_alpha(theme.on_accent, a), None);
+        }
+    }
+
     /// The hints in pills, the first centred at (cx, cy) and any others
     /// below it; a threat's in the theme's `bad` colour, the rest in its
     /// accent. Draw them near where the move happens, clear of the HUD.
@@ -280,6 +335,101 @@ impl Hints {
             let bg = if s.hint.priority == Priority::Threat { theme.bad } else { theme.accent };
             pill_in(theme, &s.hint.text, cx, cy + s.row as f32 * 44.0, 34.0 * pulse, with_alpha(bg, a), with_alpha(theme.on_accent, a), None);
         }
+    }
+}
+
+/// What the hints on screen ask of a player who does exactly what they
+/// say ([`Follow::step`]).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Want {
+    /// Tap the hint's target (`at`, or by its `target` name; neither: where
+    /// the player's thumb rests). `first`: the hint's first tap (a new
+    /// situation); the next ones are a rhythm already going.
+    Tap { at: Option<(f32, f32)>, target: Option<&'static str>, text: String, first: bool },
+    /// Put a finger down there and keep it down.
+    Hold { at: Option<(f32, f32)>, target: Option<&'static str>, text: String },
+    /// Lift the held finger.
+    LetGo { text: String },
+}
+
+/// The rules a literal player follows, for any player to apply: a hint is
+/// acted on once it has been up for the player's reaction time to it
+/// (drawn once per hint), a TAP every [`TAP_EVERY`](Follow::TAP_EVERY)
+/// seconds while it shows, a HOLD once until a LET GO, a LET GO when
+/// something is held, and nothing else. The kit's `bot::Literal` turns
+/// these into touches with a person's finger; Studio's difficulty bot
+/// hands them to its own (docs/STUDIO-2.md §8.1). Pure: it runs anywhere.
+#[derive(Clone, Debug, Default)]
+pub struct Follow {
+    /// The hints up now that it has seen: (text, its reaction time, the
+    /// next time it may tap for it).
+    seen: Vec<(String, f32, f64)>,
+    held: bool,
+}
+
+impl Follow {
+    /// Seconds between taps while a TAP hint stays up.
+    pub const TAP_EVERY: f64 = 0.3;
+
+    pub fn new() -> Follow {
+        Follow::default()
+    }
+
+    /// At game time `now`: what the hints up now ask, in their order on
+    /// screen. `reaction` draws the reaction time to a hint it hasn't seen
+    /// (0 for a player that adds its own). A tap returned is taken as done
+    /// at `now`; [`tapped`](Follow::tapped) moves when the next may come.
+    pub fn step(&mut self, now: f64, hints: &Hints, mut reaction: impl FnMut() -> f32) -> Vec<Want> {
+        let visible = hints.visible();
+        self.seen.retain(|s| visible.iter().any(|(h, _)| h.text == s.0));
+        let mut out = Vec::new();
+        for (hint, age) in visible {
+            let i = match self.seen.iter().position(|s| s.0 == hint.text) {
+                Some(i) => i,
+                None => {
+                    let r = reaction();
+                    self.seen.push((hint.text.clone(), r, f64::NEG_INFINITY));
+                    self.seen.len() - 1
+                }
+            };
+            if age < self.seen[i].1 {
+                continue;
+            }
+            match hint.ask {
+                Ask::Tap if now >= self.seen[i].2 => {
+                    let first = self.seen[i].2 == f64::NEG_INFINITY;
+                    self.seen[i].2 = now + Self::TAP_EVERY;
+                    out.push(Want::Tap { at: hint.at, target: hint.target, text: hint.text.clone(), first });
+                }
+                Ask::Hold if !self.held => {
+                    self.held = true;
+                    out.push(Want::Hold { at: hint.at, target: hint.target, text: hint.text.clone() });
+                }
+                Ask::LetGo if self.held => {
+                    self.held = false;
+                    out.push(Want::LetGo { text: hint.text.clone() });
+                }
+                _ => {}
+            }
+        }
+        out
+    }
+
+    /// The tap for `text` landed at `down`: the next is [`TAP_EVERY`](Follow::TAP_EVERY) after it.
+    pub fn tapped(&mut self, text: &str, down: f64) {
+        if let Some(s) = self.seen.iter_mut().find(|s| s.0 == text) {
+            s.2 = down + Self::TAP_EVERY;
+        }
+    }
+
+    /// A finger is held down (a HOLD was asked and no LET GO since).
+    pub fn holding(&self) -> bool {
+        self.held
+    }
+
+    /// The finger came up some other way (the round ended).
+    pub fn released(&mut self) {
+        self.held = false;
     }
 }
 
@@ -351,6 +501,47 @@ mod tests {
         h.want(Hint::hold("HOLD").threat());
         h.update(DT);
         assert_eq!(h.showing().map(|h| h.text.as_str()).collect::<Vec<_>>(), ["HOLD", "LEFT"]);
+    }
+
+    #[test]
+    fn a_follower_reacts_then_taps_in_a_rhythm_holds_once_and_lets_go() {
+        let mut h = Hints::new();
+        let mut f = Follow::new();
+        let mut wants = Vec::new();
+        let mut t = 0.0;
+        for frame in 0..240 {
+            if frame < 60 {
+                h.want(Hint::tap("TAP THE BELL", "bell").at(100.0, 200.0));
+            } else if frame < 150 {
+                h.want(Hint::hold("HOLD"));
+            } else {
+                h.want(Hint::let_go("LET GO"));
+            }
+            h.update(DT);
+            for w in f.step(t, &h, || 0.4) {
+                wants.push((frame, w));
+            }
+            t += DT as f64;
+        }
+        let taps: Vec<usize> = wants.iter().filter(|(_, w)| matches!(w, Want::Tap { .. })).map(|(f, _)| *f).collect();
+        assert_eq!(taps.len(), 3, "after 0.4 s, then every 0.3 s while it shows: {taps:?}");
+        assert!(matches!(&wants[0].1, Want::Tap { at: Some((100.0, 200.0)), first: true, .. }));
+        assert!(matches!(&wants[1].1, Want::Tap { first: false, .. }));
+        assert_eq!(wants.iter().filter(|(_, w)| matches!(w, Want::Hold { .. })).count(), 1);
+        assert!(matches!(wants.last().unwrap().1, Want::LetGo { .. }));
+        assert!(!f.holding());
+    }
+
+    #[test]
+    fn the_ask_is_read_off_the_words() {
+        assert_eq!(Hint::ask_in("TAP TO JUMP"), Ask::Tap);
+        assert_eq!(Hint::ask_in("tap"), Ask::Tap);
+        assert_eq!(Hint::ask_in("HOLD to charge"), Ask::Hold);
+        assert_eq!(Hint::ask_in("KEEP HOLDING"), Ask::Hold);
+        assert_eq!(Hint::ask_in("LET GO!"), Ask::LetGo);
+        assert_eq!(Hint::ask_in("RELEASE"), Ask::LetGo);
+        assert_eq!(Hint::ask_in("WATCH THE WIND"), Ask::Look);
+        assert_eq!(Hint::ask_in("TAPESTRY"), Ask::Look);
     }
 
     #[test]

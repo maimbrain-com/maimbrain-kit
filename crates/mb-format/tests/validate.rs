@@ -322,7 +322,13 @@ fn mb3d_versions_add_imports_without_breaking_old_games() {
     assert!(errors(&v2, new()).is_empty(), "{:#?}", errors(&v2, new()));
     assert_error(&errors(&v1, new()), "imports mb.mb3d_anim without declaring stdlib { mb3d = 2 }");
     let v3 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 1, mb3d = 3 }");
-    assert_error(&errors(&v3, old()), "stdlib mb3d = 3 is not available (host has 1–2)");
+    assert!(errors(&v3, new()).is_empty(), "mb3d 3 keeps mb3d 2's imports");
+    let v4 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 1, mb3d = 4 }");
+    assert!(errors(&v4, new()).is_empty(), "mb3d 4 keeps mb3d 2's imports");
+    let v5 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 1, mb3d = 5 }");
+    assert!(errors(&v5, new()).is_empty(), "mb3d 5 keeps mb3d 2's imports");
+    let v6 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 1, mb3d = 6 }");
+    assert_error(&errors(&v6, old()), "stdlib mb3d = 6 is not available (host has 1–5)");
     let v0 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 1, mb3d = 0 }");
     assert_error(&errors(&v0, old()), "stdlib mb3d = 0 is not available");
 }
@@ -402,4 +408,276 @@ fn studio_bundles() {
     let r = validate(&bundle(&tilt, wasm, project));
     assert!(r.ok(), "{:#?}", r.errors);
     assert_eq!(r.studio.unwrap().variant.as_str(), "tilt");
+}
+
+/// Engine 2.0's bundles (docs/STUDIO-2.md §4.8, §4.13): format `studio2`,
+/// Lua with its bytecode beside it, and wasm exception handling, which only a
+/// Studio 2.0 engine may use.
+#[test]
+fn studio2_bundles() {
+    let studio2 = format!("{MANIFEST}engine = \"studio@2.0\"\n");
+    // exnref: a tag, a throw and a try_table, as Luau's C++ unwinding compiles.
+    let eh = || {
+        module(&format!(
+            r#"(tag $e) (func $f (throw $e)) (func $g (block $out (try_table (catch_all $out) (call $f)))) {EXPORTS}"#
+        ))
+    };
+    let project: &[(&str, &[u8])] = &[
+        ("assets/studio.toml", b"title = \"Catch\"\nengine = \"2.0\"\n"),
+        ("assets/game/main.lua", b"function love.load() end\n"),
+        ("assets/game/main.luac", &[14, 3, 0, 0]),
+        ("assets/files.txt", b"studio.toml\ngame/main.lua\ngame/main.luac\n"),
+        ("src/src/prelude.lua", b"-- the engine's Lua\n"),
+    ];
+    let r = validate(&bundle(&studio2, eh(), project));
+    assert!(r.ok(), "{:#?}", r.errors);
+    assert_eq!(r.studio.unwrap().engine, "2.0");
+    // The loop-metering pass takes exnref as it is (S0).
+    let opened = mb_format::Bundle::open(&bundle(&studio2, eh(), project)).expect("opens and meters");
+    assert!(opened.runtime_wasm().len() > 0);
+    assert_eq!(r.manifest.unwrap().needs_formats(), ["studio2"]);
+
+    // Exceptions are for Studio 2.0's engine only: not 1.0's, not a kit game's.
+    assert_error(&errors(&format!("{MANIFEST}engine = \"studio@1.0\"\n"), eh()), "disallowed feature");
+    assert_error(&errors(MANIFEST, eh()), "disallowed feature");
+
+    // Every chunk has its bytecode, of a version the VM loads, and every
+    // bytecode file its source.
+    let missing: &[(&str, &[u8])] = &[project[0], project[1], ("assets/files.txt", b"studio.toml\ngame/main.lua\n")];
+    assert_error(&validate(&bundle(&studio2, eh(), missing)).errors, "game/main.lua has no bytecode beside it");
+    let old: &[(&str, &[u8])] = &[project[0], project[1], ("assets/game/main.luac", &[2, 0]), project[3]];
+    assert_error(&validate(&bundle(&studio2, eh(), old)).errors, "bytecode version 2");
+    let error: &[(&str, &[u8])] = &[project[0], project[1], ("assets/game/main.luac", b"\0:1: Expected"), project[3]];
+    assert_error(&validate(&bundle(&studio2, eh(), error)).errors, "is a compile error");
+    let orphan: &[(&str, &[u8])] = &[project[0], project[1], project[2], ("assets/game/lib.luac", &[14]), ("assets/files.txt", b"studio.toml\ngame/main.lua\n")];
+    assert_error(&validate(&bundle(&studio2, eh(), orphan)).errors, "lib.luac has no source beside it");
+}
+
+/// Bytes deflate can't shrink, so a bundle is about as big as its assets.
+fn noise(n: usize, seed: u64) -> Vec<u8> {
+    let mut x = seed | 1;
+    (0..n)
+        .map(|_| {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            x as u8
+        })
+        .collect()
+}
+
+/// Bundles up to 25 MB (SPEC §1; docs/STUDIO-2.md §4.8): over 10 MB a bundle
+/// is format `large`, which only apps whose validator opens it get.
+#[test]
+fn large_bundles() {
+    const MIB: usize = 1024 * 1024;
+    let small = validate(&bundle(MANIFEST, module(EXPORTS), &[("assets/a.bin", &noise(9 * MIB, 1))]));
+    assert!(small.ok(), "{:#?}", small.errors);
+    assert!(small.formats().is_empty());
+
+    let large = validate(&bundle(MANIFEST, module(EXPORTS), &[("assets/a.bin", &noise(12 * MIB, 2))]));
+    assert!(large.ok(), "{:#?}", large.errors);
+    assert!(large.compressed_size > mb_format::bundle::LARGE);
+    assert_eq!(large.formats(), ["large"]);
+    assert!(mb_format::studio::FORMATS.contains(&"large"), "this validator opens them");
+
+    // A Studio bundle over 10 MB needs both.
+    let studio = format!("{MANIFEST}engine = \"studio@1.0\"\n");
+    let project: &[(&str, &[u8])] = &[
+        ("assets/studio.toml", b"title = \"Big\"\n"),
+        ("assets/game/main.lua", b"function start() end\n"),
+        ("assets/files.txt", b"studio.toml\ngame/main.lua\n"),
+        ("src/src/prelude.lua", b"-- the engine's Lua\n"),
+    ];
+    let big = noise(11 * MIB, 3);
+    let r = validate(&bundle(&studio, module(EXPORTS), &[project, &[("assets/painting.jpg", &big[..])]].concat()));
+    assert!(r.ok(), "{:#?}", r.errors);
+    assert_eq!(r.formats(), ["studio", "large"]);
+
+    let huge = noise(26 * MIB, 4);
+    let r = validate(&bundle(MANIFEST, module(EXPORTS), &[("assets/a.bin", &huge[..])]));
+    assert_error(&r.errors, "the limit is 26214400 (25 MiB)");
+}
+
+/// A game that declares mb2d 3 (JPEG, the nearest filter) needs format
+/// `mb2d3`: validators before it refuse `mb2d = 3`, so the feed sends it
+/// only to apps that claim it.
+#[test]
+fn mb2d_3_is_a_format() {
+    let v3 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 3 }");
+    let r = validate(&bundle(&v3, module(EXPORTS), &[]));
+    assert!(r.ok(), "{:#?}", r.errors);
+    assert_eq!(r.formats(), ["mb2d3"]);
+    let v2 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 2 }");
+    assert!(validate(&bundle(&v2, module(EXPORTS), &[])).formats().is_empty());
+    assert!(mb_format::studio::FORMATS.contains(&"mb2d3"), "apps claim it from their 2.0 release (1e) on");
+}
+
+/// mb3d 3 (`mb3d_node_transforms`) is format `mb3d3` the same way, and a
+/// game importing it must declare it.
+#[test]
+fn mb3d_3_is_a_format_and_its_import_needs_it() {
+    let import = r#"(import "mb" "mb3d_node_transforms" (func (param i32 i32) (result i32)))"#;
+    let wasm = module(&format!("{import} {EXPORTS}"));
+    let v2 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 1, mb3d = 2 }").replace("perf_tier = \"lite\"", "perf_tier = \"full\"");
+    let r = validate(&bundle(&v2, wasm.clone(), &[]));
+    assert_error(&r.errors, "mb3d_node_transforms");
+    let v3 = v2.replace("mb3d = 2", "mb3d = 3");
+    let r = validate(&bundle(&v3, wasm, &[]));
+    assert!(r.ok(), "{:#?}", r.errors);
+    assert_eq!(r.formats(), ["mb3d3"]);
+    assert!(validate(&bundle(&v2, module(EXPORTS), &[])).formats().is_empty());
+    assert!(mb_format::studio::FORMATS.contains(&"mb3d3"), "apps claim it from the release after Phase 2a");
+}
+
+/// mb3d 4 (`mb3d_material_surfaces`, Decided 70) is format `mb3d4`, which a
+/// game declaring it needs beside `mb3d3`; its import needs it declared.
+#[test]
+fn mb3d_4_is_a_format_and_its_import_needs_it() {
+    let import = r#"(import "mb" "mb3d_material_surfaces" (func (param i32 i32 i32) (result i32)))"#;
+    let wasm = module(&format!("{import} {EXPORTS}"));
+    let v3 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 1, mb3d = 3 }").replace("perf_tier = \"lite\"", "perf_tier = \"full\"");
+    let r = validate(&bundle(&v3, wasm.clone(), &[]));
+    assert_error(&r.errors, "mb3d_material_surfaces");
+    let v4 = v3.replace("mb3d = 3", "mb3d = 4");
+    let r = validate(&bundle(&v4, wasm, &[]));
+    assert!(r.ok(), "{:#?}", r.errors);
+    assert_eq!(r.formats(), ["mb3d3", "mb3d4"]);
+    assert!(mb_format::studio::FORMATS.contains(&"mb3d4"), "apps claim it from the release that brings ground surfaces");
+}
+
+/// Games' shaders (mb3d 5, mb2d 4; docs/STUDIO-2.md §4.15) are formats
+/// `mb3d5` and `mb2d4`; their imports need them declared, and a shader
+/// game is packed with a shader build (`studio::variant`).
+#[test]
+fn shaders_are_formats_and_their_imports_need_them() {
+    let imports = r#"(import "mb" "mb3d_shader" (func (param i32 i32) (result i32))) (import "mb" "mb2d_shader_use" (func (param i32 i32) (result i32)))"#;
+    let wasm = module(&format!("{imports} {EXPORTS}"));
+    let v4 = MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 3, mb3d = 4 }").replace("perf_tier = \"lite\"", "perf_tier = \"full\"");
+    let r = validate(&bundle(&v4, wasm.clone(), &[]));
+    assert_error(&r.errors, "mb3d_shader");
+    assert_error(&r.errors, "mb2d_shader_use");
+    let v5 = v4.replace("mb2d = 3, mb3d = 4", "mb2d = 4, mb3d = 5");
+    let r = validate(&bundle(&v5, wasm, &[]));
+    assert!(r.ok(), "{:#?}", r.errors);
+    assert_eq!(r.formats(), ["mb2d3", "mb3d3", "mb3d4", "mb2d4", "mb3d5"]);
+    let m = mb_format::Manifest::parse(&v5).unwrap();
+    assert_eq!(mb_format::studio::variant(&m), mb_format::studio::Variant::ThreeDShaders);
+    let m = mb_format::Manifest::parse(&MANIFEST.replace("stdlib = { mb2d = 1 }", "stdlib = { mb2d = 4 }")).unwrap();
+    assert_eq!(mb_format::studio::variant(&m), mb_format::studio::Variant::PlainShaders);
+    for f in ["mb2d4", "mb3d5"] {
+        assert!(mb_format::studio::FORMATS.contains(&f), "apps claim {f} from the release that brings shaders");
+    }
+}
+
+/// PNG, JPEG, Ogg and glb are stored, not deflated (Decided 40): they're
+/// compressed already. Everything else is deflated, and the bundle is still
+/// deterministic and valid.
+#[test]
+fn media_is_stored_and_the_rest_deflated() {
+    use std::io::Cursor;
+    let art = noise(4096, 7);
+    let text = vec![b'a'; 4096];
+    let bytes = bundle(
+        MANIFEST,
+        module(EXPORTS),
+        &[("assets/a.png", &art), ("assets/b.JPG", &art), ("assets/c.ogg", &art), ("assets/d.jpeg", &art), ("assets/e.toml", &text)],
+    );
+    let r = validate(&bytes);
+    assert!(r.ok(), "{:#?}", r.errors);
+    let mut zip = zip::ZipArchive::new(Cursor::new(bytes.clone())).unwrap();
+    for name in ["assets/a.png", "assets/b.JPG", "assets/c.ogg", "assets/d.jpeg", "icon.png"] {
+        assert_eq!(zip.by_name(name).unwrap().compression(), zip::CompressionMethod::Stored, "{name}");
+    }
+    for name in ["assets/e.toml", "manifest.toml", "game.wasm", "src/src/lib.rs"] {
+        assert_eq!(zip.by_name(name).unwrap().compression(), zip::CompressionMethod::Deflated, "{name}");
+    }
+    assert_eq!(mb_format::bundle::packed_size("assets/a.png", &art), 4096);
+    assert!(mb_format::bundle::packed_size("assets/e.toml", &text) < 100);
+}
+
+/// A bundle checked as a map (a content-addressed preview) gets the same
+/// errors as the same files packed, and what passed before can be skipped.
+#[test]
+fn files_check_as_a_map_as_they_do_packed() {
+    let files = |extra: &[(&str, &[u8])]| {
+        let mut f = BTreeMap::new();
+        f.insert("manifest.toml".to_string(), MANIFEST.as_bytes().to_vec());
+        f.insert("game.wasm".to_string(), module(&format!(r#"(import "mb" "nope" (func)) {EXPORTS}"#)));
+        f.insert("icon.png".to_string(), icon(128, 128));
+        f.insert("src/src/lib.rs".to_string(), b"// source".to_vec());
+        for (p, d) in extra {
+            f.insert(p.to_string(), d.to_vec());
+        }
+        f
+    };
+    let f = files(&[("assets/m.glb", b"not a glb")]);
+    let packed = validate(&pack(&f).unwrap());
+    let sizes: BTreeMap<String, u64> = f.iter().map(|(p, d)| (p.clone(), mb_format::bundle::packed_size(p, d))).collect();
+    let mut r = mb_format::Report::default();
+    mb_format::bundle::check_files(&mut r, &f, &sizes, &|_| false);
+    assert_eq!(r.errors, packed.errors);
+    assert!(r.errors.iter().any(|e| e.contains("assets/m.glb")) && r.errors.iter().any(|e| e.contains("icon.png is 128")));
+    // Checked before: the glb and the wasm aren't looked at again; the rest still is.
+    let mut r = mb_format::Report::default();
+    mb_format::bundle::check_files(&mut r, &f, &sizes, &|p| p == "assets/m.glb" || p == "game.wasm");
+    assert!(!r.errors.iter().any(|e| e.contains("assets/m.glb") || e.contains("nope")), "{:?}", r.errors);
+    assert!(r.errors.iter().any(|e| e.contains("icon.png is 128")));
+    // The per-path rules.
+    let bad = files(&[("assets/x.exe", b""), ("assets/A.png", b""), ("assets/a.png", b"")]);
+    let e = mb_format::bundle::check_paths(&bad);
+    assert!(e.iter().any(|e| e.contains(".exe")) && e.iter().any(|e| e.contains("differ only by case")), "{e:?}");
+}
+
+/// A content-addressed preview's files (SPEC "Content-addressed previews"):
+/// a fresh page opens them as a map, checked as a bundle is, named by the
+/// list's digest; a file arriving on its own gets its own checks.
+#[test]
+fn content_addressed_files() {
+    use mb_format::Bundle;
+    use mb_format::bundle::{check_file, files_digest};
+    let files = |extra: &[(&str, &[u8])]| {
+        let mut f = BTreeMap::new();
+        f.insert("manifest.toml".to_string(), MANIFEST.as_bytes().to_vec());
+        f.insert("game.wasm".to_string(), module(EXPORTS));
+        f.insert("icon.png".to_string(), icon(256, 256));
+        f.insert("src/src/lib.rs".to_string(), b"// source".to_vec());
+        for (p, d) in extra {
+            f.insert(p.to_string(), d.to_vec());
+        }
+        f
+    };
+    let ok = files(&[("assets/a.txt", b"hello")]);
+    let opened = Bundle::open_files(ok.clone(), None).expect("opens");
+    let packed = Bundle::open(&pack(&ok).unwrap()).unwrap();
+    assert_eq!(opened.runtime_wasm(), packed.runtime_wasm(), "metered as a bundle is");
+    assert_eq!(opened.file("assets/a.txt"), Some(&b"hello"[..]));
+    // Named as the server names the build: SHA-256 of "path\0sha\n" lines in path order.
+    let lines: String = ok.iter().map(|(p, d)| format!("{p}\0{}\n", mb_format::bundle::hex(&<sha2::Sha256 as sha2::Digest>::digest(d)))).collect();
+    assert_eq!(files_digest(&ok), mb_format::bundle::hex(&<sha2::Sha256 as sha2::Digest>::digest(lines.as_bytes())));
+    assert_eq!(opened.sha256, files_digest(&ok));
+
+    // Every rule a bundle's open has: paths, required files, the files' own checks.
+    let Err(r) = Bundle::open_files(files(&[("assets/x.exe", b"MZ")]), None) else { panic!("opened") };
+    assert_error(&r.errors, "asset type .exe is not allowed");
+    let mut no_icon = ok.clone();
+    no_icon.remove("icon.png");
+    let Err(r) = Bundle::open_files(no_icon, None) else { panic!("opened") };
+    assert_error(&r.errors, "missing required file icon.png");
+    let Err(r) = Bundle::open_files(files(&[("assets/m.glb", b"glTF junk")]), None) else { panic!("opened") };
+    assert_error(&r.errors, "assets/m.glb");
+    let Err(r) = Bundle::open_files(files(&[("assets/A.txt", b"1"), ("assets/a.txt", b"2")]), None) else { panic!("opened") };
+    assert_error(&r.errors, "differ only by case");
+
+    // One file on its own.
+    assert!(check_file("assets/game/main.lua", b"print(1)").is_ok());
+    assert!(check_file("assets/game/main.luac", &[14, 0]).is_ok());
+    assert!(check_file("assets/game/main.luac", &[0, b':']).unwrap_err().contains("bytecode version 0"));
+    assert!(check_file("assets/game/main.luac", &[]).unwrap_err().contains("empty"));
+    assert!(check_file("assets/m.glb", b"glTF junk").unwrap_err().contains("binary glTF"));
+    assert!(check_file("assets/fonts/f.mbf", b"junk").is_err());
+    assert!(check_file("assets/../x.png", b"").unwrap_err().contains("'..'"));
+    assert!(check_file("/etc/passwd", b"").is_err());
+    assert!(check_file("assets/x.exe", b"").unwrap_err().contains("not allowed"));
+    assert!(check_file("game.wasm", b"\0asm").is_ok(), "checked with the manifest on a fresh page");
 }

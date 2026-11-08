@@ -1,0 +1,8 @@
+# A metal fist on a cockpit: a short, heavy thump.
+wave = "noise"
+freq = 600
+freq_end = 60
+duration = 0.08
+attack = 0.002
+decay = 0.2
+volume = 0.9

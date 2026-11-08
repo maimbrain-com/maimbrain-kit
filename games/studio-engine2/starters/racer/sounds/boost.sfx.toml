@@ -1,0 +1,8 @@
+# A boost pad: a long rising sweep (a stand-in).
+wave = "saw"
+freq = 180
+freq_end = 720
+duration = 0.45
+attack = 0.02
+decay = 0.25
+volume = 0.5

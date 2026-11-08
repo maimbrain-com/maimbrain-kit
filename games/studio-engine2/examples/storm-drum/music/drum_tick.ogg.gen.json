@@ -1,0 +1,92 @@
+{
+  "generator": "mb 0.9.0 music",
+  "date": "2026-11-08T00:47:51Z",
+  "provider": "mb",
+  "model": "tension-kit",
+  "prompt": "taiko drums and a bamboo flute",
+  "full_prompt": "taiko drums and a bamboo flute. Instrumental only, no vocals. One continuous instrumental piece at 120 BPM in 4/4, in one key and at one tempo from start to finish: the sections change the melody, the instruments and the energy, never the tempo or the key. No intro, no breakdown, no silence, no fade-out and no ending; each section moves straight into the next. About 44 seconds long, in these sections:\n[0:00 - 0:22] Calm: soft hand drums and flute.\n[0:22 - 0:44] Storm: pounding taiko and low brass. An original composition, not imitating any existing song or artist.",
+  "seed": 1586491244,
+  "seed_honored": true,
+  "references": [],
+  "style": null,
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/drum-1586491244.wav",
+  "raw_sha256": "eca942d052b4e64c2f79296b7bc2c3f0aa83744ef91896e15625de376914d7a0",
+  "output_sha256": "2fb152a5f47c579d67444607d656181887f48a9f06ee06d293d6917c65323f9a",
+  "allowed_names": [],
+  "model_text": "mock song at 120 BPM",
+  "recipe": {
+    "allow_names": [],
+    "bars": null,
+    "bpm": 120.0,
+    "brighten": false,
+    "key": null,
+    "kind": "music",
+    "layers": true,
+    "looping": false,
+    "model": "mock-music",
+    "name": "drum",
+    "negative": null,
+    "no_style": true,
+    "once": false,
+    "out": "music/drum.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "retries": 1,
+    "seconds": null,
+    "section_seconds": 22.0,
+    "sections": [
+      {
+        "desc": "soft hand drums and flute",
+        "name": "calm"
+      },
+      {
+        "desc": "pounding taiko and low brass",
+        "name": "storm"
+      }
+    ],
+    "seed": 1586491244,
+    "split_hz": 700.0,
+    "stingers": true,
+    "subject": "taiko drums and a bamboo flute",
+    "tension": true
+  },
+  "result": {
+    "bars": 8,
+    "bpm": 120.0061264038086,
+    "downbeat_seconds": 0.009999999776482582,
+    "graph": "music graph: drum.music.json, the take 42.3 s (19 bars of 4/4 at 120.01 BPM in A minor) in 2 sections and 2 zones, 34 jump links, 57 links between zones",
+    "grid": {
+      "bar_seconds": 1.9999,
+      "beat_confidence": 0.7200000286102295,
+      "downbeat_from": "the whole take: harmonic change on the 1, low onsets",
+      "downbeat_in_take_seconds": 0.0024,
+      "downbeat_shift_beats": 0.0,
+      "sections_agreeing": "2 of 2"
+    },
+    "key": "A minor",
+    "layer": "tick",
+    "loop_samples": 705564,
+    "loop_seconds": 15.999183654785156,
+    "loud_rms_db": -32.968414306640625,
+    "mismatches": [],
+    "mix_phone_loss_db": -3.5,
+    "peak_db": -4.990869998931885,
+    "phone_loss_db": -0.0,
+    "seam_jump_db": -126.4000015258789,
+    "seam_ratio": 0.4257531762123108,
+    "seconds": 15.999183654785156,
+    "sections": [
+      "calm",
+      "storm"
+    ],
+    "source_channels": 2,
+    "source_rate": 44100,
+    "source_seconds": 44.0,
+    "synthesized": "by mb on drum's beat grid and in its key, from the generated loop (no provider call)",
+    "warnings": []
+  },
+  "note": "Synthesized by mb to fit drum; the generated loop's provenance is below."
+}

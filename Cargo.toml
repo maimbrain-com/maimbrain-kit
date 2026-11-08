@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["sdk/maimbrain", "crates/mb-format", "crates/mb-cli", "examples/*"]
+members = ["sdk/maimbrain", "crates/mb-format", "crates/mb-cli", "crates/luau", "crates/recast", "crates/mb-shader", "examples/*"]
 default-members = ["crates/mb-cli"]
 
 [workspace.package]

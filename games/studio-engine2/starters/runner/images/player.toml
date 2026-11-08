@@ -1,0 +1,7 @@
+# The fox: two running frames, then a jump.
+frame = [32, 32]
+pixel = true
+
+[anims]
+run = { frames = "1-2", fps = 10 }
+jump = { frames = "3" }

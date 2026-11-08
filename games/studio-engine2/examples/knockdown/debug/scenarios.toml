@@ -1,0 +1,28 @@
+# Named sets of debug picks: the debug menu's first tab. Each starts the
+# round at a stack, with the four balls a player reaching it fresh has.
+[[scenario]]
+name = "Stack 3"
+note = "two crates, a plank and a pyramid on top"
+[scenario.set]
+JUMP_TO = 3
+
+[[scenario]]
+name = "Twin pyramids"
+note = "stack 4's first layout"
+[scenario.set]
+JUMP_TO = 4
+JUMP_LAYOUT = 0
+
+[[scenario]]
+name = "Crate wall"
+note = "stack 4's second layout"
+[scenario.set]
+JUMP_TO = 4
+JUMP_LAYOUT = 1
+
+[[scenario]]
+name = "Plank tower"
+note = "stack 4's third layout"
+[scenario.set]
+JUMP_TO = 4
+JUMP_LAYOUT = 2

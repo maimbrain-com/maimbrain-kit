@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:03Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Toll's going up, you know.",
+  "full_prompt": "[bored] Toll's going up, you know.",
+  "seed": 1760164595,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "522092e6cb3091be19647478e04ac3b7512a0abc22c61f4bc09bff6c595a3fe8"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/idle1.wav",
+  "raw_sha256": "56782cb9cecb3766572236634240f5970fb23cc224b9302d643a4682dc3aa0fe",
+  "output_sha256": "62657a86faa8fb8c0deb804a9cc14e26d4c4eea68be2968d6f3e4839176499d4",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "bored",
+    "kind": "voice",
+    "line": "idle1",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/idle1.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1760164595,
+    "speed": null,
+    "style": null,
+    "text": "Toll's going up, you know.",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "5a30cdfec65fd410",
+    "lips": "assets/vo/gruk/idle1.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -15.978154182434082,
+    "peak_db": -3.4804069995880127,
+    "phone_loss_db": -3.799999952316284,
+    "seconds": 1.8194104433059692,
+    "subtitle": "Toll's going up, you know.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

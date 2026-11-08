@@ -22,7 +22,7 @@
 // on every `cargo run` until the runtime was built.
 use std::path::{Path, PathBuf};
 
-const RUNTIME_FILES: [&str; 6] = ["index.html", "runtime.js", "probe-worker.js", "headless.js", "mb_host_bg.wasm", "silence.wav"];
+const RUNTIME_FILES: [&str; 6] = ["index.html", "runtime.js", "probe-worker.js", "headless.js", "botrun.js", "mb_host_bg.wasm"];
 
 fn main() {
     let root = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").canonicalize().unwrap();
@@ -77,25 +77,45 @@ fn main() {
 /// The kit's CHANGELOG.md (tools/kit/files/ in the monorepo, the root of the
 /// kit), whose `### Upgrading` parts `mb upgrade` prints: copied to
 /// $OUT_DIR/kit-changelog.md (empty if there's none), named by MB_KIT_CHANGELOG.
-/// The Studio engine (games/studio-engine in the monorepo and the kit), which
-/// `mb build` packs Studio projects with: its crate's directory
-/// (MB_STUDIO_ENGINE_DIR, for building it with cargo), and, in
-/// $OUT_DIR/studio_engine.rs, its version, its published builds
-/// (published/studio-<version>-<plain|tilt>.wasm, made by `just
-/// studio-engine`) and its source, so packing needs no Rust toolchain.
-/// Without the engine all three are empty.
+/// The Studio engines (games/studio-engine for 1.0 and games/studio-engine2
+/// for 2.0, in the monorepo and the kit), which `mb build` packs Studio
+/// projects with: each crate's directory (MB_STUDIO_ENGINE_DIR,
+/// MB_STUDIO_ENGINE2_DIR, for building it with cargo), and, in
+/// $OUT_DIR/studio_engine.rs and studio_engine2.rs, its version, its
+/// published builds (published/studio-<version>-<variant>.wasm, made by
+/// `just studio-engine` and `just studio-engine2`) and its source, so
+/// packing needs no Rust toolchain. Without an engine all three are empty.
 fn studio_engine(root: &Path) {
-    let dir = root.join("games/studio-engine");
+    embed_engine(root, "games/studio-engine", "studio_engine.rs", "MB_STUDIO_ENGINE_DIR", &[("plain", "PLAIN"), ("tilt", "TILT"), ("3d", "THREE_D")]);
+    embed_engine(
+        root,
+        "games/studio-engine2",
+        "studio_engine2.rs",
+        "MB_STUDIO_ENGINE2_DIR",
+        &[
+            ("plain", "PLAIN"),
+            ("motion", "MOTION"),
+            ("mic", "MIC"),
+            ("3d", "THREE_D"),
+            ("3d-motion", "THREE_D_MOTION"),
+            ("3d-mic", "THREE_D_MIC"),
+            ("plain-shaders", "PLAIN_SHADERS"),
+            ("3d-shaders", "THREE_D_SHADERS"),
+        ],
+    );
+}
+
+fn embed_engine(root: &Path, crate_dir: &str, out_file: &str, dir_var: &str, variants: &[(&str, &str)]) {
+    let dir = root.join(crate_dir);
     let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let mut code = String::new();
     let lib = std::fs::read_to_string(dir.join("src/lib.rs")).unwrap_or_default();
     let version = lib.lines().find_map(|l| l.trim().strip_prefix("pub const ENGINE_VERSION: &str = \"")?.strip_suffix("\";")).unwrap_or("");
-    println!("cargo:rustc-env=MB_STUDIO_ENGINE_DIR={}", if dir.join("Cargo.toml").is_file() { dir.display().to_string() } else { String::new() });
+    println!("cargo:rustc-env={dir_var}={}", if dir.join("Cargo.toml").is_file() { dir.display().to_string() } else { String::new() });
     code.push_str(&format!("pub const VERSION: &str = {version:?};\n"));
-    for variant in ["plain", "tilt"] {
+    for (variant, name) in variants {
         let f = dir.join(format!("published/studio-{version}-{variant}.wasm"));
         println!("cargo:rerun-if-changed={}", f.display());
-        let name = variant.to_uppercase();
         if f.is_file() && !version.is_empty() {
             code.push_str(&format!("pub const {name}: &[u8] = include_bytes!({:?});\n", f.display().to_string()));
         } else {
@@ -106,6 +126,9 @@ fn studio_engine(root: &Path) {
     let mut files = Vec::new();
     if dir.join("Cargo.toml").is_file() {
         files.push(("Cargo.toml".to_string(), dir.join("Cargo.toml")));
+        if dir.join("build.rs").is_file() {
+            files.push(("build.rs".to_string(), dir.join("build.rs")));
+        }
         let mut stack = vec![dir.join("src")];
         while let Some(d) = stack.pop() {
             for e in std::fs::read_dir(&d).into_iter().flatten().flatten() {
@@ -128,7 +151,21 @@ fn studio_engine(root: &Path) {
         code.push_str(&format!("    ({rel:?}, include_bytes!({:?})),\n", p.display().to_string()));
     }
     code.push_str("];\n");
-    std::fs::write(out.join("studio_engine.rs"), code).unwrap();
+    // The API's type definitions (types/*.d.luau), which `mb studio-check`
+    // type-checks a project's Lua against (luau-analyze, Decided 33).
+    let mut types: Vec<PathBuf> = std::fs::read_dir(dir.join("types")).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.to_string_lossy().ends_with(".d.luau")).collect();
+    types.sort();
+    if dir.join("types").is_dir() {
+        println!("cargo:rerun-if-changed={}", dir.join("types").display());
+    }
+    code.push_str("#[allow(dead_code)]\npub const TYPES: &[(&str, &str)] = &[\n");
+    for p in &types {
+        println!("cargo:rerun-if-changed={}", p.display());
+        let name = p.file_name().unwrap().to_string_lossy();
+        code.push_str(&format!("    ({name:?}, include_str!({:?})),\n", p.display().to_string()));
+    }
+    code.push_str("];\n");
+    std::fs::write(out.join(out_file), code).unwrap();
 }
 
 fn changelog(root: &Path) {

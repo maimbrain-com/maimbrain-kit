@@ -158,9 +158,35 @@ pub struct Scenario {
     pub set: Vec<(String, Scalar)>,
 }
 
+/// What kind of game it is (studio.toml `kind`): 2D (the pixel canvas,
+/// things and maps) or 3D (a scene of meshes and models). Both are Lua.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Kind {
+    #[default]
+    TwoD,
+    ThreeD,
+}
+
+impl Kind {
+    /// studio.toml's `kind`; without one, the older `rung` and `view`
+    /// (`rung = "arcade"` is 2D, `rung = "lua"` with `view = "3d"` is 3D),
+    /// which projects made before `kind` still say.
+    pub fn read(kind: Option<&str>, rung: Option<&str>, view: Option<&str>) -> Result<Kind, String> {
+        match (kind, rung, view) {
+            (Some("2d"), ..) => Ok(Kind::TwoD),
+            (Some("3d"), ..) => Ok(Kind::ThreeD),
+            (Some(k), ..) => Err(format!("studio.toml: kind = \"{k}\" (\"2d\" or \"3d\")")),
+            (None, None | Some("arcade"), None | Some("2d")) => Ok(Kind::TwoD),
+            (None, Some("lua"), Some("3d")) => Ok(Kind::ThreeD),
+            (None, ..) => Err("studio.toml: say kind = \"2d\" or kind = \"3d\" (rung and view were the old way to say it)".into()),
+        }
+    }
+}
+
 /// The whole project, parsed.
 #[derive(Clone, Debug)]
 pub struct Project {
+    pub kind: Kind,
     pub title: String,
     pub tagline: Option<String>,
     /// The game-over card's heading.
@@ -185,6 +211,8 @@ pub struct Project {
     pub scripts: BTreeMap<String, String>,
     pub sounds: Vec<String>,
     pub music: Vec<String>,
+    /// `models/<name>.glb` by name (the 3D view's).
+    pub models: Vec<String>,
     pub scenarios: Vec<Scenario>,
 }
 
@@ -200,6 +228,7 @@ impl Project {
         let st = table(&text("studio.toml")?, "studio.toml")?;
         let s = |k: &str| st.get(k).and_then(Value::as_str).map(str::to_string);
         let title = s("title").unwrap_or_else(|| "Untitled".into());
+        let kind = Kind::read(s("kind").as_deref(), s("rung").as_deref(), s("view").as_deref())?;
         let orientation = match s("orientation").as_deref() {
             None | Some("portrait") => Orientation::Portrait,
             Some("sideways") | Some("landscape") => Orientation::Sideways,
@@ -209,11 +238,11 @@ impl Project {
             Orientation::Portrait => PORTRAIT,
             Orientation::Sideways => SIDEWAYS,
         };
-        if let Some(c) = st.get("canvas").and_then(Value::as_array) {
+        if let Some(c) = st.get("canvas").and_then(Value::as_array).filter(|_| kind == Kind::TwoD) {
             let c: Vec<i64> = c.iter().filter_map(Value::as_integer).collect();
             if c != [canvas.0 as i64, canvas.1 as i64] {
                 return Err(format!(
-                    "studio.toml: canvas = {c:?}; an Arcade game is [{}, {}] {} (bigger canvases need the Lua rung)",
+                    "studio.toml: canvas = {c:?}; a 2D game's canvas is [{}, {}] {}",
                     canvas.0,
                     canvas.1,
                     if orientation == Orientation::Portrait { "upright" } else { "sideways" }
@@ -229,6 +258,7 @@ impl Project {
         let over = texts.get("over").and_then(Value::as_str).unwrap_or("GAME OVER").to_string();
 
         let mut p = Project {
+            kind,
             tagline: s("tagline"),
             over,
             label,
@@ -246,6 +276,7 @@ impl Project {
             scripts: BTreeMap::new(),
             sounds: Vec::new(),
             music: Vec::new(),
+            models: Vec::new(),
             scenarios: Vec::new(),
         };
 
@@ -271,6 +302,7 @@ impl Project {
                 }
                 ("sounds", Some((name, "ogg"))) => p.sounds.push(name.to_string()),
                 ("music", Some((name, "ogg"))) => p.music.push(name.to_string()),
+                ("models", Some((name, "glb"))) if kind == Kind::ThreeD => p.models.push(name.to_string()),
                 _ => {}
             }
         }

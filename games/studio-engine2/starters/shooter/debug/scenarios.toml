@@ -1,0 +1,45 @@
+# Named sets of debug picks: the debug menu's first tab ("Try it").
+[[scenario]]
+name = "Autopilot"
+note = "Pip flies itself"
+[scenario.set]
+AUTO = true
+
+[[scenario]]
+name = "Darters"
+note = "skips to 22 s, just before the darters join"
+[scenario.set]
+SKIP_TO = 22
+
+[[scenario]]
+name = "Bulbs"
+note = "skips to 33 s, just before the bulbs join"
+[scenario.set]
+SKIP_TO = 33
+
+[[scenario]]
+name = "The Gloom Queen"
+note = "skips to 44 s: the WARNING, then the queen"
+[scenario.set]
+SKIP_TO = 44
+
+[[scenario]]
+name = "Loop 2"
+note = "the queen beaten once: faster, bulb pairs, spinners at 10 s"
+[scenario.set]
+LOOP = 1
+SKIP_TO = 8
+
+[[scenario]]
+name = "Queen, loop 2"
+note = "the second queen, with the autopilot flying (her busiest Sweep)"
+[scenario.set]
+LOOP = 1
+SKIP_TO = 44
+AUTO = true
+
+[[scenario]]
+name = "Last heart"
+note = "one heart left: the edges pulse red"
+[scenario.set]
+HEARTS = 1

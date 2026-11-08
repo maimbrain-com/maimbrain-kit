@@ -38,6 +38,7 @@ use mb_format::{Manifest, Report};
 mod budget;
 mod cdp;
 mod devbuild;
+mod engines;
 mod fonts;
 mod generate;
 mod glyphs;
@@ -125,6 +126,11 @@ enum Cmd {
         /// or --season, or without one what its version number suggests.
         #[arg(long)]
         submit: bool,
+        /// Pack it to publish without changing what your testers have: it waits as ready to
+        /// submit (`mb submit`), or with --submit goes to review, while testers keep their build.
+        /// Without it, an upload is your testers' new build.
+        #[arg(long)]
+        hold: bool,
         #[command(flatten)]
         level: LevelFlags,
         /// The AI model that built the game, by its name and version ("Claude Opus 5.5"), or
@@ -227,7 +233,26 @@ enum Cmd {
         /// Where to write the bundle.
         #[arg(long, default_value = "feed")]
         out: PathBuf,
+        /// A Studio project as a content-addressed preview (the Studio server's): its bundle's
+        /// files into this store by SHA-256, only the new ones written, and `<out>/preview.json`
+        /// listing them. Nothing is zipped.
+        #[arg(long, value_name = "STORE")]
+        ca: Option<PathBuf>,
     },
+    /// Check a Studio 2.0 project's Lua without building it (Studio's write_files): each
+    /// game/*.lua compiled with the engine's Luau (syntax errors, with their lines) and
+    /// type-checked against the API's definitions (luau-analyze). Prints JSON with --json.
+    #[command(hide = true, name = "studio-check")]
+    StudioCheck {
+        dir: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    /// The Studio engines this mb packs projects with, as JSON: each version's builds
+    /// ({ "1.0": ["plain", "tilt", "3d"], "2.0": ["plain"] }). The Studio server starts a
+    /// new project on 2.0 only for a kind whose build is here.
+    #[command(hide = true, name = "studio-engines")]
+    StudioEngines,
     /// Pack a game directory and an already-built wasm into a .mbx.
     Pack {
         dir: PathBuf,
@@ -277,6 +302,13 @@ enum Cmd {
         /// Stop a run that takes longer than this many seconds.
         #[arg(long, default_value_t = 120)]
         timeout: u64,
+        /// Draw these frames (counted from 1, comma-separated) on a WebGPU device and save them
+        /// as PNGs in --out: a GPU, or Mesa's lavapipe on a machine with none.
+        #[arg(long, value_delimiter = ',', value_name = "FRAME")]
+        frames: Vec<usize>,
+        /// Where --frames go (frame-<n>.png).
+        #[arg(long, default_value = "screenshots")]
+        out: PathBuf,
     },
     /// Lay out runtime + game for a browser or headless run: <out>/runtime/, <out>/game/ (with boot.json).
     Stage {
@@ -342,6 +374,14 @@ enum Cmd {
     /// Play a Studio game headless (scripted touches, keys, pads and debug picks) and report its
     /// errors, log, events and score, with frames drawn as PNGs (Studio's play_test and screenshot).
     Play(studio::play::PlayArgs),
+    /// Play a Studio 2.0 game's difficulty bot: seeded rounds per kind of player (game/bot.lua, or
+    /// the quick path's default bot), and how long they last against targets, how they end, and
+    /// whether skill matters (Studio's difficulty tool).
+    Difficulty(studio::difficulty::DifficultyArgs),
+    /// Fit generated art or music to a Studio project (the Maimbrain server's generation): raw
+    /// images keyed, reduced to the sprite or tile grid and snapped to the project's palette; music
+    /// cut to a loop. Writes candidates and a report to --out; the project is only read.
+    StudioAsset(studio::asset::AssetArgs),
     /// Build the Studio engine's two published builds into games/studio-engine/published/ (`just studio-engine`).
     #[command(hide = true, name = "studio-engine")]
     StudioEngine,
@@ -496,7 +536,7 @@ fn run() -> ExitCode {
             let l = level.level().unwrap_or_default();
             Err(format!("--{l} needs --submit: it says what kind of release you're submitting"))
         }
-        Cmd::Publish { path, out, submit, model, level, fixes } => {
+        Cmd::Publish { path, out, submit, hold, model, level, fixes } => {
             upgrade::nudge(&path);
             let hint = path.display().to_string();
             let level = level.level();
@@ -505,13 +545,13 @@ fn run() -> ExitCode {
                 if path.extension().is_some_and(|e| e == "mbx") {
                     bundle_icon(&path)
                         .map_or(Ok(()), |png| check_publish_icon(&png, "<game dir>"))
-                        .and_then(|()| remote::publish(&path, submit, level, model.as_deref(), None, &fixes, &hint))
+                        .and_then(|()| remote::publish(&path, submit, hold, level, model.as_deref(), None, &fixes, &hint))
                 } else {
                     let notes = read_manifest(&path).and_then(|m| release_notes(&path, &m.version))?;
                     std::fs::read(path.join("icon.png"))
                         .map_or(Ok(()), |png| check_publish_icon(&png, &hint))
                         .and_then(|()| build_and_pack(&path, &out))
-                        .and_then(|bundle| remote::publish(&bundle, submit, level, model.as_deref(), notes.as_deref(), &fixes, &hint))
+                        .and_then(|bundle| remote::publish(&bundle, submit, hold, level, model.as_deref(), notes.as_deref(), &fixes, &hint))
                 }
             })
         }
@@ -545,17 +585,29 @@ fn run() -> ExitCode {
         }
         Cmd::Shot(a) => shot::run(a),
         Cmd::Measure(a) => measure::run(a),
-        Cmd::Build { dir, out } => {
+        Cmd::Build { dir, out, ca: Some(store) } => {
+            if studio::is_project(&dir) {
+                studio::ca::build(&dir, &out, &store).map(|_| ())
+            } else {
+                Err(format!("{}: --ca builds Studio projects (studio.toml)", dir.display()))
+            }
+        }
+        Cmd::Build { dir, out, ca: None } => {
             upgrade::nudge(&dir);
             build_and_pack(&dir, &out).map(|_| ())
         }
+        Cmd::StudioCheck { dir, json } => studio::check::run(&dir, json),
+        Cmd::StudioEngines => {
+            println!("{}", studio::engines_json());
+            Ok(())
+        }
         Cmd::Pack { dir, wasm, out } => pack(&dir, &wasm, &out).map(|_| ()),
         Cmd::Validate { bundle, json, icon } => validate(&bundle, json, icon.as_deref()),
-        Cmd::Unpack { bundle, out } => unpack(&bundle, &out).map(|_| ()),
+        Cmd::Unpack { bundle, out } => engines::open(&bundle).and_then(|b| unpack(&b, &out)),
         Cmd::Stage { bundle, out, runtime, seed, date } => stage(&bundle, &out, &runtime, seed, &date),
-        Cmd::Replay { bundle, log, json, runtime, timeout } => {
+        Cmd::Replay { bundle, log, json, runtime, timeout, frames, out } => {
             let runtime = runtime.or_else(|| std::env::var_os("MB_RUNTIME_DIR").map(PathBuf::from));
-            replay::replay(&bundle, &log, &replay::Options { json, runtime, timeout: std::time::Duration::from_secs(timeout) })
+            replay::replay(&bundle, &log, &replay::Options { json, runtime, timeout: std::time::Duration::from_secs(timeout) }, &frames, &out)
         }
         Cmd::Meter { input, output } => std::fs::read(&input)
             .map_err(|e| format!("{}: {e}", input.display()))
@@ -574,6 +626,8 @@ fn run() -> ExitCode {
         Cmd::IpCheck => generate::ip::check_stdin(),
         Cmd::StudioEngine => studio::publish_engine(),
         Cmd::Play(a) => studio::play::run(a),
+        Cmd::Difficulty(a) => studio::difficulty::run(a),
+        Cmd::StudioAsset(a) => studio::asset::run(a),
         Cmd::Font { cmd: FontCmd::Add { game, identity: Some(id), .. } } => fonts::add_identity(&game, &id),
         Cmd::Font { cmd: FontCmd::Add { game, font, weight, chars, em, name, bitmap, sdf, license, .. } } => {
             fonts::add(&game, font.as_deref().unwrap_or_default(), weight, chars, em, name, bitmap, sdf, license)
@@ -786,8 +840,14 @@ fn build(dir: &Path) -> Result<PathBuf, String> {
 /// when it was made from these bytes with these flags; the wasm as it is
 /// without wasm-opt.
 fn optimize_wasm(raw: &Path) -> Result<PathBuf, String> {
+    optimize_wasm_with(raw, &[])
+}
+
+/// [`optimize_wasm`] with more wasm-opt flags (Studio engine 2.0's
+/// `--enable-exception-handling`: its Luau unwinds with exnref).
+fn optimize_wasm_with(raw: &Path, extra: &[&str]) -> Result<PathBuf, String> {
     let opt = raw.with_extension("opt.wasm");
-    let flags = [&["-O3", "--strip-debug", "--strip-producers"][..], &mb_format_features()[..]].concat();
+    let flags = [&["-O3", "--strip-debug", "--strip-producers"][..], &mb_format_features()[..], extra].concat();
     // wasm-opt is most of a build whose wasm didn't change (an asset edit, a
     // rebuild): reuse its output when it was made from these bytes with these flags.
     let stamp = raw.with_extension("opt.wasm.from");
@@ -1084,9 +1144,18 @@ fn add_tree(root: &Path, prefix: &str, exts: &[&str], files: &mut BTreeMap<Strin
 
 fn validate(path: &Path, json: bool, icon: Option<&Path>) -> Result<(), String> {
     let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let report = mb_format::validate(&bytes);
+    let mut report = mb_format::validate(&bytes);
+    // Studio 2.0's bytecode, compiled again and compared (SPEC §6): the
+    // server validates with this, and the app trusts what it validated.
+    let v2 = report.manifest.as_ref().and_then(|m| m.engine.as_deref()).and_then(mb_format::studio::major).is_some_and(|m| m >= mb_format::studio::LUAU_MAJOR);
+    if report.ok() && v2 {
+        match engines::open_bytes(&bytes, engines::cache_dir().as_deref()) {
+            Ok(b) => report.errors.extend(studio::v2::check_bytecode(&b)),
+            Err(r) => report.errors.extend(r.errors),
+        }
+    }
     if let (true, Some(out)) = (report.ok(), icon) {
-        let bundle = mb_format::Bundle::open(&bytes).map_err(|r| r.errors.join("; "))?;
+        let bundle = engines::open_bytes(&bytes, engines::cache_dir().as_deref()).map_err(|r| r.errors.join("; "))?;
         let png = bundle.file("icon.png").ok_or("bundle has no icon.png")?;
         std::fs::write(out, png).map_err(|e| format!("{}: {e}", out.display()))?;
     }
@@ -1104,8 +1173,9 @@ fn validate(path: &Path, json: bool, icon: Option<&Path>) -> Result<(), String> 
                 "sdk_version": report.sdk_version,
                 // A Studio bundle: its engine version and build, and whether that's a published one.
                 "studio": report.studio,
-                // Bundle formats the app must know to play it (an app sends the ones it does).
-                "formats": report.manifest.as_ref().map(|m| m.needs_formats()).unwrap_or_default(),
+                // Bundle formats the app must know to play it (an app sends the ones it does):
+                // `studio` or `studio2`, and `large` past 10 MB.
+                "formats": report.formats(),
                 "id": report.manifest.as_ref().map(|m| m.id.clone()),
                 "version": report.manifest.as_ref().map(|m| m.version.clone()),
                 "manifest": report.manifest,
@@ -1118,9 +1188,8 @@ fn validate(path: &Path, json: bool, icon: Option<&Path>) -> Result<(), String> 
 }
 
 /// Writes the bundle's files under `out` as a client serves them, and returns its manifest.
-fn unpack(bundle: &Path, out: &Path) -> Result<Manifest, String> {
-    let bytes = std::fs::read(bundle).map_err(|e| format!("{}: {e}", bundle.display()))?;
-    let b = mb_format::Bundle::open(&bytes).map_err(|r| format!("{} is invalid: {}", bundle.display(), r.errors.join("; ")))?;
+/// Writes an opened bundle's files to `out`, its wasm metered.
+fn unpack(b: &mb_format::Bundle, out: &Path) -> Result<(), String> {
     for path in b.paths() {
         let dest = out.join(path);
         std::fs::create_dir_all(dest.parent().unwrap()).map_err(|e| e.to_string())?;
@@ -1128,13 +1197,15 @@ fn unpack(bundle: &Path, out: &Path) -> Result<Manifest, String> {
         let data = if path == "game.wasm" { b.runtime_wasm() } else { b.file(path).unwrap() };
         std::fs::write(&dest, data).map_err(|e| e.to_string())?;
     }
-    Ok(b.manifest)
+    Ok(())
 }
 
 fn stage(bundle: &Path, out: &Path, runtime: &Path, seed: u64, date: &str) -> Result<(), String> {
     let game = out.join("game");
     let _ = std::fs::remove_dir_all(out);
-    let manifest = unpack(bundle, &game)?;
+    let b = engines::open(bundle)?;
+    unpack(&b, &game)?;
+    let manifest = b.manifest;
     let boot = boot_json(&manifest, seed, date);
     std::fs::write(game.join("boot.json"), serde_json::to_string_pretty(&boot).unwrap()).map_err(|e| e.to_string())?;
     let rt = out.join("runtime");

@@ -181,17 +181,23 @@ pub fn whoami() -> Result<Value, String> {
 }
 
 /// Uploads a bundle and waits for validation; prints where it ended up. It
-/// becomes a private draft to play in the app, unless `submit` sends it
-/// straight to review, as `level` (fix, update or season; None: what its
-/// number suggests). `model` is the AI model that built it (None: a person);
+/// becomes a private draft to play in the app (and the open test's build),
+/// unless `submit` sends it straight to review, as `level` (fix, update or
+/// season; None: what its number suggests). `hold` packs it to publish
+/// without changing what testers have: it waits as ready to submit, or goes
+/// to review with `submit` (docs/STUDIO.md "From making to live"). `model` is the AI model that built it (None: a person);
 /// `notes` what's new in it for players. `source` is what to pass to `mb submit`
 /// afterwards. `fixes` are the to-dos it fixes (`--fixes 7,10`, docs/UPDATES.md
 /// "Closing the loop"): once it's valid, the server marks them fixed in it.
-pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&str>, notes: Option<&str>, fixes: &[u64], source: &str) -> Result<(), String> {
+#[allow(clippy::too_many_arguments)]
+pub fn publish(bundle: &Path, submit: bool, hold: bool, level: Option<&str>, model: Option<&str>, notes: Option<&str>, fixes: &[u64], source: &str) -> Result<(), String> {
     let c = credentials()?;
     let bytes = std::fs::read(bundle).map_err(|e| format!("{}: {e}", bundle.display()))?;
     eprintln!("Uploading {} ({} KB) to {}…", bundle.display(), bytes.len() / 1024, c.server);
     let mut request = agent().post(format!("{}/api/v1/games/versions", c.server));
+    if hold {
+        request = request.query("hold", "true");
+    }
     if submit {
         request = request.query("submit", "true");
         if let Some(l) = level {
@@ -232,7 +238,7 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
         v = refresh()?;
     }
     // The score check (docs/UPDATES.md "The score check") re-runs the season's best runs on it.
-    if matches!(v["state"].as_str(), Some("draft" | "pending")) && v["score_check"]["state"] == "running" {
+    if matches!(v["state"].as_str(), Some("draft" | "ready" | "pending")) && v["score_check"]["state"] == "running" {
         eprintln!("  Scores: checking how your top {} runs score on this build…", v["score_check"]["runs"]);
         let deadline = Instant::now() + Duration::from_secs(90);
         while v["score_check"]["state"] == "running" && Instant::now() < deadline {
@@ -245,9 +251,9 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
     let warnings: Vec<&str> = v["warnings"].as_array().into_iter().flatten().filter_map(|w| w.as_str()).collect();
     let not_sent = warnings.iter().find_map(|w| w.strip_prefix("Not sent for review: "));
     let season_only = !season_reasons(&v).is_empty();
-    if matches!(v["state"].as_str(), Some("draft" | "pending")) {
+    if matches!(v["state"].as_str(), Some("draft" | "ready" | "pending")) {
         release_summary(&v, source);
-        score_summary(&v, source, v["state"] == "draft");
+        score_summary(&v, source, v["state"] != "pending");
         for w in warnings.iter().filter(|w| !w.starts_with("Not sent for review: ")) {
             eprintln!("  Warning: {w}");
         }
@@ -255,27 +261,39 @@ pub fn publish(bundle: &Path, submit: bool, level: Option<&str>, model: Option<&
     let submit_command = if season_only { format!("mb submit {source} --season") } else { format!("mb submit {source}") };
     match v["state"].as_str().unwrap_or("") {
         // Sent with submit, it waits for the score check (the score rule needs its result).
-        "draft" if submit && v["score_check"]["state"] == "running" && v["score_check"].get("submit").is_some() => {
+        "draft" | "ready" if submit && v["score_check"]["state"] == "running" && v["score_check"].get("submit").is_some() => {
             eprintln!("✓ {name} passed validation. It goes to review by itself once the check of your top runs finishes,");
             eprintln!("  unless only a new season fits: then it stays a private draft, and mb publish {source} shows why.");
             eprintln!("  Track it at {}/create", c.server);
             Ok(())
         }
-        "draft" if submit => {
+        "draft" | "ready" if submit => {
             eprintln!("✗ {name} passed validation but was NOT sent for review.");
             if let Some(reason) = not_sent {
                 eprintln!("  {reason}");
             }
-            eprintln!("  It's a private draft: only you and your testers can play it.");
+            if v["state"] == "ready" {
+                eprintln!("  It's ready to submit; your testers keep what they have.");
+            } else {
+                eprintln!("  It's a private draft: only you and your testers can play it.");
+            }
             Err(format!("{name} was not submitted; to submit it: {submit_command}"))
         }
         "draft" => {
             eprintln!("✓ {name} passed validation. It's a private draft: only you and your testers can play it.");
             fixes_summary(&v, fixes, source);
             eprintln!("  Test it on your phone: open Maimbrain → Account → My Game Studio (it's also first in your feed).");
-            eprintln!("  Fix something? Run mb publish again; the new upload replaces the draft.");
+            eprintln!("  Anyone testing it gets this build now. Fix something? Run mb publish again; the new upload replaces the draft.");
+            eprintln!("  (mb publish --hold packs a build to submit without changing what your testers have.)");
             eprintln!("  When it's ready, submit it for review:  {submit_command}");
             eprintln!("  (or tap Submit in My Game Studio in the app, or at {}/create)", c.server);
+            Ok(())
+        }
+        "ready" => {
+            eprintln!("✓ {name} passed validation and is ready to submit. Your testers keep what they have.");
+            fixes_summary(&v, fixes, source);
+            eprintln!("  Submit it for review:  {submit_command}");
+            eprintln!("  (or in My Game Studio in the app, or at {}/create)", c.server);
             Ok(())
         }
         "pending" => {
@@ -507,9 +525,16 @@ pub fn submit(t: &SubmitTarget, level: Option<&str>) -> Result<(), String> {
     let c = credentials()?;
     let auth = format!("Bearer {}", c.token);
     let (mine, id) = my_game(&c, &t.query)?;
-    // Newest first (GET /me/games); a game has at most one draft.
+    // Newest first (GET /me/games); a game has at most one draft and one
+    // version ready to submit (mb publish --hold). The one asked for by its
+    // number or bundle, else the ready one, else the draft.
     let versions: Vec<&Value> = mine.iter().filter(|v| game_id(v) == id).collect();
-    let Some(draft) = versions.iter().find(|v| v["state"] == "draft") else {
+    let submittable = |v: &&&Value| v["state"] == "draft" || v["state"] == "ready";
+    let asked = versions.iter().filter(submittable).find(|v| {
+        t.sha256.as_deref().is_some_and(|s| v["sha256"].as_str() == Some(s)) || t.version.as_deref().is_some_and(|w| v["version"].as_str() == Some(w))
+    });
+    let picked = asked.or_else(|| versions.iter().find(|v| v["state"] == "ready")).or_else(|| versions.iter().find(|v| v["state"] == "draft"));
+    let Some(draft) = picked else {
         let newest = versions.iter().find(|v| v["state"] != "invalid");
         return Err(match newest.map(|v| (v["state"].as_str().unwrap_or(""), v["version"].as_str().unwrap_or(""))) {
             Some(("pending", ver)) => format!("{id} {ver} is already waiting for review"),

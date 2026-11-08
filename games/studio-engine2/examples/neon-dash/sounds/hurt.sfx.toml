@@ -1,0 +1,7 @@
+# The crash.
+wave = "noise"
+freq = 1200
+freq_end = 80
+duration = 0.5
+decay = 0.3
+volume = 0.9

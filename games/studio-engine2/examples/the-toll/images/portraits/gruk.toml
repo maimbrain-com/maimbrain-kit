@@ -1,0 +1,4 @@
+# A talking portrait (generate kind "portrait"'s layout): four mouths across,
+# a row per expression, the blink row last.
+frame = [192, 192]
+portrait = ["neutral", "smug", "annoyed", "laughing", "bored", "blink"]

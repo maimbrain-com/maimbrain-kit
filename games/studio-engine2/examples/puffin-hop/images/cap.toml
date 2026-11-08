@@ -1,0 +1,3 @@
+# The rim at the end of each cliff.
+behaviour = "hazard"
+hitbox = [0, 0, 16, 5]

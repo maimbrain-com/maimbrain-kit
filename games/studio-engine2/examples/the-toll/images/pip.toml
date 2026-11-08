@@ -1,0 +1,6 @@
+# A walker: the body (the first cell) and one foot (the second).
+walker = true
+pixel = true
+frame = [66, 78]
+body = [6, 0, 54, 78]
+foot = [87, 60, 24, 18]

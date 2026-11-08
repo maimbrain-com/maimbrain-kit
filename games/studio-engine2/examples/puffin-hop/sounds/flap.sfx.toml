@@ -1,0 +1,8 @@
+# Plays on every flap (a sound named after an event plays on it).
+wave = "square"
+duty = 0.125
+freq = 300
+freq_end = 600
+duration = 0.06
+decay = 0.04
+volume = 0.5

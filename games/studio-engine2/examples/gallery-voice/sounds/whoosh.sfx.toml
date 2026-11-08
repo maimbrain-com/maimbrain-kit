@@ -1,0 +1,8 @@
+# A portrait leaning in: a quick rising swish.
+wave = "noise"
+freq = 400
+freq_end = 1800
+duration = 0.12
+attack = 0.03
+decay = 0.08
+volume = 0.25

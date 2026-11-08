@@ -1,0 +1,8 @@
+wave = "square"
+duty = 0.5
+freq = 988
+duration = 0.12
+arp = [0, 7]
+arp_speed = 0.05
+decay = 0.08
+volume = 0.5

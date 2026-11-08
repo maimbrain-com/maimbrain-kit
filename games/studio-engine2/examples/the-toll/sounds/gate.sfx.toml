@@ -1,0 +1,7 @@
+# The toll gate swinging up: a wooden clunk.
+wave = "square"
+duty = 0.5
+freq = 110
+duration = 0.18
+decay = 0.16
+volume = 0.5

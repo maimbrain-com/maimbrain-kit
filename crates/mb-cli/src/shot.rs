@@ -344,13 +344,13 @@ pub(crate) const TILT_HZ: f64 = 100.0;
 
 /// A minimum-jerk turn from 0 to 1 as `u` goes from 0 to 1: how a hand
 /// moves, with no jump in speed or acceleration at either end.
-fn min_jerk(u: f64) -> f64 {
+pub(crate) fn min_jerk(u: f64) -> f64 {
     let u = u.clamp(0.0, 1.0);
     u * u * u * (10.0 - 15.0 * u + 6.0 * u * u)
 }
 
 /// The speed of [`min_jerk`] at `u` (per unit of `u`).
-fn min_jerk_speed(u: f64) -> f64 {
+pub(crate) fn min_jerk_speed(u: f64) -> f64 {
     let u = u.clamp(0.0, 1.0);
     30.0 * u * u * (1.0 - u) * (1.0 - u)
 }
@@ -744,7 +744,7 @@ pub(crate) fn game_manifest(path: &Path) -> Result<Manifest, String> {
     } else if path.is_dir() {
         devbuild::manifest(path).map_err(|f| f.text)
     } else if path.is_file() {
-        Ok(open_bundle(path)?.manifest)
+        Ok(crate::engines::open(path)?.manifest)
     } else {
         Err(format!("{}: no such game directory or bundle", path.display()))
     }
@@ -778,11 +778,6 @@ fn stage_studio(dir: &Path, site: &Path, seed: u64) -> Result<(), String> {
     }
     std::fs::write(game.join("boot.json"), serde_json::to_vec_pretty(&crate::boot_json(&manifest, seed, DATE)).unwrap()).map_err(|e| e.to_string())?;
     serve::write_runtime(&site.join("runtime"))
-}
-
-fn open_bundle(path: &Path) -> Result<mb_format::Bundle, String> {
-    let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    mb_format::Bundle::open(&bytes).map_err(|r| format!("{} is invalid: {}", path.display(), r.errors.join("; ")))
 }
 
 /// Builds the game in `dir` (the fast watch build) and lays it out with the
@@ -824,7 +819,7 @@ fn stage_dir(dir: &Path, site: &Path, seed: u64, config: &[String]) -> Result<()
 
 /// Lays out a .mbx with the runtime under `site` (what `mb stage` does).
 fn stage_bundle(path: &Path, site: &Path, seed: u64) -> Result<(), String> {
-    let b = open_bundle(path)?;
+    let b = crate::engines::open(path)?;
     let game = site.join("game");
     for p in b.paths() {
         let dest = game.join(p);
@@ -1247,9 +1242,9 @@ pub(crate) fn has_motion_sensors(m: &Manifest) -> bool {
     m.sensors.iter().any(|s| matches!(s, Sensor::Tilt | Sensor::Motion | Sensor::Attitude))
 }
 
-type Quat = [f64; 4];
+pub(crate) type Quat = [f64; 4];
 
-fn qmul(a: Quat, b: Quat) -> Quat {
+pub(crate) fn qmul(a: Quat, b: Quat) -> Quat {
     [
         a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
         a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
@@ -1261,7 +1256,7 @@ fn qmul(a: Quat, b: Quat) -> Quat {
 /// The phone `yaw` right, `pitch` up (where its back points) and `roll` right
 /// edge down from upright, in radians, as the attitude quaternion (SPEC §5.7,
 /// the SDK's `Attitude::from_angles`).
-fn pose(yaw: f64, pitch: f64, roll: f64) -> Quat {
+pub(crate) fn pose(yaw: f64, pitch: f64, roll: f64) -> Quat {
     let axis = |x: f64, y: f64, z: f64, a: f64| [x * (a / 2.0).sin(), y * (a / 2.0).sin(), z * (a / 2.0).sin(), (a / 2.0).cos()];
     qmul(qmul(axis(0.0, -1.0, 0.0, yaw), axis(1.0, 0.0, 0.0, -pitch)), axis(0.0, 0.0, 1.0, roll))
 }

@@ -240,7 +240,7 @@ pub mod test {
     mod conformance;
     pub(crate) mod host;
     pub use conformance::{Conformance, Finding};
-    pub use host::{Call, Host};
+    pub use host::{Call, Host, Sensed};
 
     thread_local! {
         static NOW: Cell<f64> = const { Cell::new(0.0) };

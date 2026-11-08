@@ -1,0 +1,43 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		66.6	79.5	96.0
+stat	first-timer	score	37	56	88
+stat	first-timer	presses/min	8.8	10.6	12.5
+share	first-timer	capped	5.0
+ended	first-timer	zipper	45.0
+ended	first-timer	helmet	32.5
+ended	first-timer	gummy	15.0
+ended	first-timer	mini	2.5
+seconds	casual		73.5	139.1	158.5
+stat	casual	score	52	166	244
+stat	casual	presses/min	10.5	14.9	18.2
+share	casual	capped	2.5
+ended	casual	zipper	40.0
+ended	casual	helmet	27.5
+ended	casual	king	25.0
+ended	casual	mini	5.0
+seconds	good		79.1	148.9	192.1
+stat	good	score	58	216	292
+stat	good	presses/min	12.3	17.4	20.1
+share	good	capped	2.5
+ended	good	zipper	32.5
+ended	good	king	27.5
+ended	good	helmet	20.0
+ended	good	mini	17.5
+seconds	expert		78.1	142.1	194.0
+stat	expert	score	59	193	289
+stat	expert	presses/min	12.3	17.7	19.3
+share	expert	capped	0.0
+ended	expert	zipper	37.5
+ended	expert	king	35.0
+ended	expert	helmet	12.5
+ended	expert	mini	10.0
+ended	expert	splitter	5.0
+cap	first-timer		100
+target	first-timer		60	100
+cap	casual		170
+target	casual		110	170
+cap	good		200
+target	good		120	200
+cap	expert		240
+target	expert		120	240

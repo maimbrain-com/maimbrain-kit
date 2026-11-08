@@ -40,14 +40,14 @@ use serde_json::Value;
 /// it and of those after it (whichever is higher), within `AROUND`.
 const SPIKE: f64 = 4.0;
 /// Seconds on each side of a frame that make up its surroundings.
-const AROUND: f64 = 0.15;
+pub(crate) const AROUND: f64 = 0.15;
 /// Smallest spike worth reporting: a camera position kink of 0.1 m/s (or
 /// a look-direction kink of 3°/s, 0.05 rad/s) in one 60 Hz frame, below
 /// what anyone sees and well above f32 rounding a kilometre from the origin.
-const FLOOR_POSITION: f64 = 6.0; // m/s²
-const FLOOR_DIRECTION: f64 = 3.0; // rad/s²
+pub(crate) const FLOOR_POSITION: f64 = 6.0; // m/s²
+pub(crate) const FLOOR_DIRECTION: f64 = 3.0; // rad/s²
 /// Spikes this close (s) are one event; its peak at the other rate is looked for this near.
-const SAME_EVENT: f64 = 0.03;
+pub(crate) const SAME_EVENT: f64 = 0.03;
 /// The camera this far apart (m, median over the run) at the two rates is reported as a difference.
 const APART: f64 = 0.05;
 /// Events listed per channel, worst first.
@@ -207,7 +207,7 @@ pub struct Channel {
     pub peak: [f64; 2],
 }
 
-fn channel(name: String, measure: Measure, unit: &'static str, floor: f64, lo: (&[(u32, [f64; 3])], f64), hi: (&[(u32, [f64; 3])], f64)) -> Channel {
+pub(crate) fn channel(name: String, measure: Measure, unit: &'static str, floor: f64, lo: (&[(u32, [f64; 3])], f64), hi: (&[(u32, [f64; 3])], f64)) -> Channel {
     let (a_lo, a_hi) = (accel(lo.0, lo.1), accel(hi.0, hi.1));
     let mut times: Vec<f64> = spikes(&a_lo, lo.1, floor).into_iter().chain(spikes(&a_hi, hi.1, floor)).map(|s| s.0).collect();
     times.sort_by(f64::total_cmp);
@@ -235,7 +235,7 @@ fn channel(name: String, measure: Measure, unit: &'static str, floor: f64, lo: (
 }
 
 /// How far apart the camera is at the same game time in the two runs: (median, max, time of the max).
-fn apart(lo: &Run, hi: &Run) -> Option<(f64, f64, f64)> {
+pub(crate) fn apart(lo: &Run, hi: &Run) -> Option<(f64, f64, f64)> {
     let at_hi: std::collections::HashMap<u32, [f64; 6]> = hi.poses.iter().filter_map(|p| Some((p.frame, p.camera?))).collect();
     let mut d: Vec<(f64, f64)> = lo
         .poses
@@ -307,7 +307,7 @@ pub fn check(lo: &Run, hi: &Run, track: Option<u32>) -> Report {
 
 /// Adds the game's marks and log lines from `NOTES_AROUND` frames (at the
 /// lower rate) before the disturbance began to as many after its worst spike.
-fn annotate(e: &mut Event, lo: &Run, hi: &Run) {
+pub(crate) fn annotate(e: &mut Event, lo: &Run, hi: &Run) {
     let pad = NOTES_AROUND as f64 / lo.hz + 1e-9;
     let near = |p: &Pose, hz: f64| (e.start - pad..=e.t + pad).contains(&(p.frame as f64 / hz));
     e.marked = [lo, hi].iter().find_map(|r| r.poses.iter().filter(|p| near(p, r.hz)).find_map(|p| p.marks.first().cloned()));

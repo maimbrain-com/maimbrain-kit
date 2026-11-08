@@ -1,7 +1,7 @@
 //! Is there a newer `mb`? Releases are the kit's GitHub releases (the kit
 //! release pushes a `vX.Y.Z` tag, its release.yml attaches the binaries, and
 //! maimbrain.com/install.sh downloads `releases/latest`), so the latest is
-//! `GET /repos/terracatta/maimbrain-kit/releases/latest`'s `tag_name`.
+//! `GET /repos/maimbrain-com/maimbrain-kit/releases/latest`'s `tag_name`.
 //! `mb doctor` asks at most once a day: the answer is kept in mb's config
 //! directory (`release-check.json`), offline it says nothing, and
 //! `MB_NO_UPDATE_CHECK=1` turns it off. `MB_RELEASES_URL` points it at
@@ -12,7 +12,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::notes::Version;
 
-const RELEASES_URL: &str = "https://api.github.com/repos/terracatta/maimbrain-kit/releases/latest";
+const RELEASES_URL: &str = "https://api.github.com/repos/maimbrain-com/maimbrain-kit/releases/latest";
 const DAY: u64 = 24 * 60 * 60;
 
 /// The latest release, if known: from the cache when it was asked for in the

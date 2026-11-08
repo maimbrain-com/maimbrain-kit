@@ -1,0 +1,7 @@
+# Smashing through traffic: a noisy crunch (a stand-in).
+wave = "noise"
+freq = 500
+freq_end = 150
+duration = 0.2
+decay = 0.2
+volume = 0.6

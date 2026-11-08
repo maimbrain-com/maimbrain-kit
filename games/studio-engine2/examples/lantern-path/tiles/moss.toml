@@ -1,0 +1,14 @@
+# The path's tiles: moss to stand on, branches to land on from above, thorns.
+frame = [32, 32]
+
+[tiles.moss]
+frame = 1
+solid = true
+
+[tiles.ledge]
+frame = 2
+oneway = true
+
+[tiles.thorns]
+frame = 3
+hazard = true

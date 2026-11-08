@@ -1,0 +1,422 @@
+{
+ "plain": {
+  "kind": "realistic",
+  "expect": "pass",
+  "note": "the fallback material's look",
+  "u": {},
+  "mesh": "grid"
+ },
+ "dissolve": {
+  "kind": "realistic",
+  "expect": "pass",
+  "note": "Phase 5's acceptance: a dissolve",
+  "u": {
+   "0": [
+    0,
+    0.3,
+    0,
+    0
+   ]
+  },
+  "mesh": "grid"
+ },
+ "water": {
+  "kind": "realistic",
+  "expect": "pass",
+  "note": "Phase 5's acceptance: water (4 octaves)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "toon": {
+  "kind": "realistic",
+  "expect": "pass",
+  "note": "Phase 5's acceptance: toon",
+  "u": {},
+  "mesh": "grid"
+ },
+ "fbm8": {
+  "kind": "realistic",
+  "expect": "pass",
+  "note": "8-octave texture fbm: a heavy but ordinary effect",
+  "u": {},
+  "mesh": "grid"
+ },
+ "vertex_wave": {
+  "kind": "realistic",
+  "expect": "pass",
+  "note": "a vertex hook (waves)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "loop_never": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "loop {} whose break is never true",
+  "u": {},
+  "mesh": "grid"
+ },
+ "while_uniform": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "while (true) driven by a uniform",
+  "u": {},
+  "mesh": "grid"
+ },
+ "for_float": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "a float for-loop whose step (a uniform) is 0",
+  "u": {},
+  "mesh": "grid"
+ },
+ "int_wrap": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "an odd counter that never equals 0 until it wraps (2^31 trips)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "break_if": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "loop { continuing { break if never } }",
+  "u": {},
+  "mesh": "grid"
+ },
+ "nested_inf": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "three nested loops bounded by a uniform of 1e9 (1e27 trips)",
+  "u": {
+   "3": [
+    1000000000.0,
+    0,
+    0,
+    0
+   ]
+  },
+  "mesh": "grid"
+ },
+ "nested_256": {
+  "kind": "expensive",
+  "expect": "refuse:cost",
+  "note": "256 \u00d7 256 iterations of heavy maths: bounded, 65,536 trips",
+  "u": {},
+  "mesh": "grid"
+ },
+ "call_chain": {
+  "kind": "expensive",
+  "expect": "refuse:cost",
+  "note": "256\u00b3 through calls: each loop passes the cap alone",
+  "u": {},
+  "mesh": "grid"
+ },
+ "sample_storm": {
+  "kind": "expensive",
+  "expect": "refuse:cost",
+  "note": "256 \u00d7 4 dependent texture samples (cache-hostile)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "sample_storm_64": {
+  "kind": "expensive",
+  "expect": "refuse:cost",
+  "note": "64 \u00d7 2 dependent texture samples",
+  "u": {},
+  "mesh": "grid"
+ },
+ "big_local": {
+  "kind": "abuse",
+  "expect": "refuse:locals",
+  "note": "a 64 KB function-local array, dynamically indexed",
+  "u": {},
+  "mesh": "grid"
+ },
+ "vertex_explode_256": {
+  "kind": "abuse",
+  "expect": "pass",
+  "note": "a vertex hook that blows each of 256 small triangles up to the screen: overdraw no static check sees",
+  "u": {},
+  "mesh": "tris:256"
+ },
+ "vertex_explode_2000": {
+  "kind": "abuse",
+  "expect": "pass",
+  "note": "a vertex hook that blows each of 2000 small triangles up to the screen: overdraw no static check sees",
+  "u": {},
+  "mesh": "tris:2000"
+ },
+ "vertex_explode_20000": {
+  "kind": "abuse",
+  "expect": "pass",
+  "note": "a vertex hook that blows each of 20000 small triangles up to the screen: overdraw no static check sees",
+  "u": {},
+  "mesh": "tris:20000"
+ },
+ "deriv_vertex": {
+  "kind": "abuse",
+  "expect": "refuse:invalid",
+  "note": "a derivative in the vertex hook",
+  "u": {},
+  "mesh": "grid"
+ },
+ "storage": {
+  "kind": "abuse",
+  "expect": "refuse:binding",
+  "note": "a storage buffer of its own",
+  "u": {},
+  "mesh": "grid"
+ },
+ "workgroup_atomic": {
+  "kind": "abuse",
+  "expect": "refuse:binding",
+  "note": "a workgroup atomic",
+  "u": {},
+  "mesh": "grid"
+ },
+ "compute": {
+  "kind": "abuse",
+  "expect": "refuse:entry",
+  "note": "its own compute entry point",
+  "u": {},
+  "mesh": "grid"
+ },
+ "override": {
+  "kind": "abuse",
+  "expect": "refuse:override",
+  "note": "an override constant as the loop bound",
+  "u": {},
+  "mesh": "grid"
+ },
+ "host_name": {
+  "kind": "abuse",
+  "expect": "refuse:binding",
+  "note": "a name in the host's mb_ namespace",
+  "u": {},
+  "mesh": "grid"
+ },
+ "private_global": {
+  "kind": "realistic",
+  "expect": "pass",
+  "note": "a var<private> global (allowed: per invocation)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "switch_loops": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "a loop whose only reachable break is inside a switch (which breaks the switch)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "loop_never_small": {
+  "kind": "runaway",
+  "expect": "pass-capped",
+  "note": "loop {} whose break is never true, with a body small enough that 256 trips pass the cost check",
+  "u": {},
+  "mesh": "grid"
+ },
+ "while_small": {
+  "kind": "runaway",
+  "expect": "pass-capped",
+  "note": "while (x >= 0) with x only growing: passes, capped at 256",
+  "u": {},
+  "mesh": "grid"
+ },
+ "float_literal": {
+  "kind": "realistic",
+  "expect": "pass",
+  "note": "1e30 written out in full, as naga's WGSL writer prints it",
+  "u": {},
+  "mesh": "grid"
+ },
+ "unrolled_1k": {
+  "kind": "expensive",
+  "expect": "refuse:cost",
+  "note": "1,000 straight-line statements (~60 KB, under the 64 KB cap)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "unrolled_2k": {
+  "kind": "expensive",
+  "expect": "refuse:size",
+  "note": "2,000 straight-line statements (~120 KB)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "unrolled_800": {
+  "kind": "expensive",
+  "expect": "refuse:cost",
+  "note": "800 straight-line statements, under the size cap",
+  "u": {},
+  "mesh": "grid"
+ },
+ "unrolled_250": {
+  "kind": "expensive",
+  "expect": "pass",
+  "note": "250 straight-line statements, just under the cost limit",
+  "u": {},
+  "mesh": "grid"
+ },
+ "unrolled_20k": {
+  "kind": "expensive",
+  "expect": "refuse:size",
+  "note": "20,000 statements (1.2 MB): unguarded, WebKit's compiler meets it",
+  "u": {},
+  "mesh": "grid"
+ },
+ "deep_parens": {
+  "kind": "abuse",
+  "expect": "refuse:depth",
+  "note": "an expression 5,000 parentheses deep (parser recursion)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_16x2": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "16 trips \u00d7 2 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_32x4": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "32 trips \u00d7 4 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_48x4": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "48 trips \u00d7 4 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_64x4": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "64 trips \u00d7 4 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_128x4": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "128 trips \u00d7 4 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_256x4": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "256 trips \u00d7 4 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_256x8": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "256 trips \u00d7 8 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_256x16": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "256 trips \u00d7 16 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "ladder_256x32": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "256 trips \u00d7 32 sin lines",
+  "u": {},
+  "mesh": "grid"
+ },
+ "sladder_16": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "16 dependent texture samples",
+  "u": {},
+  "mesh": "grid"
+ },
+ "sladder_64": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "64 dependent texture samples",
+  "u": {},
+  "mesh": "grid"
+ },
+ "sladder_256": {
+  "kind": "ladder",
+  "expect": "measure",
+  "note": "256 dependent texture samples",
+  "u": {},
+  "mesh": "grid"
+ },
+ "overdraw_plain_1": {
+  "kind": "overdraw",
+  "expect": "pass",
+  "note": "plain surface, 1 full-screen quads",
+  "u": {},
+  "mesh": "quads:1"
+ },
+ "overdraw_plain_64": {
+  "kind": "overdraw",
+  "expect": "pass",
+  "note": "plain surface, 64 full-screen quads",
+  "u": {},
+  "mesh": "quads:64"
+ },
+ "overdraw_plain_512": {
+  "kind": "overdraw",
+  "expect": "pass",
+  "note": "plain surface, 512 full-screen quads",
+  "u": {},
+  "mesh": "quads:512"
+ },
+ "overdraw_plain_2000": {
+  "kind": "overdraw",
+  "expect": "pass",
+  "note": "plain surface, 2000 full-screen quads",
+  "u": {},
+  "mesh": "quads:2000"
+ },
+ "overdraw_max_8": {
+  "kind": "overdraw",
+  "expect": "pass",
+  "note": "a cost-limit surface, 8 full-screen quads",
+  "u": {},
+  "mesh": "quads:8"
+ },
+ "overdraw_max_64": {
+  "kind": "overdraw",
+  "expect": "pass",
+  "note": "a cost-limit surface, 64 full-screen quads",
+  "u": {},
+  "mesh": "quads:64"
+ },
+ "overdraw_max_512": {
+  "kind": "overdraw",
+  "expect": "pass",
+  "note": "a cost-limit surface, 512 full-screen quads",
+  "u": {},
+  "mesh": "quads:512"
+ },
+ "counted_call_bump": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "a counted-looking loop whose counter a call given &i also writes (runs to the cap)",
+  "u": {},
+  "mesh": "grid"
+ },
+ "counted_second_store": {
+  "kind": "runaway",
+  "expect": "refuse:cost",
+  "note": "a counted-looking loop with a second store to its counter that wraps it (runs to the cap)",
+  "u": {},
+  "mesh": "grid"
+ }
+}

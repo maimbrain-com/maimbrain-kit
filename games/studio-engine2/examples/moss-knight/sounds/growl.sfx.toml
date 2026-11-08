@@ -1,0 +1,9 @@
+# The goblin close by: a low, rough snarl (placed where it is).
+wave = "saw"
+freq = 82
+freq_end = 64
+duration = 0.55
+attack = 0.08
+decay = 0.3
+vibrato = [1.5, 14]
+volume = 0.45

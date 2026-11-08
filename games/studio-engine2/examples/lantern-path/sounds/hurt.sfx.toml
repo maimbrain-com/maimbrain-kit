@@ -1,0 +1,7 @@
+# Thorns: a low thump (it plays by itself on the hurt event).
+wave = "square"
+duty = 0.5
+freq = 140
+duration = 0.12
+decay = 0.1
+volume = 0.5

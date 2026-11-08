@@ -14,9 +14,21 @@ pub fn features() -> WasmFeatures {
     WasmFeatures::WASM2
 }
 
+/// What a game's `game.wasm` may use: [`features`], plus exception handling
+/// in its standard (exnref) form for Studio engine 2.0 and later, whose Luau
+/// raises errors with C++ exceptions (docs/STUDIO-2.md §4.13, Decided 22).
+/// Only Studio bundles name an engine, and the server takes only published
+/// engine builds (`studio::PUBLISHED`), so a creator's own wasm never gets it.
+pub fn features_for(manifest: &Manifest) -> WasmFeatures {
+    match manifest.engine.as_deref().and_then(crate::studio::major) {
+        Some(m) if m >= crate::studio::LUAU_MAJOR => features() | WasmFeatures::EXCEPTIONS,
+        _ => features(),
+    }
+}
+
 pub fn check(wasm: &[u8], manifest: &Manifest, errors: &mut Vec<String>) {
     let mut err = |m: String| errors.push(format!("game.wasm: {m}"));
-    let types = match Validator::new_with_features(features()).validate_all(wasm) {
+    let types = match Validator::new_with_features(features_for(manifest)).validate_all(wasm) {
         Ok(t) => t,
         Err(e) => return err(format!("invalid or uses a disallowed feature: {e}")),
     };

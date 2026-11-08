@@ -39,6 +39,15 @@
 //!   literature").
 //! - Swipes: a thumb flick lasts about 0.08–0.25 s; its direction varies
 //!   by several degrees (an estimate: measure your own players).
+//! - Steering with a held finger (a drag that follows something): a big
+//!   change is a ballistic move (Fitts, above), and under it the hand
+//!   corrects continuously, as a first-order loop on where it means to be
+//!   (manual tracking's crossover model, McRuer & Jex 1967, without its
+//!   visual delay: the bot adds a reaction to new decisions only, as for
+//!   taps). The loop's speed (7–20 a second) and the hand's slow wander
+//!   (1.5–5.5 points, under a tap's floor since the finger never leaves the
+//!   glass) are estimates, set so the shooter starter's bot spreads by
+//!   skill as the shooter kit's did: measure your own players.
 
 use super::super::Event;
 use super::{AimPath, flick, tap};
@@ -105,6 +114,24 @@ pub struct Swipe {
     pub angle: f32,
 }
 
+/// A held finger steering after a target that moves (`Skill::track`):
+/// what's under a ballistic move (`touch`), the continuous corrections.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Tracking {
+    /// How fast it closes the gap (1/s): a first-order loop.
+    pub gain: f32,
+    /// How far it wanders from where it means to be (logical units, 1 SD),
+    /// slowly (`WANDER_SECS`).
+    pub wander: f32,
+    /// Its fastest (logical units a second).
+    pub speed: f32,
+}
+
+impl Tracking {
+    /// How long the hand's wander takes to change (s): a slow drift, not a tremor.
+    pub const WANDER_SECS: f32 = 0.3;
+}
+
 /// How a kind of player performs with each input. Use the presets
 /// (`first_timer`, `casual`, `good`, `expert`, or `Skill::ALL`) and let a
 /// bot take its reaction, aim and timing from them, so its numbers are tied
@@ -133,6 +160,8 @@ pub struct Skill {
     /// Tilting the phone to steer (degrees of roll).
     pub tilt: Pointing,
     pub swipe: Swipe,
+    /// A held finger following a moving target (a drag that steers).
+    pub track: Tracking,
 }
 
 impl Skill {
@@ -152,6 +181,7 @@ impl Skill {
             tremor: 0.1,
             tilt: Pointing { a: 0.3, throughput: 1.4, floor: 1.5, overshoot: 0.2 },
             swipe: Swipe { duration: (0.16, 0.26), angle: 12.0 },
+            track: Tracking { gain: 7.0, wander: 5.5, speed: 900.0 },
         }
     }
 
@@ -167,6 +197,7 @@ impl Skill {
             tremor: 0.07,
             tilt: Pointing { a: 0.25, throughput: 1.8, floor: 1.1, overshoot: 0.15 },
             swipe: Swipe { duration: (0.13, 0.2), angle: 9.0 },
+            track: Tracking { gain: 9.0, wander: 5.0, speed: 1200.0 },
         }
     }
 
@@ -182,6 +213,7 @@ impl Skill {
             tremor: 0.05,
             tilt: Pointing { a: 0.2, throughput: 2.2, floor: 0.8, overshoot: 0.1 },
             swipe: Swipe { duration: (0.1, 0.16), angle: 7.0 },
+            track: Tracking { gain: 13.0, wander: 3.0, speed: 1500.0 },
         }
     }
 
@@ -197,6 +229,7 @@ impl Skill {
             tremor: 0.04,
             tilt: Pointing { a: 0.15, throughput: 2.6, floor: 0.6, overshoot: 0.07 },
             swipe: Swipe { duration: (0.08, 0.13), angle: 5.0 },
+            track: Tracking { gain: 20.0, wander: 1.5, speed: 1800.0 },
         }
     }
 
@@ -266,6 +299,38 @@ impl Skill {
     pub fn timed(&self, due: f64, rng: &mut Rng) -> f64 {
         due + (gauss(rng) * self.timing) as f64
     }
+
+    /// One step of `dt` s of a held finger at `finger` steering after
+    /// `target` (where the player means it to be, once they've taken it
+    /// in: the caller adds reactions), with `wander` the hand's drift so far
+    /// (start it at (0, 0)): where the finger is after it. Steps of 1/120 s
+    /// or less (a touch panel's rate) track as the model says.
+    /// ```
+    /// use maimbrain::input::synth::Skill;
+    /// use maimbrain::Rng;
+    /// let (s, mut rng) = (Skill::good(), Rng::new(1));
+    /// let (mut at, mut wander) = ((100.0, 300.0), (0.0, 0.0));
+    /// for _ in 0..120 {
+    ///     at = s.steer(at, (160.0, 300.0), &mut wander, 1.0 / 120.0, &mut rng);
+    /// }
+    /// assert!((at.0 - 160.0).abs() < 12.0, "a second later it's there, give or take its wander");
+    /// ```
+    pub fn steer(&self, finger: (f32, f32), target: (f32, f32), wander: &mut (f32, f32), dt: f32, rng: &mut Rng) -> (f32, f32) {
+        let t = self.track;
+        // The drift: an Ornstein–Uhlenbeck process, SD `wander`, changing over WANDER_SECS.
+        let k = (dt / Tracking::WANDER_SECS).min(1.0);
+        let kick = t.wander * (2.0 * k).sqrt();
+        *wander = (wander.0 * (1.0 - k) + gauss(rng) * kick, wander.1 * (1.0 - k) + gauss(rng) * kick);
+        let aim = (target.0 + wander.0, target.1 + wander.1);
+        let close = 1.0 - (-t.gain * dt).exp();
+        let (mut dx, mut dy) = ((aim.0 - finger.0) * close, (aim.1 - finger.1) * close);
+        let d = dx.hypot(dy);
+        let most = t.speed * dt;
+        if d > most {
+            (dx, dy) = (dx * most / d, dy * most / d);
+        }
+        (finger.0 + dx, finger.1 + dy)
+    }
 }
 
 /// Roughly normal, mean 0, SD 1 (the sum of four uniforms).
@@ -291,6 +356,8 @@ mod tests {
                 assert!(pb.throughput > pa.throughput && pb.a < pa.a && pb.floor < pa.floor && pb.overshoot < pa.overshoot, "{} → {}", a.name, b.name);
             }
             assert!(b.tremor < a.tremor && b.swipe.angle < a.swipe.angle && b.swipe.duration.1 < a.swipe.duration.1);
+            let (ta, tb) = (a.track, b.track);
+            assert!(tb.gain > ta.gain && tb.wander < ta.wander && tb.speed > ta.speed, "{} → {}", a.name, b.name);
         }
     }
 
@@ -355,6 +422,35 @@ mod tests {
         assert!((m - s.reaction.0).abs() < 0.01 && (sd - s.reaction.1).abs() < 0.01, "{m} {sd}");
         let late: Vec<f32> = (0..4000).map(|_| (s.timed(1.0, &mut rng) - 1.0) as f32).collect();
         assert!((mean_sd(&late).1 - s.timing).abs() < 0.004);
+    }
+
+    /// Steering: the finger trails a moving target by about its speed ÷
+    /// the loop's gain, and keeps on it within a few points (under a tap's
+    /// floor) once it's there.
+    #[test]
+    fn a_held_finger_follows_a_moving_target_with_lag_and_wander() {
+        for s in Skill::ALL {
+            let t = s.track;
+            assert!((5.0..=25.0).contains(&t.gain) && t.wander < s.touch.floor, "{}", s.name);
+            // A target sweeping at 150 units/s: the finger trails it by about speed ÷ gain, wandering.
+            let mut rng = Rng::new(5);
+            let (mut at, mut wander, mut errs) = ((0.0f32, 0.0f32), (0.0, 0.0), Vec::new());
+            for i in 0..1200 {
+                let target = (150.0 * i as f32 / 120.0, 0.0);
+                at = s.steer(at, target, &mut wander, 1.0 / 120.0, &mut rng);
+                if i > 240 {
+                    errs.push((target.0 - at.0, at.1));
+                }
+            }
+            let lag = mean_sd(&errs.iter().map(|e| e.0).collect::<Vec<_>>()).0;
+            let across = mean_sd(&errs.iter().map(|e| e.1).collect::<Vec<_>>()).1;
+            assert!((lag - 150.0 / t.gain).abs() < 0.25 * 150.0 / t.gain, "{}: lag {lag}", s.name);
+            assert!((across - t.wander).abs() < 0.5 * t.wander, "{}: across {across}", s.name);
+        }
+        // It never moves faster than a hand.
+        let s = Skill::first_timer();
+        let next = s.steer((0.0, 0.0), (1000.0, 0.0), &mut (0.0, 0.0), 1.0 / 120.0, &mut Rng::new(1));
+        assert!(next.0 <= s.track.speed / 120.0 + 1e-3);
     }
 
     #[test]

@@ -1,0 +1,18 @@
+# Named sets of debug picks: the debug menu's first tab ("Try it").
+[[scenario]]
+name = "Autopilot"
+note = "the round plays itself"
+[scenario.set]
+AUTOPLAY = true
+
+[[scenario]]
+name = "Gulls and bees"
+note = "skips to 50 s, as the gulls and bees join"
+[scenario.set]
+SKIP_TO = 50
+
+[[scenario]]
+name = "Night and logs"
+note = "skips to 88 s: every family, at night"
+[scenario.set]
+SKIP_TO = 88

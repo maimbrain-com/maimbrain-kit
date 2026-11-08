@@ -1,0 +1,6 @@
+# A firefly caught: a tiny bell.
+wave = "sine"
+freq = 1320
+duration = 0.08
+decay = 0.2
+volume = 0.35

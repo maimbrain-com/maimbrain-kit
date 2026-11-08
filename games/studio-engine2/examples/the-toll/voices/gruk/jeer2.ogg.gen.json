@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:03Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Ha! No.",
+  "full_prompt": "[laughing] Ha! No.",
+  "seed": 1420205184,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "522092e6cb3091be19647478e04ac3b7512a0abc22c61f4bc09bff6c595a3fe8"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/jeer2.wav",
+  "raw_sha256": "e876c6722e844b824ae9909ad34ecacf7513a3cef67cce33eb5bdc6b27eb8d68",
+  "output_sha256": "8927a600991df388684bffa69dc46c26c1310c5e1a6e3fafaf88f82ef6c399f0",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "laughing",
+    "kind": "voice",
+    "line": "jeer2",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/jeer2.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1420205184,
+    "speed": null,
+    "style": null,
+    "text": "Ha! No.",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "413d1583fa7242ad",
+    "lips": "assets/vo/gruk/jeer2.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -17.12896728515625,
+    "peak_db": -3.36553955078125,
+    "phone_loss_db": -3.799999952316284,
+    "seconds": 0.6312471628189087,
+    "subtitle": "Ha! No.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

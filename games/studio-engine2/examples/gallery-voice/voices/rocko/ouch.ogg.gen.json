@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.7.0-dev voice",
+  "date": "2026-10-10T02:04:04Z",
+  "provider": "elevenlabs",
+  "model": "eleven_v4",
+  "prompt": "Hey! Not the paint job!",
+  "full_prompt": "[angry] Hey! Not the paint job!",
+  "seed": 1907816918,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "7d7fac5d65970e00533ba62436e6630d4060c2aa34ab676c261cc0c567d42150"
+  },
+  "est_cost_usd": 0.00248,
+  "cost_usd": 0.00248,
+  "raw": "art/raw/vo/rocko/ouch.pcm",
+  "raw_sha256": "24739d467fd9fdc76e218301b5502b001e580c2bcdf9a65f4d7dd05753a4180f",
+  "output_sha256": "027315522af2b98d551420cfd11e66f059f1e8fd2ff1e8327fb34e0077bb34c3",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "rocko",
+    "delivery": "natural",
+    "emotion": "angry",
+    "kind": "voice",
+    "line": "ouch",
+    "model": "eleven_v4",
+    "out": "assets/vo/rocko/ouch.ogg",
+    "provider": "elevenlabs",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1907816918,
+    "speed": null,
+    "style": null,
+    "text": "Hey! Not the paint job!",
+    "voice_id": "QXuuxXQVjYqzo0FzWn7B"
+  },
+  "result": {
+    "key": "6a875560a36467f1",
+    "lips": "assets/vo/rocko/ouch.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -16.26805877685547,
+    "peak_db": -2.882272958755493,
+    "phone_loss_db": -0.0,
+    "seconds": 2.0793650150299072,
+    "subtitle": "Hey! Not the paint job!",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Generated with ElevenLabs from a voice designed for this game (not a clone); check your plan's license terms."
+}

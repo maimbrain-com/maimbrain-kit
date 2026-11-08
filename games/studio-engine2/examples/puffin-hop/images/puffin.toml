@@ -1,0 +1,11 @@
+# The puffin: tap, Space or A flaps.
+behaviour = "player.flappy"
+hitbox = [3, 3, 11, 10]
+
+[anims]
+idle = { frames = [1] }
+flap = { frames = [2], fps = 8 }
+
+[knobs]
+gravity = 520
+flap = 165

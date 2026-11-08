@@ -187,7 +187,8 @@ impl Rounds {
     }
 
     /// The game-over card's heading, in the game's voice ("SPLAT!" is the
-    /// one everyone copies). Default "GAME OVER".
+    /// one everyone copies). Default "GAME OVER". A long one shrinks to fit
+    /// the card, or wraps to two lines.
     pub fn heading(mut self, s: &str) -> Self {
         self.card.heading = Some(s.into());
         self

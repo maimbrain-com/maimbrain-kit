@@ -33,7 +33,10 @@ pub fn identities() -> Vec<(String, [String; 3])> {
         let args = &rest[n + 6..];
         let Some(end) = args.find(')') else { break };
         let parts: Vec<String> = args[..end].split(',').map(|p| p.trim().trim_matches('"').to_string()).collect();
-        if let [a, b, c] = &parts[..] {
+        // greybox is Studio's placeholder, with the host fonts: not one of the 17.
+        if let [a, b, c] = &parts[..]
+            && name != "greybox"
+        {
             out.push((name, [a.clone(), b.clone(), c.clone()]));
         }
     }
@@ -310,10 +313,39 @@ fn recipe_key(r: &Recipe, font_sha: &str) -> String {
     sha256_hex(s.as_bytes())[..16].to_string()
 }
 
+/// A baked font: its `.mbf` bytes, its license text, and a line saying what it is.
+pub struct Baked {
+    pub mbf: Vec<u8>,
+    pub license_text: Option<String>,
+    pub summary: String,
+}
+
 /// Bakes one recipe into <game>/assets/fonts/<name>.mbf (and its license file).
 fn bake_recipe(game: &Path, r: &Recipe, lib: &Library) -> Result<String, String> {
+    let baked = bake_bytes(game, r, lib)?;
+    let dir = game.join("assets").join("fonts");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let out = dir.join(format!("{}.mbf", r.name));
+    std::fs::write(&out, &baked.mbf).map_err(|e| format!("{}: {e}", out.display()))?;
+    let lic = dir.join(format!("{}-LICENSE.txt", r.name));
+    match &baked.license_text {
+        Some(t) => std::fs::write(&lic, t).map_err(|e| format!("{}: {e}", lic.display()))?,
+        None => eprintln!("warning: {} has no license file; pass --license with the font's license before publishing", r.source),
+    }
+    Ok(format!("{}: {}", out.strip_prefix(game).unwrap_or(&out).display(), baked.summary))
+}
+
+/// Bakes one recipe in memory (`bake_recipe` writes it into a game; Studio
+/// 2.0's packer puts it straight into the bundle). Bakes are remembered for
+/// the life of the process, by everything that decides their output.
+pub fn bake_bytes(game: &Path, r: &Recipe, lib: &Library) -> Result<Baked, String> {
+    static DONE: std::sync::Mutex<Option<std::collections::HashMap<String, (Vec<u8>, Option<String>, String)>>> = std::sync::Mutex::new(None);
     check_name(&r.name)?;
     let res = resolve(game, r, lib)?;
+    let memo = format!("{}|{}", recipe_key(r, &sha256_hex(&res.data)), r.name);
+    if let Some((mbf, license_text, summary)) = DONE.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|m| m.get(&memo)).cloned() {
+        return Ok(Baked { mbf, license_text, summary });
+    }
     let font_sha = sha256_hex(&res.data);
     let key = recipe_key(r, &font_sha);
     let bitmap = r.bitmap.unwrap_or(res.pixel_em.is_some());
@@ -336,18 +368,8 @@ fn bake_recipe(game: &Path, r: &Recipe, lib: &Library) -> Result<String, String>
     let font = bake::bake(&res.data, &opts).map_err(|e| format!("{}: {e}", r.source))?;
     let bytes = font.encode();
     mb_format::font::MbFont::parse(&bytes).map_err(|e| format!("baked {}: {e}", r.name))?;
-    let dir = game.join("assets").join("fonts");
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let out = dir.join(format!("{}.mbf", r.name));
-    std::fs::write(&out, &bytes).map_err(|e| format!("{}: {e}", out.display()))?;
-    let lic = dir.join(format!("{}-LICENSE.txt", r.name));
-    match &res.license_text {
-        Some(t) => std::fs::write(&lic, t).map_err(|e| format!("{}: {e}", lic.display()))?,
-        None => eprintln!("warning: {} has no license file; pass --license with the font's license before publishing", r.source),
-    }
-    Ok(format!(
-        "{}: {} {}{}, {} glyphs, {} kerning pairs, atlas {}×{}, {:.1} KiB",
-        out.strip_prefix(game).unwrap_or(&out).display(),
+    let summary = format!(
+        "{} {}{}, {} glyphs, {} kerning pairs, atlas {}×{}, {:.1} KiB",
         res.family,
         res.weight.map(|w| format!("{w} ")).unwrap_or_default(),
         if bitmap { format!("bitmap {em} px/em") } else { format!("SDF {em} px/em") },
@@ -356,7 +378,9 @@ fn bake_recipe(game: &Path, r: &Recipe, lib: &Library) -> Result<String, String>
         font.atlas[0],
         font.atlas[1],
         bytes.len() as f32 / 1024.0
-    ))
+    );
+    DONE.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(Default::default).insert(memo, (bytes.clone(), res.license_text.clone(), summary.clone()));
+    Ok(Baked { mbf: bytes, license_text: res.license_text, summary })
 }
 
 fn check_name(name: &str) -> Result<(), String> {

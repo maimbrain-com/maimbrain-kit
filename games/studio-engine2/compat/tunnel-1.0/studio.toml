@@ -1,0 +1,26 @@
+# Engine 1.0's tunnel starter (games/studio-engine/starters/tunnel) on
+# engine 2.0's 3D build: the compatibility test for 1.0's 3D Lua
+# (docs/STUDIO-2.md §9.2, 1b's as-built notes). Its Lua is 1.0's but for
+# what Luau can't parse, each change marked "2.0:" in game/main.lua; the
+# rest of what differs is listed in those notes, for upgrade_engine (1c).
+title = "Tunnel"
+kind = "3d"
+engine = "2.0"
+orientation = "portrait"
+inputs = ["touch", "mouse", "keyboard", "gamepad"]
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.tunnel-1-0"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[[scores]]
+id = "rings"
+label = "Rings"
+order = "high"
+
+[text]
+over = "Crashed!"
+
+[remix]
+allowed = true

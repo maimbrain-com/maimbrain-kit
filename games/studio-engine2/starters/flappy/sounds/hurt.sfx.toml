@@ -1,0 +1,7 @@
+# A crash: a plain low blip (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 160
+duration = 0.2
+decay = 0.12
+volume = 0.6

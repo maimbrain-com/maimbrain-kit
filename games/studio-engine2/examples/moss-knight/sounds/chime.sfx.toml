@@ -1,0 +1,8 @@
+# A wisp gathered: a bright little bell that climbs (the game raises its pitch with the score).
+wave = "sine"
+freq = 1047
+duration = 0.06
+decay = 0.45
+arp = [0, 7, 12]
+arp_speed = 0.05
+volume = 0.4

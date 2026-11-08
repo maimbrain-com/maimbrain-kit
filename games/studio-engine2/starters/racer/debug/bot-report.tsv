@@ -1,0 +1,34 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		18.1	45.0	45.0
+stat	first-timer	score	615	1369	1723
+stat	first-timer	presses/min	11.3	14.7	20.0
+share	first-timer	capped	65.0
+ended	first-timer	car	30.0
+ended	first-timer	truck	5.0
+seconds	casual		26.4	72.2	90.0
+stat	casual	score	746	2836	3881
+stat	casual	presses/min	14	18.0	20.6
+share	casual	capped	32.5
+ended	casual	car	45.0
+ended	casual	cones	12.5
+ended	casual	truck	10.0
+seconds	good		55.4	117.3	180.0
+stat	good	score	2102	5404	10903
+stat	good	presses/min	16.4	21	24.3
+share	good	capped	30.0
+ended	good	car	40.0
+ended	good	truck	20.0
+ended	good	cones	10.0
+seconds	expert		72.2	180.0	180.0
+stat	expert	score	2615	10292	11348
+stat	expert	presses/min	17.4	22	25.4
+share	expert	capped	62.5
+ended	expert	car	32.5
+ended	expert	truck	5.0
+cap	first-timer		45
+target	first-timer		20	45
+cap	casual		90
+cap	good		180
+target	good		60	180
+cap	expert		180

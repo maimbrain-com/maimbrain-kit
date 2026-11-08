@@ -167,3 +167,196 @@ fn kinematic_targets_and_forces() {
     }
     assert!((w.velocity(b).y - 3.0).abs() < 0.05, "{:?}", w.velocity(b));
 }
+
+/// A ray-cast vehicle rests on its springs, drives toward −z, turns left
+/// for positive steering and brakes to a stop; on a heightfield too.
+#[test]
+fn a_vehicle_drives_and_brakes() {
+    for ground in ["box", "heightfield"] {
+        let mut w = World::new();
+        match ground {
+            "box" => {
+                w.add(Body::fixed(vec3(0.0, -0.5, 0.0)), Shape::cuboid(vec3(400.0, 1.0, 400.0)));
+            }
+            _ => {
+                let n = 33;
+                let heights = vec![0.0; n * n];
+                w.add(Body::fixed(Vec3::ZERO), Shape::heightfield(&heights, n, n, 4.0));
+            }
+        }
+        let car = w.add(Body::dynamic(vec3(0.0, 1.0, 0.0)), Shape::cuboid(vec3(1.8, 0.5, 3.2)).mass(400.0));
+        let wheel = |x: f32, z: f32| Wheel { at: vec3(x, -0.2, z), radius: 0.42, rest: 0.35, travel: 0.3, stiffness: 30.0, compression: 2.5, relaxation: 3.2, friction_slip: 2.2, side_friction: 1.0, max_force: 20000.0 };
+        let v = w.add_vehicle(car, &[wheel(-0.95, -1.25), wheel(0.95, -1.25), wheel(-0.95, 1.25), wheel(0.95, 1.25)]);
+        let mut speeds = Vec::new();
+        for f in 0..360 {
+            let t = f as f32 / 60.0;
+            let (engine, brake) = if t < 2.0 { (900.0, 0.0) } else if t < 3.0 { (0.0, 0.0) } else { (0.0, 15.0) };
+            for i in 0..4 {
+                w.set_wheel(v, i, engine, brake, 0.0);
+            }
+            w.step(1.0 / 60.0);
+            speeds.push(w.vehicle_speed(v));
+        }
+        assert!(w.position(car).z < -5.0, "{ground}: drove toward −z: {:?}", w.position(car));
+        assert!(speeds[179] > 5.0, "{ground}: speed {}", speeds[179]);
+        assert!(speeds[359].abs() < 0.3, "{ground}: braked from {} to {}: {:?}", speeds[179], speeds[359], speeds.iter().step_by(10).collect::<Vec<_>>());
+        assert!(w.wheels(v).iter().all(|s| s.on_ground), "{ground}: {:?} {:?}", w.wheels(v), w.position(car));
+    }
+}
+
+/// A ramp at `deg` degrees, rising along +x from x = 2, wide in z.
+fn ramp(w: &mut World, deg: f32) {
+    let a = deg.to_radians();
+    let len = 12.0;
+    let c = vec3(2.0 + len / 2.0 * a.cos(), len / 2.0 * a.sin(), 0.0);
+    w.add(Body::fixed(c).rotation(Quat::from_rotation_z(a)), Shape::cuboid(vec3(len, 0.2, 10.0)));
+}
+
+/// Walks a capsule at +x for `secs` with gravity (as a game does), returns its velocity.
+fn walk(w: &mut World, c: &mut Character, secs: f32) -> Vec3 {
+    let mut v = Vec3::ZERO;
+    for _ in 0..(secs / DT) as usize {
+        v.x = 3.0;
+        v.y -= 18.0 * DT;
+        v = c.move_and_slide(w, v, DT);
+        w.step(DT);
+    }
+    v
+}
+
+#[test]
+fn a_character_climbs_gentle_slopes_and_not_steep_ones() {
+    for (deg, climbs) in [(25.0, true), (60.0, false)] {
+        let mut w = World::new();
+        floor(&mut w);
+        ramp(&mut w, deg);
+        let mut c = Character::new(&mut w, vec3(0.0, 0.76, 0.0), Shape::capsule(0.35, 1.5), CharacterSettings::default(), 0);
+        walk(&mut w, &mut c, 3.0);
+        let p = c.position();
+        if climbs {
+            assert!(p.x > 6.0 && p.y > 2.0, "{deg}°: climbed to {p:?}");
+            assert!(c.on_floor(), "{deg}°: on the slope is on the floor");
+        } else {
+            assert!(p.x < 3.0 && p.y < 1.2, "{deg}°: stayed at the foot, at {p:?}");
+            assert!(c.on_floor() && c.on_wall(), "{deg}°: on the floor, against a wall");
+        }
+    }
+}
+
+#[test]
+fn a_character_slides_down_steep_slopes_and_stands_on_gentle_ones() {
+    for (deg, slides) in [(25.0f32, false), (60.0, true)] {
+        let mut w = World::new();
+        floor(&mut w);
+        ramp(&mut w, deg);
+        let a = deg.to_radians();
+        // Dropped onto the slope's middle.
+        let x = 2.0 + 4.0 * a.cos();
+        let mut c = Character::new(&mut w, vec3(x, 4.0 * a.sin() + 2.0, 0.0), Shape::capsule(0.35, 1.5), CharacterSettings::default(), 0);
+        let mut v = Vec3::ZERO;
+        for _ in 0..120 {
+            v.x = 0.0;
+            v.y -= 18.0 * DT;
+            v = c.move_and_slide(&mut w, v, DT);
+        }
+        let p = c.position();
+        if slides {
+            assert!(p.x < 2.5 && p.y < 1.0, "{deg}°: slid to the bottom, at {p:?}");
+        } else {
+            assert!((p.x - x).abs() < 0.1, "{deg}°: stood still, at {p:?}");
+            assert!(c.on_floor());
+        }
+    }
+}
+
+#[test]
+fn a_character_steps_snaps_and_stops_at_walls() {
+    let mut w = World::new();
+    floor(&mut w);
+    // A 0.25 m step at x = 3, a wall at x = 8.
+    w.add(Body::fixed(vec3(5.5, 0.125, 0.0)), Shape::cuboid(vec3(5.0, 0.25, 10.0)));
+    w.add(Body::fixed(vec3(8.5, 2.0, 0.0)), Shape::cuboid(vec3(1.0, 4.0, 10.0)));
+    let s = CharacterSettings { max_step_height: 0.3, ..CharacterSettings::default() };
+    let mut c = Character::new(&mut w, vec3(0.0, 0.76, 0.0), Shape::capsule(0.35, 1.5), s, 0);
+    let v = walk(&mut w, &mut c, 4.0);
+    let p = c.position();
+    assert!((p.x - (8.0 - 0.35)).abs() < 0.05 && (p.y - 1.0).abs() < 0.05, "up the step, against the wall: {p:?}");
+    assert!(c.on_floor() && c.on_wall());
+    assert!(v.x.abs() < 1e-3, "the wall took its velocity: {v:?}");
+    assert!(v.y == 0.0, "the floor took its fall: {v:?}");
+    // Without steps it stops at the step.
+    let mut w = World::new();
+    floor(&mut w);
+    w.add(Body::fixed(vec3(5.5, 0.125, 0.0)), Shape::cuboid(vec3(5.0, 0.25, 10.0)));
+    let mut c = Character::new(&mut w, vec3(0.0, 0.76, 0.0), Shape::capsule(0.35, 1.5), CharacterSettings::default(), 0);
+    walk(&mut w, &mut c, 2.0);
+    assert!(c.position().x < 3.0, "no step: {:?}", c.position());
+}
+
+#[test]
+fn rigid_bodies_see_a_character() {
+    // A ball dropped on it rests on it.
+    let mut w = World::new();
+    floor(&mut w);
+    let c = Character::new(&mut w, vec3(0.0, 0.76, 0.0), Shape::capsule(0.35, 1.5), CharacterSettings::default(), 7);
+    let ball = w.add(Body::dynamic(vec3(0.0, 3.0, 0.0)), Shape::sphere(0.2));
+    for _ in 0..120 {
+        w.step(DT);
+    }
+    assert!(w.position(ball).y > 1.5, "the ball rests on the character: {:?}", w.position(ball));
+    assert_eq!(w.tag(c.body()), 7);
+}
+
+#[test]
+fn a_character_slides_round_a_trunk_where_round_is_uphill() {
+    // Moss Knight's stall: walking up a slope into a tree trunk off its
+    // middle, sliding round it climbs the slope. Rapier's sweep goes back
+    // and forth between the trunk (a wall: no climbing along it) and the
+    // slope (climbing), so it stopped dead in the crease. Each case: a slope
+    // rising toward +x (or −x) across the walk, a trunk on it at z = −4, the
+    // character 2 m before it walking toward a point `off` to its side.
+    for tilt in [0.4f32, 0.6, 0.77, -0.6, -0.77] {
+        for off in [-0.4f32, -0.25, 0.25, 0.4] {
+            let mut w = World::new();
+            w.add(Body::fixed(vec3(0.0, -0.5, 0.0)).rotation(Quat::from_rotation_z(tilt)), Shape::cuboid(vec3(40.0, 1.0, 40.0)));
+            w.add(Body::fixed(vec3(0.0, 3.0, -4.0)), Shape::cylinder(0.35, 6.0));
+            let s = CharacterSettings { floor_snap_length: 0.3, max_step_height: 0.35, floor_max_angle: 0.87, ..CharacterSettings::default() };
+            let mut c = Character::new(&mut w, vec3(0.0, 1.0, -2.0), Shape::capsule(0.35, 1.2), s, 0);
+            let d = vec3(off, 0.0, -2.0).normalize() * 5.0;
+            let mut v = Vec3::ZERO;
+            for _ in 0..90 {
+                (v.x, v.z) = (d.x, d.z);
+                v.y = if c.on_floor() { 0.0 } else { v.y - 18.0 * DT };
+                v = c.move_and_slide(&mut w, v, DT);
+            }
+            let p = c.position();
+            assert!(p.z < -6.0, "slope {:.0}°, aimed {off} m off the trunk: stopped at {p:?}", tilt.to_degrees());
+        }
+    }
+}
+
+#[test]
+fn floor_stop_on_slope_off_lets_a_character_slide_down_a_gentle_slope() {
+    for stop in [true, false] {
+        let mut w = World::new();
+        floor(&mut w);
+        ramp(&mut w, 25.0);
+        let a = 25f32.to_radians();
+        let x = 2.0 + 6.0 * a.cos();
+        let s = CharacterSettings { floor_stop_on_slope: stop, ..CharacterSettings::default() };
+        let mut c = Character::new(&mut w, vec3(x, 6.0 * a.sin() + 1.2, 0.0), Shape::capsule(0.35, 1.5), s, 0);
+        let mut v = Vec3::ZERO;
+        for _ in 0..90 {
+            v.x = 0.0;
+            v.y -= 18.0 * DT;
+            v = c.move_and_slide(&mut w, v, DT);
+        }
+        let moved = x - c.position().x;
+        // Godot's creep: the game's gravity, reset on the floor each frame, slid along it.
+        if stop {
+            assert!(moved.abs() < 0.01, "stops on the slope: moved {moved}");
+        } else {
+            assert!(moved > 0.1, "slides down it: moved {moved}");
+        }
+    }
+}

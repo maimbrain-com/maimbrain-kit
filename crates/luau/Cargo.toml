@@ -1,0 +1,27 @@
+[package]
+name = "luau"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+description = "Luau 0.743 (Roblox's Lua, MIT), built from source: the VM Studio engine 2.0 runs and the compiler mb packs its Lua with"
+# The VM is Luau (docs/STUDIO-2.md §4.13, spike S0, Decided 32): its C++ is
+# fetched by hash (build.rs) and compiled with cc. For wasm32 that's
+# Homebrew's clang (llvm 21) with wasi-sdk 34's sysroot and wasm exception
+# handling (exnref); natively, the host's C++ compiler.
+
+[features]
+# The VM, its libraries and the engine's sandbox, budget and heap cap
+# (csrc/vm.cpp). The engine's wasm has only this (Decided 36).
+vm = []
+# The compiler, AST and bytecode builder with the engine's options
+# (csrc/compile.cpp): `mb build` compiles a project's Lua with it, natively,
+# and the engine's build.rs its own prelude.
+compiler = []
+# luau-analyze's type checker (Luau's Analysis and Config libraries,
+# csrc/analyze.cpp), natively, for the API's type definitions (Decided 33).
+# Never in the engine's wasm: build.rs refuses it there.
+analyze = ["vm", "compiler"]
+
+[build-dependencies]
+cc = "1.6.0"
+sha2 = "0.11.0"

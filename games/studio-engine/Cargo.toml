@@ -6,7 +6,7 @@ edition.workspace = true
 # workspace's.
 version.workspace = true
 publish.workspace = true
-description = "Plays a Maimbrain Studio project (Arcade rung): Lua over a small Rust core"
+description = "Plays a Maimbrain Studio project, 2D or 3D: Lua over a small Rust core"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -17,6 +17,10 @@ crate-type = ["cdylib", "rlib"]
 # only import what its manifest declares (SPEC §5), hence one engine build
 # per import set (docs/SPEC.md "Studio bundles").
 sensors = []
+# The 3D build, for 3D games (`kind = "3d"`):
+# mb3d 2's bindings (scene.rs, prelude3d.lua) and haptics, so its manifest
+# declares stdlib mb3d and sensors = ["haptics"], perf_tier = "full".
+3d = []
 
 [dependencies]
 maimbrain = { path = "../../sdk/maimbrain" }

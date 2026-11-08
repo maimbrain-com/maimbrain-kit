@@ -550,7 +550,7 @@ fn serve_hands_the_page_the_run_to_hold_at_a_frame() {
         }
     };
     said += &lines.next().unwrap().unwrap();
-    assert!(page.ends_with("/runtime/index.html?overlays&replay=play&at=120"), "{page}");
+    assert!(page.ends_with("/runtime/index.html?overlays&debug&replay=play&at=120"), "{page}");
     assert!(said.contains("to frame 120 of 1500 (0:02 at 60 fps) and holding there: what the player saw"), "{said}");
     let origin = &page[..page.find("/runtime").unwrap()];
     let agent: ureq::Agent = ureq::Agent::config_builder().http_status_as_error(false).max_redirects(0).build().into();
@@ -560,5 +560,5 @@ fn serve_hands_the_page_the_run_to_hold_at_a_frame() {
     let root = agent.get(format!("{origin}/")).call().unwrap();
     let location = root.headers().get("location").map(|l| l.to_str().unwrap().to_string());
     let _ = child.kill();
-    assert_eq!(location.as_deref(), Some("/runtime/index.html?overlays&replay=play&at=120"));
+    assert_eq!(location.as_deref(), Some("/runtime/index.html?overlays&debug&replay=play&at=120"));
 }

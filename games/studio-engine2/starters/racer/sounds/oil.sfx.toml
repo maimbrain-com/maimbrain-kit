@@ -1,0 +1,8 @@
+# Oil: a wobbling slide (a stand-in).
+wave = "triangle"
+freq = 420
+freq_end = 260
+duration = 0.35
+decay = 0.15
+vibrato = [3.0, 14]
+volume = 0.5

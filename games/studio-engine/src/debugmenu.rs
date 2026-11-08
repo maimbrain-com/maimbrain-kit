@@ -5,20 +5,28 @@
 //!
 //! Tabs, in order:
 //! - **Scenarios**: `debug/scenarios.toml`'s named sets of picks;
-//! - **Studio**: jump to any level, invincible, score, lives, hitboxes;
+//! - **Studio**: jump to any level, invincible, score, lives, hitboxes
+//!   (2D), and Restart round during one;
 //! - **Spawn**: any kind of thing, next to the player;
 //! - **Knobs**: each behaviour's knobs as live values;
 //! - the game's own tab (named for it), from `debug.toggle`, `debug.action`,
 //!   `debug.number` and `debug.choice` in its Lua.
 //!
 //! A pick is the new state ("invincible is on", "score is 38"). Between
-//! rounds it waits for the next round; during one it applies at once.
+//! rounds it waits for the next round; during one it applies at once,
+//! except what a round only reads as it starts: a scenario, a level jump and
+//! Restart round start the round again, in place, with every pick so far
+//! (the platform's Restart is a new session, which forgets them all). A
+//! scenario's `set` globals stay for the rounds after it, like knobs, and a
+//! round gets them before its `start()` runs (`Mode::Round`'s `set`), and
+//! again on its first frame, after anything `start()` assigned. Picking
+//! another scenario replaces what the last one set.
 
 use std::collections::BTreeSet;
 
 use maimbrain::debug::{self, Menu, Pick};
 
-use crate::project::Project;
+use crate::project::{Kind, Project, Scalar};
 use crate::vm::{self, DebugCmd};
 
 const SCENARIO: u32 = 100;
@@ -27,6 +35,7 @@ const INVINCIBLE: u32 = 2001;
 const SCORE: u32 = 2002;
 const LIVES: u32 = 2003;
 const HITBOXES: u32 = 2004;
+const RESTART: u32 = 2005;
 const SPAWN: u32 = 3000;
 const KNOB: u32 = 4000;
 const ITEM: u32 = 10000;
@@ -43,10 +52,19 @@ pub struct State {
     pub knobs: Vec<(String, String, f64)>,
     /// The game's items' values picked (1-based index, value).
     pub items: Vec<(usize, f64)>,
+    /// Globals the scenario set: (name, value).
+    pub set: Vec<(String, Scalar)>,
+    /// The last scenario picked (its index), which the next one replaces.
+    scenario: Option<usize>,
+    /// A pick made during a round wants it started again (`take_restart`).
+    restart: bool,
     /// For the next frame of a round.
     pending: Vec<DebugCmd>,
-    /// One-shots picked between rounds: score, lives, spawns, globals.
+    /// One-shots picked between rounds: score and lives.
     waiting: Vec<DebugCmd>,
+    /// The last scenario's score, lives and spawns, for the round it starts
+    /// (the next scenario replaces them).
+    scenario_once: Vec<DebugCmd>,
     pub warned: BTreeSet<String>,
 }
 
@@ -70,12 +88,23 @@ impl State {
         for (i, v) in &self.items {
             cmds.push(DebugCmd::Item(*i, *v));
         }
+        for (k, v) in &self.set {
+            cmds.push(DebugCmd::Set(k.clone(), v.clone()));
+        }
+        cmds.append(&mut self.scenario_once);
         cmds.append(&mut self.waiting);
+        // One-shots picked in the same go as a pick that starts the round again.
+        cmds.extend(self.pending.drain(..).filter(|c| matches!(c, DebugCmd::Score(_) | DebugCmd::Lives(_) | DebugCmd::Spawn(_))));
         self.pending = cmds;
     }
 
     pub fn take_commands(&mut self) -> Vec<DebugCmd> {
         std::mem::take(&mut self.pending)
+    }
+
+    /// Whether the round should start again with the picks (once).
+    pub fn take_restart(&mut self) -> bool {
+        std::mem::take(&mut self.restart)
     }
 
     fn now_or_later(&mut self, cmd: DebugCmd, playing: bool) {
@@ -94,47 +123,51 @@ impl State {
         let id = pick.id;
         match id {
             SCENARIO.. if id < LEVEL => {
-                let Some(s) = p.scenarios.get((id - SCENARIO) as usize) else { return };
+                let i = (id - SCENARIO) as usize;
+                let Some(s) = p.scenarios.get(i) else { return };
+                // What the last scenario set goes back to the game's own.
+                if let Some(old) = self.scenario.and_then(|j| p.scenarios.get(j)) {
+                    if old.level.is_some() && self.start_level == old.level {
+                        self.start_level = None;
+                    }
+                    if old.invincible.is_some() {
+                        self.invincible = false;
+                    }
+                    self.knobs.retain(|(k, n, _)| !old.knobs.iter().any(|(ok, on, _)| ok == k && on == n));
+                }
+                self.scenario = Some(i);
+                self.set = s.set.clone();
                 if let Some(l) = &s.level {
                     self.start_level = Some(l.clone());
-                    if playing {
-                        self.pending.push(DebugCmd::Level(l.clone()));
-                    }
                 }
                 if let Some(on) = s.invincible {
                     self.invincible = on;
-                    self.now_or_later(DebugCmd::Invincible(on), playing);
                 }
                 for (k, n, v) in &s.knobs {
-                    self.set_knob(k, n, *v, playing);
+                    self.set_knob(k, n, *v, false);
                 }
-                if let Some(v) = s.score {
-                    self.now_or_later(DebugCmd::Score(v), playing);
-                }
-                if let Some(v) = s.lives {
-                    self.now_or_later(DebugCmd::Lives(v), playing);
-                }
-                for (k, v) in &s.set {
-                    self.now_or_later(DebugCmd::Set(k.clone(), v.clone()), playing);
-                }
-                for k in &s.spawn {
-                    self.now_or_later(DebugCmd::Spawn(k.clone()), playing);
-                }
+                // One-shots for the round it starts.
+                self.scenario_once = s.score.map(DebugCmd::Score).into_iter().chain(s.lives.map(DebugCmd::Lives)).chain(s.spawn.iter().cloned().map(DebugCmd::Spawn)).collect();
+                self.restart = playing;
             }
             LEVEL.. if id < INVINCIBLE => {
                 let Some(m) = p.maps.get((id - LEVEL) as usize) else { return };
                 self.start_level = Some(m.name.clone());
-                if playing {
-                    self.pending.push(DebugCmd::Level(m.name.clone()));
-                }
+                self.restart = playing;
             }
+            RESTART => self.restart = playing,
+            // States: a round starts with them (`round_started`), so only a round on hears them now.
             INVINCIBLE => {
                 self.invincible = pick.on();
-                self.now_or_later(DebugCmd::Invincible(self.invincible), playing);
+                if playing {
+                    self.pending.push(DebugCmd::Invincible(self.invincible));
+                }
             }
             HITBOXES => {
                 self.hitboxes = pick.on();
-                self.now_or_later(DebugCmd::Hitboxes(self.hitboxes), playing);
+                if playing {
+                    self.pending.push(DebugCmd::Hitboxes(self.hitboxes));
+                }
             }
             SCORE => self.now_or_later(DebugCmd::Score(pick.value as f64), playing),
             LIVES => self.now_or_later(DebugCmd::Lives(pick.value as f64), playing),
@@ -167,8 +200,9 @@ impl State {
         }
     }
 
-    /// The menu as it stands (`live`: this round's score and lives).
-    pub fn menu(&self, p: &Project, menu: &vm::Menu, live: Option<(f64, f64)>) -> Menu {
+    /// The menu as it stands (`live`: this round's score and lives;
+    /// `playing`: a round is on, to start again).
+    pub fn menu(&self, p: &Project, menu: &vm::Menu, live: Option<(f64, f64)>, playing: bool) -> Menu {
         let mut m = Menu::new();
         if !p.scenarios.is_empty() {
             m.section("Scenarios");
@@ -187,7 +221,12 @@ impl State {
         let (score, lives) = live.unwrap_or((0.0, p.lives as f64));
         m.number(SCORE, "Score", score as f32).range(-99_999.0, 99_999.0).step(1.0);
         m.number(LIVES, "Lives", lives as f32).range(0.0, 99.0).step(1.0);
-        m.toggle(HITBOXES, "Show hitboxes", self.hitboxes);
+        if p.kind == Kind::TwoD {
+            m.toggle(HITBOXES, "Show hitboxes", self.hitboxes);
+        }
+        if playing {
+            m.action(RESTART, "Restart round").hint("a fresh round, keeping your picks");
+        }
         if !menu.kinds.is_empty() {
             m.section("Spawn");
             for (i, k) in menu.kinds.iter().take(40).enumerate() {
@@ -229,7 +268,7 @@ impl State {
     }
 
     /// Declares the menu (sent only when it changed).
-    pub fn show(&self, p: &Project, menu: &vm::Menu, live: Option<(f64, f64)>, _playing: bool) {
-        debug::show(&self.menu(p, menu, live));
+    pub fn show(&self, p: &Project, menu: &vm::Menu, live: Option<(f64, f64)>, playing: bool) {
+        debug::show(&self.menu(p, menu, live, playing));
     }
 }

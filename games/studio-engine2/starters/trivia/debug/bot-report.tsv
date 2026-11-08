@@ -1,0 +1,29 @@
+# The bot's difficulty report (maimbrain::bot::Difficulty::compare_with): the next
+# run prints what changed against it. Seeded, so it changes only when the game does.
+seconds	first-timer		33.6	40.0	45.0
+stat	first-timer	score	140	410	870
+stat	first-timer	presses/min	5.7	8.6	12.1
+share	first-timer	capped	22.5
+ended	first-timer	missed a hard one	67.5
+ended	first-timer	missed a medium one	10.0
+seconds	casual		39.7	56.6	78.9
+stat	casual	score	600	1540	3410
+stat	casual	presses/min	9.2	11.4	14.2
+share	casual	capped	5.0
+ended	casual	missed a hard one	95.0
+seconds	good		52.2	88.2	180.0
+stat	good	score	2140	5980	18700
+stat	good	presses/min	12.8	14.3	17.9
+share	good	capped	10.0
+ended	good	missed a hard one	90.0
+seconds	expert		75.5	164.2	180.0
+stat	expert	score	7300	24130	32690
+stat	expert	presses/min	15.5	17.0	18.7
+share	expert	capped	47.5
+ended	expert	missed a hard one	52.5
+cap	first-timer		45
+target	first-timer		20	45
+cap	casual		90
+cap	good		180
+target	good		60	180
+cap	expert		180

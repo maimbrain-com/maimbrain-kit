@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:03Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Lovely day for a riddle.",
+  "full_prompt": "[smug] Lovely day for a riddle.",
+  "seed": 1853065756,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "522092e6cb3091be19647478e04ac3b7512a0abc22c61f4bc09bff6c595a3fe8"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/idle2.wav",
+  "raw_sha256": "928beda77e5d3de56e5a4a9137a9aef26da4bcbf6951fba63b46d453906888d8",
+  "output_sha256": "b31ae2317fe58070ecd9b140bcb82f53e041d7d26c5666b7f5b7d5f384c3aaca",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "smug",
+    "kind": "voice",
+    "line": "idle2",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/idle2.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1853065756,
+    "speed": null,
+    "style": null,
+    "text": "Lovely day for a riddle.",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "1d4c361746e4a3c5",
+    "lips": "assets/vo/gruk/idle2.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -15.96743392944336,
+    "peak_db": -4.305602550506592,
+    "phone_loss_db": -3.700000047683716,
+    "seconds": 1.6491609811782837,
+    "subtitle": "Lovely day for a riddle.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

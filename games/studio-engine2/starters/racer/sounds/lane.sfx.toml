@@ -1,0 +1,8 @@
+# A lane change: a short swish up (a stand-in).
+wave = "noise"
+freq = 900
+freq_end = 2400
+duration = 0.09
+attack = 0.01
+decay = 0.08
+volume = 0.35

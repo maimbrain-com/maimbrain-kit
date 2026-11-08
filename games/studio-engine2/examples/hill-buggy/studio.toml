@@ -1,0 +1,19 @@
+# Hill Buggy: Phase 3a's vehicle scene (docs/STUDIO-2.md §9.4). A buggy on
+# Godot's VehicleBody3D and four VehicleWheel3Ds, driven over a Terrain at
+# speed: it catches air off the crests and lands on its springs.
+title = "Hill Buggy"
+tagline = "Hold a side to steer"
+kind = "3d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.hillbuggy"
+version = "0.1.0"
+creator = "@maimbrain"
+
+lives = 1
+
+[[scores]]
+label = "Air"
+order = "high"

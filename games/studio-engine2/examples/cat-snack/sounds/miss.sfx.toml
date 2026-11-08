@@ -1,0 +1,7 @@
+# Missed: a sad slide down.
+wave = "triangle"
+freq = 330
+freq_end = 110
+duration = 0.45
+decay = 0.2
+vibrato = [0.4, 8]

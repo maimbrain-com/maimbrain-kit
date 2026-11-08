@@ -19,6 +19,10 @@ pub mod debugmenu;
 mod headless;
 pub mod input;
 pub mod project;
+#[cfg(feature = "3d")]
+pub mod scene;
+#[cfg(feature = "3d")]
+mod three;
 pub mod vm;
 
 use std::collections::BTreeMap;
@@ -32,8 +36,8 @@ use maimbrain::sys::{self, Asset, AssetState, Level, Screen};
 use maimbrain::ui::{Theme, TitleCard};
 use maimbrain::{Game, debug, export_game};
 
-use project::{Orientation, Project, TILE};
-use vm::{Fx, Mode, Step, Vm};
+use project::{Kind, Orientation, Project, TILE};
+use vm::{Align, Fx, Media, Mode, Step, Vm};
 
 /// The engine's version, as a project pins it (`engine = "1.0"`) and the
 /// manifest names it (`engine = "studio@1.0"`).
@@ -117,8 +121,14 @@ pub struct Studio {
     sounds: BTreeMap<String, Sound>,
     music: Option<(String, Voice)>,
     rounds: Rounds,
-    /// The title screen's VM: what the debug menu shows.
+    /// The title screen's VM: what the debug menu shows (and in 3D, the
+    /// attract mode behind the title; dropped when a round starts, so two
+    /// scenes never draw at once).
     title: Option<Vm>,
+    /// The project loaded and its title VM started (rounds may start).
+    ready: bool,
+    /// The 3D view's models and sounds, for its VMs' bindings.
+    media: Media,
     menu: vm::Menu,
     round: Option<Vm>,
     last: Option<Step>,
@@ -160,10 +170,14 @@ impl Studio {
                 self.sprite_images = vec![None; p.sprites.len()];
                 self.tile_images = vec![None; p.tilesets.len()];
                 self.project = Some(p.clone());
-                match Vm::new(&p, sys::rand_seed(), Mode::Title) {
+                if p.kind == Kind::ThreeD {
+                    self.setup_3d(&p);
+                }
+                match Vm::with_media(&p, sys::rand_seed(), Mode::Title, &self.media) {
                     Ok(v) => {
                         self.menu = v.menu();
                         self.title = Some(v);
+                        self.ready = true;
                     }
                     Err(e) => self.fail(e),
                 }
@@ -186,16 +200,16 @@ impl Studio {
         self.feel.particles.clear();
         self.feel.popups.list.clear();
         let Some(p) = self.project.clone() else {
-            if self.error.is_none() {
-                self.error = Some("the project hasn't loaded yet".into());
-            }
-            return;
+            return; // it didn't load: that error stays up
         };
-        if self.title.is_none() {
+        if !self.ready {
             return; // the error from loading stays up
         }
         self.error = None;
-        match Vm::new(&p, self.rounds.seed(), Mode::Round { level: self.debug.start_level.as_deref() }) {
+        if p.kind == Kind::ThreeD {
+            self.title = None;
+        }
+        match Vm::with_media(&p, self.rounds.seed(), Mode::Round { level: self.debug.start_level.as_deref(), set: &self.debug.set }, &self.media) {
             Ok(v) => {
                 if let Some(n) = sys::param_as::<u64>("lua_budget") {
                     v.set_budget(n);
@@ -263,8 +277,12 @@ impl Studio {
         }
     }
 
-    /// Where the canvas sits on the screen: offset and logical units per art pixel.
+    /// Where the canvas sits on the screen: offset and logical units per art
+    /// pixel. The 3D view works in logical units.
     fn transform(&self, p: &Project) -> (f32, f32, f32) {
+        if p.kind == Kind::ThreeD {
+            return (0.0, 0.0, 1.0);
+        }
         let (w, h) = (p.canvas.0 as f32, p.canvas.1 as f32);
         let (sw, sh) = screen_size(&self.screen, p);
         let s = (sw / w).min(sh / h);
@@ -273,6 +291,9 @@ impl Studio {
 
     /// A sideways game as an upright feed card (not in a round).
     fn card_mode(&self, p: &Project) -> bool {
+        if p.kind == Kind::ThreeD {
+            return false;
+        }
         let (sw, sh) = screen_size(&self.screen, p);
         p.orientation == Orientation::Sideways && sh > sw && !self.rounds.playing()
     }
@@ -317,6 +338,8 @@ impl Game for Studio {
             music: None,
             rounds,
             title: None,
+            ready: false,
+            media: Media::default(),
             menu: vm::Menu::default(),
             round: None,
             last: None,
@@ -346,13 +369,19 @@ impl Game for Studio {
         self.load();
         for e in maimbrain::input::poll() {
             if let Some(pick) = debug::Pick::from(&e) {
+                // A round's ending doesn't step its VM: picks then wait for the next round.
                 if let Some(p) = self.project.clone() {
-                    self.debug.pick(&p, &self.menu, pick, self.rounds.playing());
+                    self.debug.pick(&p, &self.menu, pick, self.rounds.stage() == Stage::Playing);
                 }
                 continue;
             }
             if e.is_resize() {
                 self.screen = sys::screen();
+            } else if self.project.is_none() && !matches!(self.loading, Loading::Done) {
+                // Still loading, so there's no title to tap yet: a tap now
+                // (a quick one, or one replayed onto new files before they've
+                // all arrived) would start a round with nothing to play.
+                continue;
             }
             let tf = self.project.clone().map(|p| self.transform(&p));
             match self.rounds.input(&e) {
@@ -372,6 +401,12 @@ impl Game for Studio {
         }
         #[cfg(feature = "sensors")]
         self.input.tilt(maimbrain::sensors::tilt().map(|t| (t.x * 2.0).clamp(-1.0, 1.0)));
+
+        // A scenario, a level jump or Restart round, picked during the round:
+        // it starts again, in place, with the picks (score and lives fresh).
+        if self.debug.take_restart() && self.rounds.stage() == Stage::Playing {
+            self.start_round();
+        }
 
         // The world runs until the round ends (its ending shows the moment it
         // did, frozen), and never after a Lua error.
@@ -411,10 +446,14 @@ impl Game for Studio {
         } else {
             // Picks made between rounds wait for the next one.
             let _ = self.input.frame();
+            if self.project.as_ref().is_some_and(|p| p.kind == Kind::ThreeD) {
+                self.step_3d_offstage(dt);
+            }
         }
         if let Some(p) = self.project.clone() {
             let live = self.round.as_ref().filter(|_| self.rounds.playing()).map(|v| (v.number("score"), v.number("lives")));
-            self.debug.show(&p, &self.menu, live, self.rounds.playing());
+            let playing = self.round.is_some() && self.rounds.stage() == Stage::Playing;
+            self.debug.show(&p, &self.menu, live, playing);
         }
         self.feel.shake = (self.feel.shake - dt * 24.0).max(0.0);
         if let Some((c, t)) = self.feel.flash {
@@ -427,6 +466,10 @@ impl Game for Studio {
     }
 
     fn render(&self) {
+        if let Some(p) = self.project().filter(|p| p.kind == Kind::ThreeD) {
+            self.render_3d(&p.clone());
+            return;
+        }
         let Some(p) = self.project() else {
             gfx2d::clear(0x0b0d1fff);
             if let Some(e) = &self.error {
@@ -505,7 +548,23 @@ impl Game for Studio {
         self.feel.popups.draw();
         if let Some((v, _)) = live {
             for t in &v.out.borrow().texts {
-                gfx2d::text(Font::Pixel, 16.0, (ox + t.x * s).round(), (oy + t.y * s).round(), p.color(t.color), &t.s);
+                // At the canvas's own size (vm::TEXT_EM px an em), so the
+                // layout Lua worked out holds on any screen: 16 units on most.
+                let k = t.scale as f32 * s;
+                let (em, line) = (vm::TEXT_EM as f32 * k, vm::TEXT_LINE as f32 * k);
+                for (i, l) in t.lines.iter().enumerate() {
+                    let w = vm::text_width(l, t.scale) as f32 * s;
+                    let x = ox + t.x * s - match t.align {
+                        Align::Left => 0.0,
+                        Align::Center => w / 2.0,
+                        Align::Right => w,
+                    };
+                    let y = oy + t.y * s + i as f32 * line;
+                    if let Some(c) = t.shadow {
+                        gfx2d::text(Font::Pixel, em, (x + em / 8.0).round(), (y + em / 8.0).round(), p.color(c), l);
+                    }
+                    gfx2d::text(Font::Pixel, em, x.round(), y.round(), p.color(t.color), l);
+                }
             }
             if self.rounds.playing() {
                 let top = oy + self.screen.inset_top.max(0.0) + 16.0;
@@ -554,7 +613,9 @@ impl Studio {
                 for (path, a) in &list {
                     match a.state() {
                         AssetState::Ready => {
-                            files.insert(path.clone(), a.read().unwrap_or_default());
+                            // Models and sounds are played from their assets; the project only needs their names.
+                            let binary = path.ends_with(".glb") || path.ends_with(".ogg");
+                            files.insert(path.clone(), if binary { Vec::new() } else { a.read().unwrap_or_default() });
                             self.assets.insert(path.clone(), *a);
                         }
                         _ => self.warn_once(format!("assets/{path} didn't load")),
@@ -663,6 +724,21 @@ impl Studio {
             self.draw_sprite(p, si, hero.anims[0].1[0], 0.0, 0.0, false);
             gfx2d::pop();
         }
+    }
+}
+
+/// The Arcade builds have no 3D view: a 3D project fails as its VM starts
+/// (vm.rs `three`), and its error shows over a blank screen.
+#[cfg(not(feature = "3d"))]
+impl Studio {
+    fn setup_3d(&mut self, _: &Project) {}
+    fn step_3d_offstage(&mut self, _: f32) {}
+    fn render_3d(&self, p: &Project) {
+        gfx2d::clear(0x0b0d1fff);
+        if let Some(e) = &self.error {
+            error_box(e, logical_size(p.orientation).0 as f32);
+        }
+        self.rounds.draw();
     }
 }
 

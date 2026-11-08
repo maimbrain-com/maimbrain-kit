@@ -1,0 +1,8 @@
+# The fight bell: a bright ding that rings out.
+wave = "triangle"
+freq = 1320
+duration = 0.05
+attack = 0.002
+decay = 0.9
+vibrato = [0.15, 9]
+volume = 0.6

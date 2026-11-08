@@ -1,0 +1,7 @@
+# A heavy footfall: a low noise thud.
+wave = "noise"
+freq = 90
+freq_end = 50
+duration = 0.06
+decay = 0.18
+volume = 0.8

@@ -47,7 +47,11 @@ impl Snapshot {
         for f in ["studio.toml", "icon.png"] {
             s.add(&dir.join(f), f.to_string());
         }
-        for d in ["game", "sprites", "tiles", "maps", "sounds", "music", "debug"] {
+        // 1.0's directories and 2.0's (images/): whichever the project has.
+        let mut dirs: Vec<&str> = crate::studio::DIRS.iter().chain(crate::studio::v2::DIRS.iter()).copied().collect();
+        dirs.sort();
+        dirs.dedup();
+        for d in dirs {
             s.walk(&dir.join(d), d, false);
         }
         s
@@ -208,6 +212,10 @@ pub fn run(scan: &dyn Fn() -> Snapshot, mut built: Snapshot, mut build: impl FnM
 /// Where a game's files are, for messages.
 pub fn describe(dir: &Path) -> String {
     if crate::studio::is_project(dir) {
+        let v2 = std::fs::read_to_string(dir.join("studio.toml")).ok().and_then(|t| t.parse::<toml::Table>().ok()).is_some_and(|t| crate::studio::v2::is_v2(&t));
+        if v2 {
+            return format!("{} (a Studio 2.0 project: studio.toml, game/, images/, sounds/, music/, debug/)", dir.display());
+        }
         return format!("{} (a Studio project: studio.toml, game/, sprites/, tiles/, maps/, sounds/, music/, debug/)", dir.display());
     }
     let mut parts = vec!["src/"];

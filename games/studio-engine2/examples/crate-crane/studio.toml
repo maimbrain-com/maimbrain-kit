@@ -1,0 +1,28 @@
+# Crate Crane (docs/STUDIO-2.md §6.3): Phase 3's acceptance game, Topple
+# (games/topple) made in Studio with love.physics. A crane swings blocks
+# with faces over a rock in the sea; tap to let go. What lands level on the
+# tower sets in mortar, mortar that twists too far cracks, and anything in
+# the sea costs a heart. Its sounds and music are Topple's own.
+title = "Crate Crane"
+tagline = "Tap to drop. How high?"
+kind = "2d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.cratecrane"
+version = "0.1.0"
+creator = "@maimbrain"
+
+lives = 3
+
+[text]
+over = "TOPPLED!"
+
+[[scores]]
+label = "Blocks"
+order = "high"
+
+[identity]
+name = "stadium"
+hud = "badge"

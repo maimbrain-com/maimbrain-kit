@@ -1,0 +1,12 @@
+# A tin can struck: a bright, ringing clang (audio.impact makes harder hits louder and lower).
+wave = "square"
+duty = 0.18
+freq = 1250
+freq_end = 1080
+duration = 0.05
+attack = 0.001
+decay = 0.28
+arp = [0, 6, 13]
+arp_speed = 0.012
+vibrato = [0.15, 30]
+volume = 0.55

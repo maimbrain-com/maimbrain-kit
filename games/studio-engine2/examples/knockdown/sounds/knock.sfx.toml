@@ -1,0 +1,9 @@
+# Wood on wood: a crate or the plank, a short hollow knock.
+wave = "square"
+duty = 0.5
+freq = 190
+freq_end = 105
+duration = 0.035
+attack = 0.001
+decay = 0.09
+volume = 0.6

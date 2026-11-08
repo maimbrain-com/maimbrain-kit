@@ -124,6 +124,7 @@ pub enum SeqEvent {
 enum Step {
     Shot(Shot, f32),
     Move(Shot, f32, Ease),
+    Pan([f32; 3], f32, Ease),
     Line { speaker: String, line: VoiceLine, expression: String },
     Wait(f32),
     Letterbox(f32),
@@ -138,7 +139,7 @@ impl Step {
     /// How long it holds the timeline (a line: until it's done).
     fn secs(&self) -> f32 {
         match self {
-            Step::Shot(_, s) | Step::Move(_, s, _) | Step::Wait(s) | Step::Fade(_, s) | Step::Title(_, _, s) | Step::Credits(_, s) => *s,
+            Step::Shot(_, s) | Step::Move(_, s, _) | Step::Pan(_, s, _) | Step::Wait(s) | Step::Fade(_, s) | Step::Title(_, _, s) | Step::Credits(_, s) => *s,
             _ => 0.0,
         }
     }
@@ -195,6 +196,8 @@ pub struct Sequence {
     cursor: f64,
     hold: Option<Hold>,
     cam: Option<(Shot, Shot, f64, f32, Ease)>,
+    /// A 2D camera's centre and zoom: from, to, start, secs, ease.
+    view: Option<([f32; 3], [f32; 3], f64, f32, Ease)>,
     bars: Track,
     fade: Track,
     title: Option<(String, String, f64, f32)>,
@@ -217,6 +220,7 @@ impl Sequence {
             cursor: 0.0,
             hold: None,
             cam: None,
+            view: None,
             bars: Track::still(0.0),
             fade: Track::still(0.0),
             title: None,
@@ -287,6 +291,28 @@ impl Sequence {
     /// Moves the camera from where it is to `shot` over `secs`.
     pub fn move_to(self, shot: Shot, secs: f32, ease: Ease) -> Sequence {
         self.push(Step::Move(shot, secs, ease))
+    }
+
+    /// A 2D camera move: its centre to `x, y` and its zoom to `zoom` over
+    /// `secs` ([`Sequence::view2d`]; [`Sequence::from_view2d`] says where it
+    /// starts).
+    pub fn pan(self, x: f32, y: f32, zoom: f32, secs: f32, ease: Ease) -> Sequence {
+        self.push(Step::Pan([x, y, zoom], secs, ease))
+    }
+
+    /// Where a 2D camera is when the sequence starts (its first `pan` moves from here).
+    pub fn from_view2d(mut self, x: f32, y: f32, zoom: f32) -> Sequence {
+        self.view = Some(([x, y, zoom], [x, y, zoom], 0.0, 0.0, Ease::Linear));
+        self
+    }
+
+    /// The 2D camera now, `[x, y, zoom]`: the last pan, or the one under way
+    /// (None before the first, unless [`Sequence::from_view2d`] said).
+    pub fn view2d(&self) -> Option<[f32; 3]> {
+        self.view.map(|(a, b, start, secs, ease)| {
+            let k = ease.at(if secs <= 0.0 { 1.0 } else { ((self.t - start) as f32 / secs).clamp(0.0, 1.0) });
+            [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]
+        })
     }
 
     /// `speaker` says `line` with `expression`, in the dialogue box; the
@@ -470,6 +496,10 @@ impl Sequence {
             Step::Move(s, secs, ease) => {
                 let from = self.shot_now().unwrap_or(s);
                 self.cam = Some((from, s, at, secs, ease));
+            }
+            Step::Pan(to, secs, ease) => {
+                let from = self.view2d().unwrap_or(to);
+                self.view = Some((from, to, at, secs, ease));
             }
             Step::Line { speaker, line, expression } => self.talk.say(&speaker, &line, &expression),
             Step::Wait(_) => {}

@@ -1,0 +1,28 @@
+# Bell Keeper (docs/STUDIO-2.md §9.5, Phase 4b): a game that teaches
+# through hints, and the difficulty bot plays it from them alone, with no
+# bot.lua: it rings the bell the hint points at, holds the rope on HOLD and
+# lets go on LET GO. Placeholder art: shapes.
+title = "Bell Keeper"
+tagline = "Ring them while they glow"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+lives = 3
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.bell-keeper"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[identity]
+name = "gothic"
+
+[text]
+over = "THE BELLS FELL SILENT"
+
+[[scores]]
+label = "Rings"
+order = "high"
+
+[remix]
+allowed = true

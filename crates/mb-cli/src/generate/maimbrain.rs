@@ -295,6 +295,45 @@ pub fn describe(server: &dyn Server) -> (bool, String) {
     }
 }
 
+// --- what it's for ------------------------------------------------------------------
+
+/// What this run is making: the game's title and the asset's name. Calls on
+/// Maimbrain's keys send them (X-Mb-Game, X-Mb-Asset), so the creator's
+/// Credits screen in the app can say "Jump · Moth Lamp" instead of "Sound
+/// effect". Each job sets it before it calls a provider.
+static MAKING: std::sync::Mutex<Option<(String, String)>> = std::sync::Mutex::new(None);
+
+/// A job in `game` is about to make `name`.
+pub fn making(game: &std::path::Path, name: &str) {
+    let title = std::fs::read_to_string(game.join("manifest.toml"))
+        .ok()
+        .and_then(|t| mb_format::Manifest::parse(&t).ok())
+        .map(|m| m.name)
+        .or_else(|| game.canonicalize().ok()?.file_name()?.to_str().map(str::to_string))
+        .unwrap_or_default();
+    *MAKING.lock().unwrap() = Some((title, name.to_string()));
+}
+
+/// The headers naming what's being made (none until a job has said).
+pub fn making_headers() -> Vec<(String, String)> {
+    MAKING.lock().unwrap().as_ref().map(|(game, name)| headers_for(game, name)).unwrap_or_default()
+}
+
+fn headers_for(game: &str, name: &str) -> Vec<(String, String)> {
+    [("X-Mb-Game", game), ("X-Mb-Asset", name)]
+        .into_iter()
+        .filter(|(_, v)| !v.trim().is_empty())
+        .map(|(k, v)| (k.to_string(), percent_encode(v.trim())))
+        .collect()
+}
+
+/// Header values are ASCII: anything else (a title's accents, emoji) is %XX, as in a URL.
+fn percent_encode(s: &str) -> String {
+    s.bytes()
+        .map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
+        .collect()
+}
+
 // --- the provider -------------------------------------------------------------------
 
 /// Sends the provider request to the Maimbrain server, which calls the
@@ -321,7 +360,9 @@ impl Maimbrain {
 
     fn call(&self, path: &str, body: Value) -> Result<Output, String> {
         let url = format!("{}/api/v1/generate/{path}", self.server);
-        let r = self.http.post(&url, &[("Authorization".into(), format!("Bearer {}", self.token))], "application/json", serde_json::to_vec(&body).unwrap())?;
+        let mut headers = vec![("Authorization".to_string(), format!("Bearer {}", self.token))];
+        headers.extend(making_headers());
+        let r = self.http.post(&url, &headers, "application/json", serde_json::to_vec(&body).unwrap())?;
         let v: Value = serde_json::from_slice(&r.body).unwrap_or_default();
         if r.status != 200 {
             return Err(server_error(r.status, &v, self.upstream));
@@ -521,6 +562,15 @@ mod tests {
         let s = allowed(9.98);
         assert!(check_budget(&s, Some(0.0336), "gemini").unwrap_err().contains("$0.02 left of your $10.00"));
         assert!(check_budget(&s, Some(0.01), "gemini").is_ok());
+    }
+
+    #[test]
+    fn what_its_making_goes_as_headers_percent_encoded() {
+        assert_eq!(
+            headers_for("Moth Lamp ✨", "moth_idle"),
+            vec![("X-Mb-Game".to_string(), "Moth%20Lamp%20%E2%9C%A8".to_string()), ("X-Mb-Asset".to_string(), "moth_idle".to_string())]
+        );
+        assert_eq!(headers_for("", "jump"), vec![("X-Mb-Asset".to_string(), "jump".to_string())], "a game with no title sends just the name");
     }
 
     #[test]

@@ -1,0 +1,6 @@
+# Named sets of debug picks: the debug menu's first tab ("Try it").
+[[scenario]]
+name = "Autopilot"
+note = "the round flies by itself"
+[scenario.set]
+AUTO = true

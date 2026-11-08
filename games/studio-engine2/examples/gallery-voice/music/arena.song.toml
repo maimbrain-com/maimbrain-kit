@@ -1,0 +1,20 @@
+# The arena: a bouncy pop loop under the trash talk (a synth stand-in),
+# loud enough that the dip under each voice is plain to hear.
+bpm = 118
+order = ["a", "a", "b", "a"]
+
+[voices.pulse1]
+duty = 0.25
+volume = 0.16
+
+[patterns.a]
+pulse1   = "A4 . C5 E5 . C5 A4 . G4 . B4 D5 . B4 G4 ."
+pulse2   = "A3 . . A3 . . A3 . G3 . . G3 . . G3 ."
+triangle = "A2 . A2 . E2 . A2 . G2 . G2 . D2 . G2 ."
+noise    = "X . . . x . X . X . . . x . X ."
+
+[patterns.b]
+pulse1   = "F4 . A4 C5 . A4 F4 . E4 . G#4 B4 . G#4 E4 ."
+pulse2   = "F3 . . F3 . . F3 . E3 . . E3 . . E3 ."
+triangle = "F2 . F2 . C2 . F2 . E2 . E2 . B1 . E2 ."
+noise    = "X . . . x . X . X . . . x . X x"

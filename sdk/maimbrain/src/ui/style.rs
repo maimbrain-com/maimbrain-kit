@@ -363,6 +363,17 @@ pub fn outline_points(shape: Shape, r: Rect, radius: f32) -> Option<Vec<f32>> {
     }
 }
 
+/// The style for a card or panel bigger than a button: a pill identity's
+/// round ends are for small things, so a card in one is rounded instead
+/// (else a square panel draws as a circle).
+pub fn for_cards(st: &Style) -> Style {
+    let mut s = *st;
+    if s.shape == Shape::Pill {
+        s.shape = Shape::Rounded;
+    }
+    s
+}
+
 /// The corner radius a shape draws `r` with.
 pub fn radius_for(shape: Shape, r: Rect, radius: f32) -> f32 {
     match shape {
@@ -427,7 +438,8 @@ pub fn frame(st: &Style, r: Rect, radius: f32, top: u32, bottom: u32, border: u3
             }
         }
         Shadow::Hard(dx, dy) => fill(st.shape, r.offset(dx, dy), radius, shadow_color, shadow_color),
-        Shadow::Glow => glow(r, rad.max(4.0), 26.0, with_alpha(glow_color, 0.55)),
+        // (Faded with the frame: the colours' own alpha scales the halo.)
+        Shadow::Glow => glow(r, rad.max(4.0), 26.0, fade(with_alpha(glow_color, 0.55), (glow_color & 0xff) as f32 / 255.0)),
     }
     fill(st.shape, r, radius, top, bottom);
     if st.shape == Shape::Bevel {
@@ -440,7 +452,7 @@ pub fn frame(st: &Style, r: Rect, radius: f32, top: u32, bottom: u32, border: u3
         // A light rim along the top inside edge reads as a lit bevel.
         gfx2d::rrect(r.x + 1.0, r.y + 1.0, r.w - 2.0, r.h * 0.5, (rad - 1.0).max(0.0), 1.5, 0.0, 0xffffff22, 0xffffff00);
     }
-    texture(st.texture, r.inset(rad * 0.3 + 3.0), with_alpha(darken(bottom, 0.6), 0.16), rect_seed(r));
+    texture(st.texture, r.inset(rad * 0.3 + 3.0), fade(with_alpha(darken(bottom, 0.6), 0.16), (bottom & 0xff) as f32 / 255.0), rect_seed(r));
     if border & 0xff != 0 {
         match st.border {
             Border::None => {}

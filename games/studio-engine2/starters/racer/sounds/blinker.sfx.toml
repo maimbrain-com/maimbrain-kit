@@ -1,0 +1,9 @@
+# A truck's blinker: two ticks (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 1800
+duration = 0.3
+arp = [0, -12]
+arp_speed = 0.15
+decay = 0.02
+volume = 0.25

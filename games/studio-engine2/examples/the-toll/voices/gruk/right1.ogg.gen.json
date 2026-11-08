@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:02Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Hmph. Lucky guess. Go on, then.",
+  "full_prompt": "[annoyed] Hmph. Lucky guess. Go on, then.",
+  "seed": 1096249729,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "94752bf822f00ea2129be53b5159bfa2d34339436d83ea676dbc445284ea0943"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/right1.wav",
+  "raw_sha256": "a96d3364cff0f7aa4087440f279d71ed727c722f575d5144601f5bb1e35a90bb",
+  "output_sha256": "b777ec5cc16f3c92fb2ef8310b59c62cae15563d291c909ba0e9e3920833a7e2",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "annoyed",
+    "kind": "voice",
+    "line": "right1",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/right1.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1096249729,
+    "speed": null,
+    "style": null,
+    "text": "Hmph. Lucky guess. Go on, then.",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "e47960999f88d803",
+    "lips": "assets/vo/gruk/right1.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -16.865245819091797,
+    "peak_db": -3.310267686843872,
+    "phone_loss_db": -3.5999999046325684,
+    "seconds": 2.249410390853882,
+    "subtitle": "Hmph. Lucky guess. Go on, then.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

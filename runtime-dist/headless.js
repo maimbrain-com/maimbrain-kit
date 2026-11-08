@@ -2,6 +2,18 @@
 function host_begin_frame() {
   wasm.host_begin_frame();
 }
+function host_capture() {
+  const ret = wasm.host_capture();
+  return ret;
+}
+function host_capture_init(width, height) {
+  const ret = wasm.host_capture_init(width, height);
+  return ret;
+}
+function host_capture_isolated(node, hud, plain) {
+  const ret = wasm.host_capture_isolated(node, hud, plain);
+  return ret;
+}
 function host_draw_hash() {
   let deferred1_0;
   let deferred1_1;
@@ -71,8 +83,25 @@ function host_redraw_isolated(node, hud, plain) {
 function host_set_logical(width, height) {
   wasm.host_set_logical(width, height);
 }
-function host_set_stdlib(mb3d) {
-  wasm.host_set_stdlib(mb3d);
+function host_set_stdlib(mb3d, mb2d) {
+  wasm.host_set_stdlib(mb3d, mb2d);
+}
+function host_shaders_plain(why) {
+  const ptr0 = passStringToWasm0(why, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+  const len0 = WASM_VECTOR_LEN;
+  wasm.host_shaders_plain(ptr0, len0);
+}
+function host_shaders_status() {
+  let deferred1_0;
+  let deferred1_1;
+  try {
+    const ret = wasm.host_shaders_status();
+    deferred1_0 = ret[0];
+    deferred1_1 = ret[1];
+    return getStringFromWasm0(ret[0], ret[1]);
+  } finally {
+    wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+  }
 }
 function host_stats() {
   let deferred1_0;
@@ -113,6 +142,12 @@ function host_top_draws(n) {
     wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
   }
 }
+function host_variant_begin() {
+  wasm.host_variant_begin();
+}
+function host_variant_end() {
+  wasm.host_variant_end();
+}
 function __wbg_get_imports() {
   const import0 = {
     __proto__: null,
@@ -147,6 +182,14 @@ function __wbg_get_imports() {
       const ret = arg0 === void 0;
       return ret;
     },
+    __wbg___wbindgen_string_get_0380ccaa2f57f0d9: function(arg0, arg1) {
+      const obj = arg1;
+      const ret = typeof obj === "string" ? obj : void 0;
+      var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      var len1 = WASM_VECTOR_LEN;
+      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    },
     __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
       throw new Error(getStringFromWasm0(arg0, arg1));
     },
@@ -168,6 +211,21 @@ function __wbg_get_imports() {
     __wbg_configure_1e2c1c9edad07d26: function() {
       return handleError(function(arg0, arg1) {
         arg0.configure(arg1);
+      }, arguments);
+    },
+    __wbg_copyBufferToBuffer_01766818654a9868: function() {
+      return handleError(function(arg0, arg1, arg2, arg3, arg4) {
+        arg0.copyBufferToBuffer(arg1, arg2, arg3, arg4);
+      }, arguments);
+    },
+    __wbg_copyBufferToBuffer_9c174b96fb08d551: function() {
+      return handleError(function(arg0, arg1, arg2, arg3, arg4, arg5) {
+        arg0.copyBufferToBuffer(arg1, arg2, arg3, arg4, arg5);
+      }, arguments);
+    },
+    __wbg_copyTextureToBuffer_1234b3210431ad05: function() {
+      return handleError(function(arg0, arg1, arg2, arg3) {
+        arg0.copyTextureToBuffer(arg1, arg2, arg3);
       }, arguments);
     },
     __wbg_createBindGroupLayout_b1bd63b4e88459d8: function() {
@@ -193,6 +251,12 @@ function __wbg_get_imports() {
     __wbg_createPipelineLayout_6eab52c327118937: function(arg0, arg1) {
       const ret = arg0.createPipelineLayout(arg1);
       return ret;
+    },
+    __wbg_createQuerySet_2dc8cde53df9849d: function() {
+      return handleError(function(arg0, arg1) {
+        const ret = arg0.createQuerySet(arg1);
+        return ret;
+      }, arguments);
     },
     __wbg_createRenderPipeline_0ebb7ebc653e9207: function() {
       return handleError(function(arg0, arg1) {
@@ -247,12 +311,24 @@ function __wbg_get_imports() {
       const ret = arg0.error;
       return ret;
     },
+    __wbg_features_5cac120c28ba0475: function(arg0) {
+      const ret = arg0.features;
+      return ret;
+    },
+    __wbg_features_dec7bd2fd3d91bd6: function(arg0) {
+      const ret = arg0.features;
+      return ret;
+    },
     __wbg_finish_09ec094c10f41e7b: function(arg0) {
       const ret = arg0.finish();
       return ret;
     },
     __wbg_finish_ec1c191f66a895b1: function(arg0, arg1) {
       const ret = arg0.finish(arg1);
+      return ret;
+    },
+    __wbg_getCompilationInfo_8d7753eae61b1c30: function(arg0) {
+      const ret = arg0.getCompilationInfo();
       return ret;
     },
     __wbg_getContext_635e36719cad2623: function() {
@@ -283,12 +359,20 @@ function __wbg_get_imports() {
       const ret = arg0.getPreferredCanvasFormat();
       return (__wbindgen_enum_GpuTextureFormat.indexOf(ret) + 1 || 102) - 1;
     },
+    __wbg_get_6c896e0571ddae51: function(arg0, arg1) {
+      const ret = arg0[arg1 >>> 0];
+      return ret;
+    },
     __wbg_get_fd12a9100976c296: function(arg0, arg1) {
       const ret = arg0[arg1 >>> 0];
       return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
     },
     __wbg_gpu_afdd4387c7afe5f9: function(arg0) {
       const ret = arg0.gpu;
+      return ret;
+    },
+    __wbg_has_eafa12e457ea88fb: function(arg0, arg1, arg2) {
+      const ret = arg0.has(getStringFromWasm0(arg1, arg2));
       return ret;
     },
     __wbg_height_aa756cf29b6d629c: function(arg0) {
@@ -348,8 +432,20 @@ function __wbg_get_imports() {
       const ret = arg0.length;
       return ret;
     },
+    __wbg_length_d4bdea10311bd9cf: function(arg0) {
+      const ret = arg0.length;
+      return ret;
+    },
+    __wbg_length_e5c9095a7f6375b0: function(arg0) {
+      const ret = arg0.length;
+      return ret;
+    },
     __wbg_limits_601ad2e086ef8141: function(arg0) {
       const ret = arg0.limits;
+      return ret;
+    },
+    __wbg_lineNum_042c3763c60dc731: function(arg0) {
+      const ret = arg0.lineNum;
       return ret;
     },
     __wbg_lost_bb454eb62101af1a: function(arg0) {
@@ -490,6 +586,17 @@ function __wbg_get_imports() {
       getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
       getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
     },
+    __wbg_message_e749324c0f7a61d2: function(arg0, arg1) {
+      const ret = arg1.message;
+      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const len1 = WASM_VECTOR_LEN;
+      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    },
+    __wbg_messages_9c17ef25feda781d: function(arg0) {
+      const ret = arg0.messages;
+      return ret;
+    },
     __wbg_minStorageBufferOffsetAlignment_5ba9b77792bdadb3: function(arg0) {
       const ret = arg0.minStorageBufferOffsetAlignment;
       return ret;
@@ -527,7 +634,7 @@ function __wbg_get_imports() {
           const a = state0.a;
           state0.a = 0;
           try {
-            return wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(a, state0.b, arg02, arg12);
+            return wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined_______true_(a, state0.b, arg02, arg12);
           } finally {
             state0.a = a;
           }
@@ -540,6 +647,10 @@ function __wbg_get_imports() {
     },
     __wbg_new_with_byte_offset_and_length_2f5d7fc2a828b74d: function(arg0, arg1, arg2) {
       const ret = new Uint8Array(arg0, arg1 >>> 0, arg2 >>> 0);
+      return ret;
+    },
+    __wbg_offset_3a6b58d78a1ea664: function(arg0) {
+      const ret = arg0.offset;
       return ret;
     },
     __wbg_onSubmittedWorkDone_1190213cee1ecf7e: function(arg0) {
@@ -577,6 +688,9 @@ function __wbg_get_imports() {
     __wbg_requestDevice_5cb8a582e55d08cb: function(arg0, arg1) {
       const ret = arg0.requestDevice(arg1);
       return ret;
+    },
+    __wbg_resolveQuerySet_770f23fabac49845: function(arg0, arg1, arg2, arg3, arg4, arg5) {
+      arg0.resolveQuerySet(arg1, arg2 >>> 0, arg3 >>> 0, arg4, arg5 >>> 0);
     },
     __wbg_resolve_0076e10020304ede: function(arg0) {
       const ret = Promise.resolve(arg0);
@@ -686,8 +800,14 @@ function __wbg_get_imports() {
     __wbg_set_buffer_8d0ac64ad20dfc84: function(arg0, arg1) {
       arg0.buffer = arg1;
     },
+    __wbg_set_buffer_910a40a90f97cfca: function(arg0, arg1) {
+      arg0.buffer = arg1;
+    },
     __wbg_set_buffers_5d0e0c50791f710e: function(arg0, arg1, arg2) {
       arg0.buffers = getArrayJsValueViewFromWasm0(arg1, arg2);
+    },
+    __wbg_set_bytes_per_row_1e824a5502b54b3d: function(arg0, arg1) {
+      arg0.bytesPerRow = arg1 >>> 0;
     },
     __wbg_set_bytes_per_row_c28583f0063160f1: function(arg0, arg1) {
       arg0.bytesPerRow = arg1 >>> 0;
@@ -711,6 +831,9 @@ function __wbg_get_imports() {
       arg0.compare = __wbindgen_enum_GpuCompareFunction[arg1];
     },
     __wbg_set_count_8ff0c9474e39a849: function(arg0, arg1) {
+      arg0.count = arg1 >>> 0;
+    },
+    __wbg_set_count_d9dc88156fd05bc7: function(arg0, arg1) {
       arg0.count = arg1 >>> 0;
     },
     __wbg_set_cull_mode_85d2b4ab0ce3a564: function(arg0, arg1) {
@@ -845,6 +968,9 @@ function __wbg_get_imports() {
     __wbg_set_label_612add98a4398f92: function(arg0, arg1, arg2) {
       arg0.label = getStringFromWasm0(arg1, arg2);
     },
+    __wbg_set_label_6f69e25822616a1b: function(arg0, arg1, arg2) {
+      arg0.label = getStringFromWasm0(arg1, arg2);
+    },
     __wbg_set_label_70a09ee68d6b1b26: function(arg0, arg1, arg2) {
       arg0.label = getStringFromWasm0(arg1, arg2);
     },
@@ -941,6 +1067,9 @@ function __wbg_get_imports() {
     __wbg_set_offset_f64_a903425d5a8e5815: function(arg0, arg1) {
       arg0.offset = arg1;
     },
+    __wbg_set_offset_f64_d1d115dd438165b5: function(arg0, arg1) {
+      arg0.offset = arg1;
+    },
     __wbg_set_onuncapturederror_bb813f1102da2296: function(arg0, arg1) {
       arg0.onuncapturederror = arg1;
     },
@@ -984,6 +1113,9 @@ function __wbg_get_imports() {
       arg0.resource = arg1;
     },
     __wbg_set_rows_per_image_c6d50d227e634379: function(arg0, arg1) {
+      arg0.rowsPerImage = arg1 >>> 0;
+    },
+    __wbg_set_rows_per_image_deb456502f23c260: function(arg0, arg1) {
       arg0.rowsPerImage = arg1 >>> 0;
     },
     __wbg_set_sample_count_481c255a12054e1d: function(arg0, arg1) {
@@ -1069,6 +1201,9 @@ function __wbg_get_imports() {
     },
     __wbg_set_type_79cec55caf4cdb6d: function(arg0, arg1) {
       arg0.type = __wbindgen_enum_GpuBufferBindingType[arg1];
+    },
+    __wbg_set_type_7f7e54057b801caa: function(arg0, arg1) {
+      arg0.type = __wbindgen_enum_GpuQueryType[arg1];
     },
     __wbg_set_unclipped_depth_32b7caf29fa5633d: function(arg0, arg1) {
       arg0.unclippedDepth = arg1 !== 0;
@@ -1169,6 +1304,10 @@ function __wbg_get_imports() {
       const ret = arg0.then(arg1);
       return ret;
     },
+    __wbg_type_13aa9a89966fd222: function(arg0) {
+      const ret = arg0.type;
+      return (__wbindgen_enum_GpuCompilationMessageType.indexOf(ret) + 1 || 4) - 1;
+    },
     __wbg_unconfigure_835307f58dc68d80: function(arg0) {
       arg0.unconfigure();
     },
@@ -1201,39 +1340,49 @@ function __wbg_get_imports() {
       }, arguments);
     },
     __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000002: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000003: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__133);
       return ret;
     },
     __wbindgen_generic_0000000000000004: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
       return ret;
     },
     __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__135);
       return ret;
     },
     __wbindgen_generic_0000000000000006: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__136);
       return ret;
     },
-    __wbindgen_generic_0000000000000007: function(arg0) {
+    __wbindgen_generic_0000000000000007: function(arg0, arg1) {
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__137);
+      return ret;
+    },
+    __wbindgen_generic_0000000000000008: function(arg0) {
       const ret = arg0;
       return ret;
     },
-    __wbindgen_generic_0000000000000008: function(arg0, arg1) {
+    __wbindgen_generic_0000000000000009: function(arg0, arg1) {
       const ret = getArrayU8FromWasm0(arg0, arg1);
       return ret;
     },
-    __wbindgen_generic_0000000000000009: function(arg0, arg1) {
+    __wbindgen_generic_000000000000000a: function(arg0, arg1) {
       const ret = getStringFromWasm0(arg0, arg1);
+      return ret;
+    },
+    __wbindgen_generic_000000000000000b: function(arg0, arg1) {
+      var v0 = getArrayU8FromWasm0(arg0, arg1).slice();
+      wasm.__wbindgen_free(arg0, arg1 * 1, 1);
+      const ret = v0;
       return ret;
     },
     __wbindgen_init_externref_table: function() {
@@ -1251,38 +1400,44 @@ function __wbg_get_imports() {
     "./mb_host_bg.js": import0
   };
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__135(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__135(arg0, arg1, arg2);
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__133(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__133(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__136(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__136(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
-  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__137(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__137(arg0, arg1, arg2);
+  if (ret[1]) {
+    throw takeFromExternrefTable0(ret[0]);
+  }
+}
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
+  wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
 }
 var __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
 var __wbindgen_enum_GpuAutoLayoutMode = ["auto"];
@@ -1292,6 +1447,7 @@ var __wbindgen_enum_GpuBufferBindingType = ["uniform", "storage", "read-only-sto
 var __wbindgen_enum_GpuCanvasAlphaMode = ["opaque", "premultiplied"];
 var __wbindgen_enum_GpuCanvasToneMappingMode = ["standard", "extended"];
 var __wbindgen_enum_GpuCompareFunction = ["never", "less", "equal", "less-equal", "greater", "not-equal", "greater-equal", "always"];
+var __wbindgen_enum_GpuCompilationMessageType = ["error", "warning", "info"];
 var __wbindgen_enum_GpuCullMode = ["none", "front", "back"];
 var __wbindgen_enum_GpuDeviceLostReason = ["unknown", "destroyed"];
 var __wbindgen_enum_GpuFilterMode = ["nearest", "linear"];
@@ -1301,6 +1457,7 @@ var __wbindgen_enum_GpuLoadOp = ["load", "clear"];
 var __wbindgen_enum_GpuMipmapFilterMode = ["nearest", "linear"];
 var __wbindgen_enum_GpuPowerPreference = ["low-power", "high-performance"];
 var __wbindgen_enum_GpuPrimitiveTopology = ["point-list", "line-list", "line-strip", "triangle-list", "triangle-strip"];
+var __wbindgen_enum_GpuQueryType = ["occlusion", "timestamp"];
 var __wbindgen_enum_GpuSamplerBindingType = ["filtering", "non-filtering", "comparison"];
 var __wbindgen_enum_GpuStencilOperation = ["keep", "zero", "replace", "invert", "increment-clamp", "decrement-clamp", "increment-wrap", "decrement-wrap"];
 var __wbindgen_enum_GpuStorageTextureAccess = ["write-only", "read-only", "read-write"];
@@ -1948,19 +2105,34 @@ var Audio = class {
       if (typeof window !== "undefined") window.addEventListener(ev, unlock, { capture: true, passive: true });
     }
   }
-  /** WebKit plays Web Audio as "ambient" (muted by the silent switch)
-   *  unless the page asks for playback (PLAN Q14). */
+  /** WebKit plays Web Audio as "ambient" (muted by the silent switch) unless
+   *  the page holds playback (PLAN Q14). It's held with a media element playing
+   *  a silent stream while the page is on screen, not
+   *  `navigator.audioSession.type = "playback"`: that makes the AudioContext
+   *  Now Playing, which WebKit publishes from its GPU process with no app
+   *  attached, so iOS shows it in the Dynamic Island over the pause pill. A
+   *  stream, not a short looping file: on iPhone each wrap of a file holds up
+   *  the page's frames and they show out of order (pace.ts). */
   setPlayback(on) {
+    this.playback = on;
     const session = navigator.audioSession;
-    if (session) {
-      session.type = on ? "playback" : "ambient";
-      post({ op: "log", level: 0, msg: `runtime: audio session ${session.type}` });
-    } else if (on && !this.silence) {
-      this.silence = new window.Audio(new URL("silence.wav", import.meta.url).href);
-      this.silence.loop = true;
-      void this.silence.play().catch((e) => post({ op: "log", level: 2, msg: `runtime: silent audio failed: ${e}` }));
-      post({ op: "log", level: 0, msg: "runtime: audio session via silent media element" });
-    } else if (!on && this.silence) {
+    if (session) session.type = on ? "auto" : "ambient";
+    post({ op: "log", level: 0, msg: `runtime: sound ${on ? "on (plays with the ringer off)" : "off (ambient)"}` });
+    this.holdPlayback();
+  }
+  /** Sound is on (the app's mute button): the page holds playback while it's on screen. */
+  playback = false;
+  /** Plays the silent stream while sound is on and the page is on screen (active,
+   *  or paused quietly). Only then: a neighbour starting media would interrupt
+   *  the page that's playing. It comes from the context, so it starts with one. */
+  holdPlayback() {
+    if (typeof window === "undefined") return;
+    const hold = this.playback && (this.active || this.quiet);
+    if (hold && !this.silence && this.ctx) {
+      this.silence = new window.Audio();
+      this.silence.srcObject = this.ctx.createMediaStreamDestination().stream;
+      void this.silence.play().catch((e) => post({ op: "log", level: 1, msg: `runtime: silent audio waiting for a tap: ${e}` }));
+    } else if (!hold && this.silence) {
       this.silence.pause();
       this.silence = null;
     }
@@ -1973,6 +2145,7 @@ var Audio = class {
       this.quiet = false;
       this.applyGain();
     }
+    this.holdPlayback();
     if (!this.ctx) {
       this.createContext();
       return;
@@ -1994,6 +2167,7 @@ var Audio = class {
     this.active = false;
     this.quiet = quiet;
     this.applyGain();
+    this.holdPlayback();
     if (!quiet) void this.ctx?.suspend().catch(() => {
     });
     this.invalidateClock(true);
@@ -2034,7 +2208,9 @@ var Audio = class {
     this.prevMap = null;
   }
   createContext() {
-    const ctx = new AudioContext({ latencyHint: "interactive" });
+    const given = typeof window === "undefined" ? void 0 : window.__MB_AUDIO_CONTEXT;
+    if (given) delete window.__MB_AUDIO_CONTEXT;
+    const ctx = given && given.state !== "closed" ? given : new AudioContext({ latencyHint: "interactive" });
     const master = ctx.createGain();
     master.gain.value = this.muted || this.userMuted ? 0 : MASTER_GAIN;
     const limiter = ctx.createDynamicsCompressor();
@@ -2072,6 +2248,7 @@ var Audio = class {
       else this.voices.delete(id);
     }
     this.flush();
+    this.holdPlayback();
   }
   /** Replaces a context that won't run with a fresh one. */
   rebuild(why) {
@@ -2081,12 +2258,16 @@ var Audio = class {
     this.ctx = null;
     this.master = null;
     this.buses.detach();
+    this.silence?.pause();
+    this.silence = null;
     void old?.close().catch(() => {
     });
     this.createContext();
   }
   unlock() {
     if (!this.active) return;
+    if (this.silence?.paused) void this.silence.play().catch(() => {
+    });
     if (!this.ctx) this.createContext();
     const ctx = this.ctx;
     if (ctx.state === "running") return;
@@ -2098,7 +2279,8 @@ var Audio = class {
   }
   // --- the clock -----------------------------------------------------------------
   /** Called once per frame, after game time has advanced and before
-   *  mb_update: `now` is the frame's requestAnimationFrame timestamp,
+   *  mb_update: `now` is the frame's requestAnimationFrame timestamp
+   *  as paced to whole display frames (pace.ts),
    *  `game` its game time, `scale` game seconds per wall second. */
   frame(now, game, scale) {
     if (this.ff) {
@@ -2516,7 +2698,68 @@ function spread(values) {
   const at = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))];
   return { p50: at(0.5), p95: at(0.95), max: v[v.length - 1] };
 }
+var LONG_FRAME_MS = 25;
+var PERF_SAMPLES = 16384;
+var PERF_DRAWN_EVERY = 30;
+var Perf = class {
+  samples = { update: [], render: [], present: [] };
+  max = { update: 0, render: 0, present: 0 };
+  stride = 1;
+  frames = 0;
+  long = 0;
+  intervals = 0;
+  ms = 0;
+  peaks = { draws: 0, nodes: 0, particles: 0 };
+  /** One live, presented frame; `drawn` reads what it drew (`host_stats()`), called now and then. */
+  add(f, drawn) {
+    if (f.present === null) return;
+    this.frames++;
+    if (f.interval !== null) {
+      this.intervals++;
+      this.ms += f.interval;
+      if (f.interval > LONG_FRAME_MS) this.long++;
+    }
+    const t = { update: f.mb_update, render: f.mb_render, present: f.present };
+    for (const k of ["update", "render", "present"]) this.max[k] = Math.max(this.max[k], t[k]);
+    if (this.frames % this.stride === 0) {
+      for (const k of ["update", "render", "present"]) this.samples[k].push(t[k]);
+      if (this.samples.update.length >= PERF_SAMPLES) {
+        for (const k of ["update", "render", "present"]) this.samples[k] = this.samples[k].filter((_, i) => i % 2 === 0);
+        this.stride *= 2;
+      }
+    }
+    if (this.frames % PERF_DRAWN_EVERY === 1) {
+      const d = drawn();
+      const n = (k) => typeof d[k] === "number" ? d[k] : 0;
+      this.peaks.draws = Math.max(this.peaks.draws, n("draws") + n("draws2d"));
+      this.peaks.nodes = Math.max(this.peaks.nodes, n("nodes"));
+      this.peaks.particles = Math.max(this.peaks.particles, n("particles"));
+    }
+  }
+  /** The summary (null before any frame): `{ frames, seconds, long_frames, update, render, present, peaks }`. */
+  report(opts) {
+    const out = this.frames === 0 ? null : {
+      frames: this.frames,
+      seconds: this.ms / 1e3,
+      long_frames: this.long,
+      update: { ...spread(this.samples.update), max: this.max.update },
+      render: { ...spread(this.samples.render), max: this.max.render },
+      present: { ...spread(this.samples.present), max: this.max.present },
+      peaks: { ...this.peaks }
+    };
+    if (opts?.reset) {
+      this.samples = { update: [], render: [], present: [] };
+      this.max = { update: 0, render: 0, present: 0 };
+      this.stride = 1;
+      this.frames = this.long = this.intervals = this.ms = 0;
+      this.peaks = { draws: 0, nodes: 0, particles: 0 };
+    }
+    return out;
+  }
+};
 var Stats = class {
+  /** A play session's costs, for the device report (`mb.perf()`). */
+  perf = new Perf();
   /** Ring buffer: `next` is where the next frame goes. */
   ring = [];
   next = 0;
@@ -3208,6 +3451,48 @@ var abi_default = {
       requires: {
         stdlib: "mb2d",
         version: 2
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb2d_image_filter",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb2d",
+        version: 3
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb2d_shader",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb2d",
+        version: 4
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb2d_shader_use",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb2d",
+        version: 4
       },
       results: [
         "i32"
@@ -4080,6 +4365,64 @@ var abi_default = {
       ]
     },
     {
+      name: "mb3d_node_transforms",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 3
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_material_surfaces",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 4
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_shader",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 5
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_material_shader",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 5
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
       name: "mb_sound",
       params: [
         "i32"
@@ -4357,6 +4700,8 @@ var HOST_DIRECT = [
   "mb2d_rrect",
   "mb2d_text_style",
   "mb2d_antialias",
+  // mb2d 3
+  "mb2d_image_filter",
   "mb3d_model_spawn",
   "mb3d_node",
   "mb3d_node_parent",
@@ -4394,6 +4739,11 @@ var INSTANCE_SIZE = 44;
 var SKIN_JOINT_SIZE = 68;
 var MAX_JOINTS = 64;
 var MAX_INSTANCES_PER_NODE = 16384;
+var NODE_TRANSFORM_SIZE = 44;
+var MAX_NODES = 4096;
+var SURFACES_MAX_BYTES = 32 + 8 * 32 + 16 * 64;
+var SHADER_MAX_BYTES = 64 * 1024;
+var SHADER_PARAMS_SIZE = 16 + 256;
 var FOG_SIZE = 48;
 var STYLE_SIZE = 32;
 var TEXT_DESC_SIZE = 64;
@@ -4431,6 +4781,86 @@ function base64(b) {
   let s = "";
   for (const c of b) s += String.fromCharCode(c);
   return btoa(s);
+}
+var REENTRY = new Uint8Array([
+  0,
+  97,
+  115,
+  109,
+  1,
+  0,
+  0,
+  0,
+  1,
+  4,
+  1,
+  96,
+  0,
+  0,
+  2,
+  13,
+  1,
+  1,
+  109,
+  6,
+  109,
+  101,
+  109,
+  111,
+  114,
+  121,
+  2,
+  0,
+  0,
+  3,
+  2,
+  1,
+  0,
+  7,
+  9,
+  1,
+  5,
+  116,
+  111,
+  117,
+  99,
+  104,
+  0,
+  0,
+  10,
+  10,
+  1,
+  8,
+  0,
+  65,
+  0,
+  40,
+  2,
+  0,
+  26,
+  11
+]);
+var reentryModule = null;
+function gameReentry(s) {
+  let mem = null;
+  let touch = () => {
+  };
+  return () => {
+    const m = s.memory();
+    if (m !== mem) {
+      mem = m;
+      reentryModule ??= new WebAssembly.Module(REENTRY);
+      touch = new WebAssembly.Instance(reentryModule, { m: { memory: m } }).exports.touch;
+    }
+    touch();
+  };
+}
+function backToGame(reenter, f) {
+  return ((...a) => {
+    const r = f(...a);
+    reenter();
+    return r;
+  });
 }
 function buildImports(s, host, m) {
   const utf8 = new TextDecoder("utf-8", { fatal: false });
@@ -4558,6 +4988,17 @@ function buildImports(s, host, m) {
       const n = assetToHost(asset);
       return n < 0 ? n : host.mbh_font_load(n);
     }),
+    // 5.3 mb2d 4: sprite shaders
+    mb2d_shader: ((ptr, len) => {
+      if (len <= 0 || len > SHADER_MAX_BYTES) return -2 /* InvalidArgument */;
+      toHost(slice(ptr, len));
+      return host.mbh_shader2d(len);
+    }),
+    mb2d_shader_use: ((shader, ptr) => {
+      if (shader !== 0) toHost(slice(ptr, SHADER_PARAMS_SIZE));
+      else toHost(new Uint8Array(SHADER_PARAMS_SIZE));
+      return host.mbh_shader_use(shader);
+    }),
     mb2d_font_metrics: ((font, out) => {
       const r = host.mbh_font_metrics(font);
       if (r >= 0) bytes().set(new Uint8Array(host.memory.buffer, host.host_scratch(32), 32), out);
@@ -4618,6 +5059,29 @@ function buildImports(s, host, m) {
       if (count < 0 || count > MAX_INSTANCES_PER_NODE) return -4 /* Quota */;
       toHost(slice(ptr, count * INSTANCE_SIZE));
       return host.mbh_instances(node, count);
+    }),
+    // 5.4 mb3d 3: the frame's node transforms in one call
+    mb3d_node_transforms: ((ptr, count) => {
+      if (count < 0 || count > MAX_NODES) return -4 /* Quota */;
+      toHost(slice(ptr, count * NODE_TRANSFORM_SIZE));
+      return host.mbh_node_transforms(count);
+    }),
+    // 5.4 mb3d 4: a material's ground surfaces
+    // 5.4 mb3d 5: shader materials
+    mb3d_shader: ((ptr, len) => {
+      if (len <= 0 || len > SHADER_MAX_BYTES) return -2 /* InvalidArgument */;
+      toHost(slice(ptr, len));
+      return host.mbh_shader(len);
+    }),
+    mb3d_material_shader: ((material, shader, ptr) => {
+      if (shader !== 0) toHost(slice(ptr, SHADER_PARAMS_SIZE));
+      else toHost(new Uint8Array(SHADER_PARAMS_SIZE));
+      return host.mbh_material_shader(material, shader);
+    }),
+    mb3d_material_surfaces: ((material, ptr, len) => {
+      if (len < 0 || len > SURFACES_MAX_BYTES) return -2 /* InvalidArgument */;
+      toHost(slice(ptr, len));
+      return host.mbh_material_surfaces(material, len);
     }),
     mb3d_skin: ((node, ptr, count) => {
       if (count < 0 || count > MAX_JOINTS) return -4 /* Quota */;
@@ -4831,6 +5295,10 @@ function buildImports(s, host, m) {
       return 0;
     })
   };
+  const reenter = gameReentry(s);
+  for (const name of Object.keys(impl)) {
+    if (name.startsWith("mb2d_") || name.startsWith("mb3d_")) impl[name] = backToGame(reenter, impl[name]);
+  }
   for (const name of HOST_DIRECT) {
     const f = host[name];
     if (typeof f === "function") impl[name] = f;
@@ -5006,7 +5474,7 @@ var Session = class {
   log(level, msg) {
     const fn = level >= 3 ? console.error : level === 2 ? console.warn : console.log;
     fn(`[game] ${msg}`);
-    post({ op: "log", level, msg: msg.slice(0, 2e3) });
+    post({ op: "log", level, msg: msg.slice(0, msg.startsWith("studio-bot ") ? 1 << 20 : 2e3) });
     if (this.logs.length < NOTES_PER_FRAME) this.logs.push(`${LEVELS[level] ?? "info"}: ${msg.slice(0, 200)}`);
   }
   /** SPEC §5.1 `mb_mark`: a no-op for the game; the tools see it. */
@@ -5119,6 +5587,222 @@ var Assets = class {
   }
 };
 
+// src/pace.ts
+var KEEP3 = 32;
+var MIN_PERIOD_MS = 4;
+var MAX_PERIOD_MS = 70;
+var MAX_VSYNC_MS = 22;
+var LEARN_AFTER = 8;
+var CLUSTER_SHARE = 0.25;
+var CLUSTER_WIDTH = 0.25;
+var FIT_SHARE = 0.2;
+var LATE_SHARE = 0.75;
+var OWED_FRAMES = 2;
+var OWED_SHARE = 0.25;
+var OWED_MIN_MS = 3;
+var SAME_FRAME_MS = 1;
+var PULL = 0.1;
+var TOO_SOON_SHARE = 0.7;
+function liveFrameTime(pacer, now, scale, maxDt) {
+  const paced = pacer.frame(now);
+  const scaled = (paced.ms ?? pacer.cadence) / 1e3 * scale;
+  const dt = Math.fround(Math.min(scaled, maxDt));
+  const lost = scaled > maxDt ? Math.fround(scaled - dt) : 0;
+  return { dt, lost, at: paced.at };
+}
+var Pacer = class {
+  /** Paced time of the last frame (ms, the timestamps' clock); null before the first. */
+  at = null;
+  /** The last callback's own timestamp, for learning. */
+  stamp = null;
+  /** The last frame's own timestamp, for `tooSoon`. */
+  shown = null;
+  intervals = [];
+  /** The page's usual frame interval (ms), as learned. */
+  cadence = 1e3 / 60;
+  /** The display's vsync (ms), as learned: what intervals are rounded to. */
+  vsync = 1e3 / 60;
+  /** A cadence has been learned; until then frames aren't paced. */
+  learned = false;
+  /** How far the last frame's paced time was from its timestamp (ms, + behind), when
+   *  that's more than OWED_SHARE of a vsync: a frame after should make it up. */
+  owed = 0;
+  /** Frames in a row that ended owing, the same way. */
+  owedFrames = 0;
+  /** The screen's vsync (ms), once a slow page's intervals have shown it (vsyncUnder). */
+  screen = null;
+  /** Longer than this (ms) is a stall, not paced. (Not a parameter property:
+   *  `npm test` runs this file with Node's type stripping.) */
+  maxGapMs;
+  constructor(maxGapMs) {
+    this.maxGapMs = maxGapMs;
+  }
+  /** The next frame starts afresh (a start or resume: the gap isn't game time). */
+  reset() {
+    this.at = null;
+    this.stamp = null;
+    this.shown = null;
+    this.owed = 0;
+    this.owedFrames = 0;
+  }
+  /** A display frame with requestAnimationFrame timestamp `now`: the ms of game
+   *  time it advances (null for the first frame after a reset) and its paced
+   *  time (`at`, on the timestamps' clock). Never negative. */
+  frame(now) {
+    const at = this.at;
+    if (this.stamp !== null) this.learn(now - this.stamp);
+    this.stamp = now;
+    this.shown = now;
+    if (at === null) {
+      this.at = now;
+      return { ms: null, at: now };
+    }
+    const ahead = now - at;
+    const v = this.vsync;
+    if (!this.learned || ahead > this.maxGapMs || ahead < -v) {
+      this.owed = 0;
+      this.owedFrames = 0;
+      this.at = now;
+      return { ms: Math.max(ahead, 0), at: now };
+    }
+    let n = Math.round(ahead / v - LATE_SHARE + 0.5);
+    if (n === 0 && ahead >= SAME_FRAME_MS) n = 1;
+    const target = at + n * v;
+    const off = now - target;
+    let next;
+    const owedMs = Math.max(v * OWED_SHARE, OWED_MIN_MS);
+    const owing = Math.abs(off) > owedMs && Math.sign(off) === Math.sign(this.owed);
+    if (owing && this.owedFrames >= OWED_FRAMES) {
+      next = Math.max(at, now);
+    } else {
+      next = Math.max(at, target + off * PULL);
+    }
+    const gap = now - next;
+    if (Math.abs(gap) > owedMs) {
+      this.owedFrames = Math.sign(gap) === Math.sign(this.owed) ? this.owedFrames + 1 : 1;
+      this.owed = gap;
+    } else {
+      this.owedFrames = 0;
+      this.owed = 0;
+    }
+    this.at = next;
+    return { ms: next - at, at: next };
+  }
+  /** A callback with timestamp `now` came so soon after the last frame that
+   *  it shouldn't draw one (see the top of this file). The next `frame` then
+   *  moves game time by the whole vsyncs since the last one. Never before a
+   *  cadence is learned, so a page that really runs faster gets to show it. */
+  tooSoon(now) {
+    if (!this.learned || this.shown === null || this.stamp === null) return false;
+    const since = now - this.shown;
+    if (since < 0 || since >= this.vsync * TOO_SOON_SHARE) return false;
+    this.learn(now - this.stamp);
+    this.stamp = now;
+    return true;
+  }
+  learn(interval) {
+    if (!(interval >= MIN_PERIOD_MS && interval <= MAX_PERIOD_MS)) return;
+    this.intervals.push(interval);
+    if (this.intervals.length > KEEP3) this.intervals.shift();
+    if (this.intervals.length < LEARN_AFTER) return;
+    const cadence = this.cadenceOf();
+    if (cadence === null) return;
+    this.cadence = cadence;
+    let v = cadence <= MAX_VSYNC_MS ? cadence : this.vsyncUnder(cadence);
+    for (let pass = 0; pass < 3; pass++) {
+      let ms = 0;
+      let count = 0;
+      for (const x of this.intervals) {
+        const n = Math.round(x / v);
+        if (n >= 1 && Math.abs(x / v - n) <= FIT_SHARE) {
+          ms += x;
+          count += n;
+        }
+      }
+      if (count === 0) break;
+      v = ms / count;
+    }
+    this.vsync = v;
+    this.learned = true;
+  }
+  /** The page's cadence: its shortest regular interval, the shortest cluster
+   *  that holds a good share of the intervals (late frames run long, and a
+   *  60 Hz page on a 120 Hz panel has the odd short one). From each interval,
+   *  shortest first, the window moves to the mean of what it holds until it
+   *  settles (mean shift), so it's the cluster's middle, not its low edge. */
+  cadenceOf() {
+    const sorted = [...this.intervals].sort((a, b) => a - b);
+    const need = sorted.length * CLUSTER_SHARE;
+    let tried = 0;
+    for (const v of sorted) {
+      if (v < tried) continue;
+      let center = v;
+      let count = 0;
+      for (let i = 0; i < 8; i++) {
+        let sum = 0;
+        count = 0;
+        for (const w of sorted) {
+          if (w >= center * (1 - CLUSTER_WIDTH) && w <= center * (1 + CLUSTER_WIDTH)) {
+            sum += w;
+            count++;
+          }
+        }
+        if (count === 0) break;
+        const moved = sum / count;
+        if (Math.abs(moved - center) < 0.01) break;
+        center = moved;
+      }
+      if (count >= need) return center;
+      tried = center * (1 + CLUSTER_WIDTH);
+    }
+    return null;
+  }
+  /** The vsync of a page slower than any screen (`cadence` over MAX_VSYNC_MS):
+   *  the largest `cadence / k` under it that the recent intervals are whole
+   *  multiples of (2 × 16.7 ms for 30 fps on a 60 Hz screen; 3 × 8.3 ms for
+   *  40 fps on 120 Hz, once a frame there has taken 33 ms). The last interval
+   *  isn't counted (whether the next makes up for it isn't known yet), nor is
+   *  a pair that adds up to a whole number (a slip and its make-up). A finer
+   *  vsync that the intervals once needed is the screen's, and is kept. */
+  vsyncUnder(cadence) {
+    const xs = this.intervals;
+    const fits = (x, v) => Math.abs(x / v - Math.round(x / v)) <= FIT_SHARE;
+    let fewest = Infinity;
+    let best = cadence / Math.ceil(cadence / MAX_VSYNC_MS);
+    let clean = null;
+    let forced = false;
+    for (let k = Math.ceil(cadence / MAX_VSYNC_MS); cadence / k >= MIN_PERIOD_MS; k++) {
+      const v = cadence / k;
+      let misfits = 0;
+      for (let i = 0; i < xs.length - 1; i++) {
+        if (fits(xs[i], v)) continue;
+        if (fits(xs[i] + xs[i + 1], v)) {
+          i++;
+          continue;
+        }
+        if (i > 0) misfits++;
+      }
+      if (misfits === 0) {
+        clean = v;
+        break;
+      }
+      forced = true;
+      if (misfits < fewest) {
+        fewest = misfits;
+        best = v;
+      }
+    }
+    if (clean === null) return best;
+    if (forced) this.screen = clean;
+    const screen = this.screen;
+    if (screen !== null && screen < clean) {
+      const k = Math.round(cadence / screen);
+      if (Math.abs(cadence / k / screen - 1) < 0.05) return cadence / k;
+    }
+    return clean;
+  }
+};
+
 // src/run.ts
 var INIT_BUDGET_MS = 500;
 var CALLBACK_BUDGET_MS = 250;
@@ -5161,7 +5845,11 @@ var Runtime = class _Runtime {
   suspended = false;
   /** mb_suspend was called and mb_resume is owed (live sessions only). */
   guestSuspended = false;
-  last = null;
+  /** Live frames' dt: whole display frames, not the timestamps' wobble (pace.ts). */
+  pacer = new Pacer(MAX_DT * 1e3);
+  /** The paced time of the frame being run (ms, rAF clock), where its game time is heard
+   *  (audio) and its events are timed; null outside a live display frame. */
+  frameAt = null;
   /** Previous displayed frame's timestamp, for mb3d's adaptive render scale. */
   lastShown = null;
   /** Frames this session has run: one per mb_update. */
@@ -5295,7 +5983,7 @@ var Runtime = class _Runtime {
       this.session.audio.setMuted(false);
     }
     this.suspended = false;
-    this.last = null;
+    this.pacer.reset();
     this.lastShown = null;
     this.input.take();
     this.session.audio.resume();
@@ -5316,6 +6004,10 @@ var Runtime = class _Runtime {
   tick(now) {
     if (!this.running || this.suspended || this.stopped) return;
     this.lastTick = performance.now();
+    if (this.source.kind !== "replay" && this.pacer.tooSoon(now)) {
+      this.raf = requestAnimationFrame((t) => this.tick(t));
+      return;
+    }
     this.frameInterval = this.lastShown !== null ? now - this.lastShown : null;
     if (this.frameInterval !== null) {
       host_frame_time(this.frameInterval);
@@ -5327,14 +6019,12 @@ var Runtime = class _Runtime {
     if (this.source.kind === "replay") {
       this.replayTick();
     } else {
-      const raw = this.last === null ? 1 / 60 : Math.max((now - this.last) / 1e3, 0);
-      this.last = now;
-      const scaled = raw * _Runtime.timeScale;
-      const dt = Math.fround(Math.min(scaled, MAX_DT));
-      const lost = scaled > MAX_DT ? Math.fround(scaled - dt) : 0;
-      this.liveFrame(dt, { now, dt, scale: _Runtime.timeScale }, lost);
+      const { dt, lost, at } = liveFrameTime(this.pacer, now, _Runtime.timeScale, MAX_DT);
+      this.frameAt = at;
+      this.liveFrame(dt, { now: at, dt, scale: _Runtime.timeScale }, lost);
     }
     this.frameNow = null;
+    this.frameAt = null;
     this.frameInterval = null;
     if (++this.ticks % HEARTBEAT_EVERY === 0) {
       post({ op: "heartbeat", frame: this.ticks, time: this.session.gameTime - this.origin.time, worst: Math.round(this.beatWorst), dropped: this.beatDropped });
@@ -5468,6 +6158,24 @@ var Runtime = class _Runtime {
     });
     return p;
   }
+  /** Headless (`mb play --check readability`): has the guest draw the frame
+   *  just run again with the debug parameter `studio_isolate` set to
+   *  `variant` (Studio engine 2.0 then leaves out the HUD, or draws its
+   *  subject alone), between `host_variant_begin` and `host_variant_end`,
+   *  and `capture` what it drew. The frame as it was, its draw hash
+   *  included, is put back after, so the run goes on as it would have. */
+  async renderVariant(variant, capture) {
+    const params = this.session.params;
+    params.set("studio_isolate", variant);
+    host_variant_begin();
+    try {
+      this.timed("mb_render", () => this.guest.mb_render());
+      return await capture();
+    } finally {
+      host_variant_end();
+      params.delete("studio_isolate");
+    }
+  }
   /** The sensor readings that differ from what the guest saw last frame. */
   sampleSensors() {
     const s = this.sensors;
@@ -5516,7 +6224,7 @@ var Runtime = class _Runtime {
     this.session.beginFrame(dt, events, sensors, lost);
     if (sensors?.screen) host_set_logical(this.session.screen[0], this.session.screen[1]);
     host_step(dt);
-    this.session.audio.frame(this.frameNow ?? performance.now(), this.session.gameTime, this.source.kind === "live" ? _Runtime.timeScale : 1);
+    this.session.audio.frame(this.frameAt ?? this.frameNow ?? performance.now(), this.session.gameTime, this.source.kind === "live" ? _Runtime.timeScale : 1);
     const update = this.timed("mb_update", () => this.guest.mb_update(dt));
     if (this.stopped) return null;
     this.frames++;
@@ -5551,6 +6259,7 @@ var Runtime = class _Runtime {
       stat.top = JSON.parse(host_top_draws(TOP_OVER));
     }
     this.stats.push(stat);
+    if (this.source.kind === "live") this.stats.perf.add(stat, () => kept ? drawn : JSON.parse(host_stats()));
     return stat;
   }
   /** Runs a guest callback under the watchdogs; returns how long it took (ms). */
@@ -5713,7 +6422,10 @@ var Runtime = class _Runtime {
    *  guest traps or runs out of fuel. On another build the log may name
    *  assets this one never asked for: those are skipped and counted
    *  (`missingAssets`), as watch mode's restore does, and the run goes on. */
-  async replayAll(onFrame) {
+  /** Runs the whole log. `onFrame` hears each frame's number before it runs;
+   *  `afterFrame` runs (and is awaited) after it, for the headless runner's
+   *  captures. */
+  async replayAll(onFrame, afterFrame) {
     if (this.source.kind !== "replay") throw new Error("replayAll needs a replay session");
     this.presenting = false;
     const frames = this.source.log.frames;
@@ -5724,6 +6436,7 @@ var Runtime = class _Runtime {
       this.cursor++;
       onFrame?.(this.frames + 1);
       this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
+      if (afterFrame) await afterFrame(this.frames);
     }
     return { ...this.brief(), missingAssets };
   }
@@ -5773,7 +6486,7 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
   const locale = log2?.locale ?? boot.locale;
   const screen = new Float32Array(log2 ? log2.screen : page2.screen);
   host_new_session();
-  host_set_stdlib(boot.manifest.stdlib.mb3d ?? 0);
+  host_set_stdlib(boot.manifest.stdlib.mb3d ?? 0, boot.manifest.stdlib.mb2d ?? 0);
   host_set_logical(screen[0], screen[1]);
   page2.audio.newSession();
   const session = new Session(page2.audio, seed, dailySeed, hexBytes(playerId), locale, screen, page2.gameBase, store, page2.assets);
@@ -5816,6 +6529,7 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
 }
 
 // src/headless.ts
+var SHADER_FRAME_BUDGET_MS = 2e3;
 async function replay(job) {
   const t0 = performance.now();
   const scores = [];
@@ -5830,6 +6544,49 @@ async function replay(job) {
   const host = await __wbg_init({ module_or_path: job.hostWasm });
   const { log: log2, manifest } = job;
   host_init_headless(manifest.logical_size[0], manifest.logical_size[1]);
+  const captured = [];
+  const drawn = [];
+  let adapter;
+  let captureError;
+  const wanted = new Set(job.capture?.frames ?? []);
+  if (job.capture && wanted.size) {
+    try {
+      adapter = await host_capture_init(job.capture.width, job.capture.height);
+    } catch (e) {
+      captureError = e instanceof Error ? e.message : String(e);
+      wanted.clear();
+    }
+  }
+  const afterFrame = wanted.size ? async (n) => {
+    if (!wanted.has(n)) return;
+    try {
+      const t02 = performance.now();
+      const rgba = await host_capture();
+      const ms = performance.now() - t02;
+      const shaders = JSON.parse(host_shaders_status());
+      if (captured.length > 0 && shaders.shaded > 0 && ms > SHADER_FRAME_BUDGET_MS && !shaders.plain) {
+        host_shaders_plain(`a frame with shader materials took ${Math.round(ms)} ms here, over the server's ${SHADER_FRAME_BUDGET_MS} ms`);
+        console.error(`[game] studio-shaders-plain ${n} ${Math.round(ms)}`);
+      }
+      for (const line of host_gpu_log()) console.error(`[gpu] ${line}`);
+      const out = job.capture.out.replace(/\/$/, "");
+      const file = `${out}/${n}.rgba`;
+      await Deno.writeFile(file, rgba);
+      captured.push({ frame: n, file });
+      const stats = JSON.parse(host_stats());
+      drawn.push({ ...budgetUse(stats), nodes: typeof stats.nodes === "number" ? stats.nodes : 0 });
+      if (job.capture.readability) {
+        const subject = Number([...rt.session.marks].reverse().find((m) => m.startsWith("subject:"))?.slice(8));
+        for (const v of ["clean", "subject"]) await Deno.writeFile(`${out}/${n}.${v}.rgba`, await rt.renderVariant(v, host_capture));
+        if (subject > 0) {
+          await Deno.writeFile(`${out}/${n}.plain.rgba`, await host_capture_isolated(0, false, true));
+          await Deno.writeFile(`${out}/${n}.plain-without.rgba`, await host_capture_isolated(subject, false, true));
+        }
+      }
+    } catch (e) {
+      captureError ??= e instanceof Error ? e.message : String(e);
+    }
+  } : void 0;
   const boot = {
     manifest,
     seed: log2.seed,
@@ -5868,14 +6625,16 @@ async function replay(job) {
   const rt = await createSession(page2, { kind: "replay", log: log2, loop: false });
   const end = await rt.replayAll((n) => {
     frame = n;
-  });
+  }, afterFrame);
   const progress = {};
   for (const [k, v] of rt.session.store) if (k.startsWith(PROGRESS_PREFIX)) progress[k] = base64(v);
-  return { frames: end.frames, of: log2.frames.length, hash: end.hash, time: end.time, scores, rounds, error, progress, missingAssets: end.missingAssets, ms: Math.round(performance.now() - t0) };
+  const result = { frames: end.frames, of: log2.frames.length, hash: end.hash, time: end.time, scores, rounds, error, progress, missingAssets: end.missingAssets, ms: Math.round(performance.now() - t0) };
+  if (job.capture) Object.assign(result, { captured, drawn, adapter, captureError });
+  return result;
 }
 async function cli() {
   console.log = console.error;
-  const [dir, logPath] = Deno.args;
+  const [dir, logPath, capturePath] = Deno.args;
   if (!dir?.startsWith("/") || !logPath) throw new Error("usage: headless.js <absolute game dir> <log.json>");
   const gameBase = new URL(`file://${encodeURI(dir.endsWith("/") ? dir : `${dir}/`)}`);
   const boot = JSON.parse(await Deno.readTextFile(new URL("boot.json", gameBase)));
@@ -5884,7 +6643,8 @@ async function cli() {
     gameBase: gameBase.href,
     gameWasm: await Deno.readFile(new URL("game.wasm", gameBase)),
     hostWasm: await Deno.readFile(new URL("mb_host_bg.wasm", import.meta.url)),
-    log: JSON.parse(await Deno.readTextFile(logPath))
+    log: JSON.parse(await Deno.readTextFile(logPath)),
+    capture: capturePath ? JSON.parse(await Deno.readTextFile(capturePath)) : void 0
   });
   console.info(JSON.stringify(result));
   Deno.exit(0);

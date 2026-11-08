@@ -92,12 +92,12 @@ Keys are read from the environment first, then from `~/.config/maimbrain/keys.js
 
 ### Maimbrain's keys
 
-The Maimbrain team can let individual creators generate on **Maimbrain's** Gemini and ElevenLabs keys instead of their own, and, with a second grant, 3D models on its Tripo key. Access is granted per account by an admin (there's no way to request it from `mb`: ask the team), and comes with a monthly budget, $10 unless the team sets another, that resets on the 1st (UTC) and covers art, sound and 3D together.
+The Maimbrain team can let individual creators generate on **Maimbrain's** Gemini and ElevenLabs keys instead of their own, and, with a second grant, 3D models on its Tripo key. Access is granted per account by an admin (there's no way to request it from `mb`: ask the team), and spends your Maimbrain credits: 100 a month ($1 at list price, a credit a cent), back on the 1st (UTC), plus any the team grants, for art, sound, 3D and Studio together.
 
 Which keys a command uses:
 
 1. **Your own key** for the chosen provider, if you have one (environment or `mb keys`). You pay; nothing changes.
-2. Otherwise, if you're signed in (`mb login`) and the server says your account has access, **Maimbrain's keys**: mb sends the provider request to the server, which calls the provider and returns the raw image or sound (for 3D, mb's Tripo client talks to the server, which passes each task to Tripo; below). Everything else (keying, fitting, loops, loudness, the sidecar) still happens on your machine. The command prints `keys: Maimbrain's (@you) · $1.20 of $10.00 used this month` before the call and the new total after it.
+2. Otherwise, if you're signed in (`mb login`) and the server says your account has access, **Maimbrain's keys**: mb sends the provider request to the server, which calls the provider and returns the raw image or sound (for 3D, mb's Tripo client talks to the server, which passes each task to Tripo; below). Everything else (keying, fitting, loops, loudness, the sidecar) still happens on your machine. The command prints `keys: Maimbrain's (@you) · $1.20 of $10.00 used this month` before the call and the new total after it. mb also sends the game's title and the asset's name, which the server keeps with the job, so the Credits screen in the app lists it as "Jump · Moth Lamp".
 3. Otherwise the usual "set a key" message, which also says how to get access.
 
 Without a provider named, mb picks the first provider you have a key for (images: gemini, vertex, openai; music: gemini, vertex, elevenlabs; effects: elevenlabs; 3D models: tripo, meshy), then the first of those Maimbrain's keys cover.

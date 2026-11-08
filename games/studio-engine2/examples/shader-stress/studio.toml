@@ -1,0 +1,17 @@
+# Shader Stress: Phase 5's adversarial run on the phone (docs/STUDIO-2.md
+# §9.6): 24 screen-filling layers of a shader that passes the checks at the
+# cost limit. The fill budget and the page's guard keep it playable.
+title = "Shader Stress"
+tagline = "Overdraw at the limit"
+kind = "3d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.shaderstress"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[[scores]]
+label = "Frames"
+order = "high"

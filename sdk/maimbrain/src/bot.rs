@@ -830,9 +830,9 @@ pub struct Literal {
     home: (f32, f32),
     finger: (f32, f32),
     queue: crate::input::synth::Queue,
-    /// The hints up now that it has seen: (text, its reaction time, the
-    /// next time it may tap for it).
-    seen: Vec<(String, f32, f64)>,
+    /// Which hints it has seen, its reaction to each and its taps' rhythm
+    /// (the rules, which Studio's bot shares).
+    follow: crate::ui::hints::Follow,
     /// Where the held finger is down, if it is.
     held: Option<(f32, f32)>,
     log: Vec<(f64, String)>,
@@ -840,7 +840,7 @@ pub struct Literal {
 
 impl Literal {
     /// Seconds between taps while a TAP hint stays up.
-    pub const TAP_EVERY: f64 = 0.3;
+    pub const TAP_EVERY: f64 = crate::ui::hints::Follow::TAP_EVERY;
     /// How big a hint's target is taken to be (pt across), for how long the
     /// finger takes to get there.
     pub const TARGET: f32 = 60.0;
@@ -852,7 +852,7 @@ impl Literal {
 
     /// Another kind of player's reactions and finger.
     pub fn with_skill(skill: crate::input::synth::Skill, seed: u64) -> Literal {
-        Literal { skill, rng: crate::Rng::new(seed), home: (180.0, 480.0), finger: (180.0, 480.0), queue: crate::input::synth::Queue::new(), seen: Vec::new(), held: None, log: Vec::new() }
+        Literal { skill, rng: crate::Rng::new(seed), home: (180.0, 480.0), finger: (180.0, 480.0), queue: crate::input::synth::Queue::new(), follow: crate::ui::hints::Follow::new(), held: None, log: Vec::new() }
     }
 
     /// Where it touches for a hint that names no target, or one the game
@@ -866,52 +866,45 @@ impl Literal {
     /// One frame at game time `now` (s), `dt` long: reads the hints up now
     /// and returns the touches due in this frame, to feed the game's control
     /// code as a player's. `locate` gives a target's position by the name
-    /// its hint uses (`None`: [`home`](Self::home)).
+    /// its hint uses (`None`: [`home`](Self::home)); a hint that says where
+    /// it is ([`Hint::at`](crate::ui::Hint::at)) needs no name.
     pub fn step(&mut self, now: f64, dt: f32, hints: &crate::ui::Hints, locate: impl Fn(&str) -> Option<(f32, f32)>) -> Vec<crate::input::Event> {
         use crate::input::{Kind, synth};
-        let visible = hints.visible();
-        self.seen.retain(|s| visible.iter().any(|(h, _)| h.text == s.0));
-        for (hint, age) in visible {
-            let i = match self.seen.iter().position(|s| s.0 == hint.text) {
-                Some(i) => i,
-                None => {
-                    let r = self.skill.reaction_time(&mut self.rng);
-                    self.seen.push((hint.text.clone(), r, 0.0));
-                    self.seen.len() - 1
-                }
-            };
-            if age < self.seen[i].1 {
-                continue;
-            }
-            let at = hint.target.and_then(&locate).unwrap_or(self.home);
-            match hint.ask {
-                crate::ui::Ask::Tap if now >= self.seen[i].2 => {
+        use crate::ui::hints::Want;
+        let (skill, rng) = (&self.skill, &mut self.rng);
+        let wants = self.follow.step(now, hints, || skill.reaction_time(rng));
+        let home = self.home;
+        let place = |at: Option<(f32, f32)>, target: Option<&'static str>| at.or_else(|| target.and_then(&locate)).unwrap_or(home);
+        for w in wants {
+            match w {
+                Want::Tap { at, target, text, .. } => {
+                    let at = place(at, target);
                     let (mut touches, landed) = self.skill.tap(self.finger, at, Self::TARGET, now, &mut self.rng);
                     let id = if self.held.is_some() { 1 } else { 0 };
                     for e in &mut touches {
                         e.id = id;
                     }
                     let down = touches.first().map_or(now, |e| e.time);
-                    self.seen[i].2 = down + Self::TAP_EVERY;
+                    self.follow.tapped(&text, down);
                     self.finger = landed;
-                    self.log.push((down, format!("tap {} ({})", hint.target.unwrap_or("here"), hint.text)));
+                    self.log.push((down, format!("tap {} ({text})", target.unwrap_or("here"))));
                     self.queue.push(touches);
                 }
-                crate::ui::Ask::Hold if self.held.is_none() => {
+                Want::Hold { at, target, text } => {
+                    let at = place(at, target);
                     let d = (at.0 - self.finger.0).hypot(at.1 - self.finger.1);
                     let down = now + self.skill.touch.time(d, Self::TARGET) as f64;
                     self.queue.push([synth::touch(Kind::TouchDown, at.0, at.1, down)]);
                     self.held = Some(at);
                     self.finger = at;
-                    self.log.push((down, format!("hold {} ({})", hint.target.unwrap_or("here"), hint.text)));
+                    self.log.push((down, format!("hold {} ({text})", target.unwrap_or("here"))));
                 }
-                crate::ui::Ask::LetGo => {
+                Want::LetGo { text } => {
                     if let Some((x, y)) = self.held.take() {
                         self.queue.push([synth::touch(Kind::TouchUp, x, y, now)]);
-                        self.log.push((now, format!("let go ({})", hint.text)));
+                        self.log.push((now, format!("let go ({text})")));
                     }
                 }
-                _ => {}
             }
         }
         self.queue.due(now + dt as f64)
@@ -926,6 +919,23 @@ impl Literal {
     /// HOLDING)"): print it beside the sim's trace of one round.
     pub fn log(&self) -> &[(f64, String)] {
         &self.log
+    }
+}
+
+impl PresetReport {
+    /// One preset's report from rounds played elsewhere (Studio's
+    /// `difficulty`, docs/STUDIO-2.md §8.1, plays them in the engine), as
+    /// [`Difficulty::run`] makes it.
+    pub fn of(name: &str, target: Option<(f32, f32)>, runs: &[Outcome]) -> PresetReport {
+        report(name, target, None, &[], runs)
+    }
+}
+
+impl Report {
+    /// What differs from a report saved earlier (`old`, [`to_tsv`](Report::to_tsv)'s
+    /// text), a line each, as [`compare_with`](Report::compare_with) prints them.
+    pub fn changes_since(&self, old: &str) -> Vec<String> {
+        changes(&parse(old), &parse(&self.to_tsv()))
     }
 }
 

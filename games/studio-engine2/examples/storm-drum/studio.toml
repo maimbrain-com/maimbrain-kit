@@ -1,0 +1,27 @@
+# Storm Drum: Phase 3d's test game (docs/STUDIO-2.md §9.4). Stones fall on
+# the drum's beat; tap a side to change lane. Eight bars in, the storm comes:
+# the music graph moves to its "storm" zone at the next phrase, and stones
+# come every beat. Its music is placeholder (mb's offline mock, made with
+# `mb music … --zones … --layers base,hi,tension --provider mock`), its look
+# drawn with shapes.
+title = "Storm Drum"
+tagline = "dodge on the beat"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+lives = 3
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.storm-drum"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "WASHED AWAY"
+
+[[scores]]
+label = "Stones"
+order = "high"
+
+[identity]
+name = "neon"

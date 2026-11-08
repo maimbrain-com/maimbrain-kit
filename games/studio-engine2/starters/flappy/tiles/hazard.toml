@@ -1,0 +1,7 @@
+# The sea below: solid, and it ends the round.
+frame = [32, 32]
+
+[tiles.floor]
+frame = 1
+solid = true
+hazard = true

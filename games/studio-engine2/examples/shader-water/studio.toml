@@ -1,0 +1,23 @@
+# Lantern Sea: Phase 5's water shader (docs/STUDIO-2.md §9.6). A sailboat on
+# a rolling evening sea (shaders/water.wgsl: a vertex hook for the swell,
+# ripples, colour and foam in the surface); sail through the lanterns.
+title = "Lantern Sea"
+tagline = "Hold a side to steer"
+kind = "3d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.lanternsea"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[identity]
+name = "storybook"
+
+[[scores]]
+label = "Lanterns"
+order = "high"
+
+[text]
+over = "DUSK FALLS"

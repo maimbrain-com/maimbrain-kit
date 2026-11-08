@@ -1,0 +1,23 @@
+# The UI kit over a 3D world (docs/STUDIO-2.md §9.5, Phase 4b): widgets on
+# the screen, a hint that follows a 3D node through the camera, the combo,
+# a lesson's slow motion and the stats card, in the game's identity.
+title = "UI Showcase 3D"
+tagline = "The kit over a world"
+engine = "2.0"
+kind = "3d"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.ui-showcase-3d"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[identity]
+name = "orbital"
+
+[[scores]]
+label = "Crystals"
+order = "high"
+
+[remix]
+allowed = true

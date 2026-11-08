@@ -1,0 +1,25 @@
+# Moss Knight (docs/STUDIO-2.md §6.2): Phase 3's acceptance game, first
+# Phase 3b's test scene. A hero on a CharacterBody3D over a moonlit Terrain,
+# and a hunter whose NavigationAgent3D finds it round 40 trees on a navmesh
+# baked behind the title card. Its art is placeholder (shapes and the
+# mistwood fox, nothing generated).
+title = "Moss Knight"
+tagline = "Gather the wisps before the moon sets"
+kind = "3d"
+engine = "2.0"
+orientation = "portrait"
+identity = "gothic"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.mossknight"
+version = "0.1.0"
+creator = "@maimbrain"
+
+lives = 3
+
+[text]
+over = "CAUGHT"
+
+[[scores]]
+label = "Wisps"
+order = "high"

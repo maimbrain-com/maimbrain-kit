@@ -1,0 +1,37 @@
+# The match3 starter: Poppets, the match3 kit's game on engine 2.0, with
+# its own painted art, sounds and identity (not a greybox). Its art, sounds,
+# words and identity are the starter's: make them the game's own.
+title = "Poppets"
+tagline = "don't let them doze off"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+lives = 1
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.match3"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "NAP TIME!"
+
+[[scores]]
+label = "Points"
+order = "high"
+
+# The kit's look: storybook's wobbly painted panels, in the colours of the
+# key art (images/icon.png: deep indigo, plum panels), with the kit's coral
+# accent, a round display font and a big dropped title.
+[identity]
+name = "storybook"
+colors = "art"
+art = "icon"
+accent = 0xe2706f
+title_font = "Titan One"
+body_font = "Nunito"
+number_font = "Titan One"
+title = "drop"
+
+[remix]
+allowed = true

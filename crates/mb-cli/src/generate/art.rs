@@ -961,6 +961,7 @@ fn estimate_job(job: &Job) -> Option<f64> {
 
 /// Generates (or reprocesses) one job; returns the written asset path.
 pub fn execute(game: &Path, job: &Job, variants: u32, dry_run: bool, limit: f64) -> Result<PathBuf, String> {
+    super::maimbrain::making(game, &job.name);
     let (style, style_ref) = load_style(game, job.no_style)?;
     let palette = style.palette_rgb()?;
     // Originality guard over everything that goes into the prompt.
@@ -1473,7 +1474,18 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
             let unboxed = unbox(raw, key, true, &mut warnings);
             let raw = &unboxed;
             let src = if job.keyed {
-                keyed(raw, &mut warnings)
+                let mut k = keyed(raw, &mut warnings);
+                // The key the model blended into gaps too small to hold a clean key pixel.
+                if let Some(key) = key
+                    && img::clear_key_spill(&mut k, key) > 0
+                {
+                    let min_area = ((k.w * k.h) as f32 * 0.0002).max(12.0) as usize;
+                    img::remove_specks(&mut k, min_area);
+                }
+                // How much of the picture the model drew is scenery once keyed
+                // (a nearer layer is asked for a band along the bottom).
+                facts["cover"] = json!((img::cover(&k) * 1000.0).round() / 1000.0);
+                k
             } else if raw.is_opaque() {
                 raw.clone()
             } else {
@@ -1624,7 +1636,7 @@ pub fn process(job: &Job, style: &Style, palette: &[[u8; 3]], raw: &Image) -> Re
 }
 
 /// Scales trimmed content by k and places it in a cw×ch cell.
-fn place(p: &Image, k: f32, cw: u32, ch: u32, margin: u32, anchor: Anchor) -> Image {
+pub(crate) fn place(p: &Image, k: f32, cw: u32, ch: u32, margin: u32, anchor: Anchor) -> Image {
     let nw = ((p.w as f32 * k).round() as u32).clamp(1, cw);
     let nh = ((p.h as f32 * k).round() as u32).clamp(1, ch);
     let s = p.resize(nw, nh);

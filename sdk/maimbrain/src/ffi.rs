@@ -77,6 +77,11 @@ imports! {
     // 5.3 mb2d 2: game fonts
     pub fn mb2d_font_load(asset: u32) -> i32 = -7;
     pub fn mb2d_font_metrics(font: u32, out: *mut u8) -> i32 = -1;
+    // mb2d 3
+    pub fn mb2d_image_filter(img: u32, nearest: u32) -> i32 = 0;
+    // mb2d 4: sprite shaders
+    pub fn mb2d_shader(ptr: *const u8, len: u32) -> i32 = 1;
+    pub fn mb2d_shader_use(shader: u32, params: *const u8) -> i32 = 0;
 
     // 5.4 mb3d
     pub fn mb3d_mesh(ptr: *const u8, len: u32) -> i32 = 1;
@@ -145,6 +150,13 @@ imports! {
     pub fn mb3d_anim_mask(node: u32, clip: u32, time: f32, weight: f32, ptr: *const u8, count: u32) -> i32;
     pub fn mb3d_anim_take(node: u32, out: *mut u8) -> i32;
     pub fn mb3d_node_get_parent(node: u32) -> i32;
+    // 5.4 mb3d 3
+    pub fn mb3d_node_transforms(ptr: *const u8, count: u32) -> i32 = unsafe { crate::sys::test::host::node_transforms(ptr, count) };
+    // 5.4 mb3d 4
+    pub fn mb3d_material_surfaces(material: u32, ptr: *const u8, len: u32) -> i32;
+    // 5.4 mb3d 5: shader materials
+    pub fn mb3d_shader(ptr: *const u8, len: u32) -> i32 = 1;
+    pub fn mb3d_material_shader(material: u32, shader: u32, params: *const u8) -> i32 = 0;
 
     // 5.6 audio
     pub fn mb_sound(asset: u32) -> i32;
@@ -158,10 +170,10 @@ imports! {
     pub fn mb_bus_fx(bus: u32, kind: u32, ptr: *const u8) -> i32;
 
     // 5.7 sensors
-    pub fn mb_tilt(out: *mut u8) -> i32 = -6;
-    pub fn mb_motion(out: *mut u8) -> i32 = -6;
-    pub fn mb_attitude(out: *mut u8) -> i32 = -6;
-    pub fn mb_loudness() -> f32 = -1.0;
+    pub fn mb_tilt(out: *mut u8) -> i32 = unsafe { crate::sys::test::host::sensor(out, |s| s.tilt.map(|v| v.to_vec())) };
+    pub fn mb_motion(out: *mut u8) -> i32 = unsafe { crate::sys::test::host::sensor(out, |s| s.motion.map(|v| v.to_vec())) };
+    pub fn mb_attitude(out: *mut u8) -> i32 = unsafe { crate::sys::test::host::sensor(out, |s| s.attitude.map(|v| v.to_vec())) };
+    pub fn mb_loudness() -> f32 = crate::sys::test::host::loudness();
     pub fn mb_haptic(kind: u32);
 
     // 5.8 store / score

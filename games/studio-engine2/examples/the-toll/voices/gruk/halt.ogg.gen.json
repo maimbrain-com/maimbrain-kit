@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:02Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Oi. Nobody crosses Gruk's bridge for free.",
+  "full_prompt": "[smug] Oi. Nobody crosses Gruk's bridge for free.",
+  "seed": 611448391,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "65e31511ff7847b6b975050070a59020f148c30ec66bc85b12110623d93a314d"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/halt.wav",
+  "raw_sha256": "b2a62cffa3af6c603c37ce3d7824832379166cb8ca4d0ac5d046bbede7465646",
+  "output_sha256": "52aa3c6102b8fa519b8ca30a6d76f8d15799851b770e5ad58c6e5c1647e70080",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "smug",
+    "kind": "voice",
+    "line": "halt",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/halt.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 611448391,
+    "speed": null,
+    "style": null,
+    "text": "Oi. Nobody crosses Gruk's bridge for free.",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "aa2a079439ec9f73",
+    "lips": "assets/vo/gruk/halt.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -15.983494758605957,
+    "peak_db": -3.72810959815979,
+    "phone_loss_db": -3.5,
+    "seconds": 2.819795846939087,
+    "subtitle": "Oi. Nobody crosses Gruk's bridge for free.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

@@ -19,7 +19,7 @@ use maimbrain::store;
 use maimbrain::sys::{self, Level};
 use omnilua::{Function, Lua, Sandbox, SandboxConfig, Table, Value, Variadic};
 
-use crate::project::{Project, Scalar, TILE};
+use crate::project::{Kind, Project, Scalar, TILE};
 
 /// Lua instructions one frame may run, all handlers together. A Lua
 /// instruction costs about one wasm loop iteration of the platform's
@@ -33,6 +33,8 @@ pub const LOAD_BUDGET: u64 = 4_000_000;
 pub const MEMORY_LIMIT: usize = 32 << 20;
 
 const PRELUDE: &str = include_str!("prelude.lua");
+#[cfg(feature = "3d")]
+const PRELUDE_3D: &str = include_str!("prelude3d.lua");
 
 /// A sprite to draw: its top-left in world pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -57,11 +59,76 @@ pub struct ShapeDraw {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextDraw {
-    pub s: String,
-    /// Screen (canvas) pixels.
+    /// Its lines: split at "\n", and wrapped at the `width` it asked for.
+    pub lines: Vec<String>,
+    /// Screen (canvas) pixels: the first line's top, and its left, middle
+    /// or right by `align`.
     pub x: f32,
     pub y: f32,
     pub color: u8,
+    pub align: Align,
+    /// 1–4 times the size.
+    pub scale: u8,
+    /// A drop shadow's colour, one font pixel down and right.
+    pub shadow: Option<u8>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Align {
+    #[default]
+    Left,
+    Center,
+    Right,
+}
+
+/// The pixel font in canvas pixels at scale 1. The phone draws text at 16
+/// logical units an em, and a Studio canvas shows at 2.5 units a pixel
+/// (360×640 for 144×256), so an em is 6.4 px. The font gives every
+/// character the same advance (6 of its 8-pixel em) and lines 10, so a
+/// character is 4.8 px wide and a line 8 px tall. Widths and wrapping are
+/// plain arithmetic, the same on every phone (the renderer draws text at
+/// this size in canvas pixels, whatever the screen), so Lua can rely on them.
+pub const TEXT_EM: f64 = 6.4;
+pub const TEXT_ADVANCE: f64 = 4.8;
+pub const TEXT_LINE: f64 = 8.0;
+/// The largest `scale` text takes.
+pub const TEXT_MAX_SCALE: u8 = 4;
+
+/// The width of `s` at `scale`, in canvas pixels: its longest line's
+/// characters times 4.8 px (× scale).
+pub fn text_width(s: &str, scale: u8) -> f64 {
+    // 24/5 is 4.8 without its rounding error (Lua prints 43.2, not 43.199…).
+    (s.split('\n').map(|l| l.chars().count()).max().unwrap_or(0) * 24 * scale as usize) as f64 / 5.0
+}
+
+/// `s` as lines: split at "\n", and with `width` (canvas pixels) wrapped
+/// at spaces, a word longer than a line split where it has to be.
+pub fn wrap(s: &str, width: Option<f64>, scale: u8) -> Vec<String> {
+    let Some(width) = width else { return s.split('\n').map(str::to_string).collect() };
+    let max = ((width * 5.0 / (24.0 * scale as f64) + 1e-9).floor() as usize).max(1);
+    let mut out = Vec::new();
+    for para in s.split('\n') {
+        let (mut line, mut n) = (String::new(), 0);
+        for word in para.split(' ') {
+            let mut w: Vec<char> = word.chars().collect();
+            if n > 0 && n + 1 + w.len() <= max {
+                line.push(' ');
+                line.extend(&w);
+                n += 1 + w.len();
+                continue;
+            }
+            if n > 0 {
+                out.push(std::mem::take(&mut line));
+            }
+            while w.len() > max {
+                out.push(w.drain(..max).collect());
+            }
+            n = w.len();
+            line.extend(w);
+        }
+        out.push(line);
+    }
+    out
 }
 
 /// Feel the game asked for this frame; the engine plays it after `step`.
@@ -120,7 +187,6 @@ pub enum DebugCmd {
     Lives(f64),
     Invincible(bool),
     Hitboxes(bool),
-    Level(String),
     Spawn(String),
     Knob(String, String, f64),
     /// A game item (1-based, as `debug.*` declared them) and its new value.
@@ -173,7 +239,25 @@ pub struct Vm {
     sandbox: Sandbox,
     step: Option<Function>,
     pub out: Rc<RefCell<Out>>,
+    /// The 3D view's scene (`scene.rs`): what the round built, freed with it.
+    pub scene: Option<SceneRef>,
     names: Vec<String>,
+}
+
+#[cfg(feature = "3d")]
+pub type SceneRef = Rc<RefCell<crate::scene::Scene>>;
+#[cfg(not(feature = "3d"))]
+pub type SceneRef = ();
+
+/// What the 3D view's bindings play from, loaded before any VM: the
+/// project's models, and its sounds with the music playing (which outlives
+/// a round's VM).
+#[derive(Clone, Default)]
+pub struct Media {
+    #[cfg(feature = "3d")]
+    pub models: crate::scene::Assets,
+    #[cfg(feature = "3d")]
+    pub audio: Rc<RefCell<crate::scene::Audio>>,
 }
 
 impl Drop for Vm {
@@ -183,12 +267,12 @@ impl Drop for Vm {
     }
 }
 
-fn rt_err(msg: impl std::fmt::Display) -> omnilua::Error {
+pub(crate) fn rt_err(msg: impl std::fmt::Display) -> omnilua::Error {
     omnilua::Error::from(omnilua::LuaError::runtime(format_args!("{msg}")))
 }
 
 /// Globals a Studio script never gets (SPEC §3, docs/STUDIO.md "Determinism").
-/// Lua's own `load` isn't listed: `install_api` has already replaced it with
+/// Lua's own `load` isn't listed: `install_common` has already replaced it with
 /// the saved-data reader, `load(key)`, which removing it would delete.
 const REMOVED: &[&str] = &["dofile", "loadfile", "loadstring", "package", "io", "os", "collectgarbage"];
 
@@ -197,23 +281,38 @@ pub enum Mode<'a> {
     /// Load the scripts only: the title screen's VM, which the debug menu
     /// reads its kinds, knobs and items from.
     Title,
-    /// A round: the first level (or `level`), then `start()`.
-    Round { level: Option<&'a str> },
+    /// A round: the first level (or `level`), the debug globals `set` (a
+    /// scenario's: after main.lua's own top level, so they override its
+    /// defaults), then `start()`.
+    Round { level: Option<&'a str>, set: &'a [(String, Scalar)] },
 }
 
 impl Vm {
     pub fn new(project: &Rc<Project>, seed: u64, mode: Mode) -> Result<Vm, String> {
+        Vm::with_media(project, seed, mode, &Media::default())
+    }
+
+    /// A VM for the project's view: the Arcade's thing layer, or the 3D
+    /// view's scene (with `media`).
+    pub fn with_media(project: &Rc<Project>, seed: u64, mode: Mode, media: &Media) -> Result<Vm, String> {
         let lua = Lua::new();
         // One Rust→Lua call a frame, so the ~0.8 µs a call this costs is
         // nothing, and the instruction budget's error gets its line from it.
         lua.set_capture_tracebacks(true);
         let out = Rc::new(RefCell::new(Out::default()));
         let rng = Rc::new(RefCell::new(Rng::new(seed)));
-        let map = Rc::new(Cell::new(None::<usize>));
-        let r = core(&lua, project, &out, &rng, &map, &mode).map_err(|e| e.to_string())?;
-        install_api(&lua, project, &out, &rng).map_err(|e| e.to_string())?;
-        let prelude = lua.load(PRELUDE).set_name("=prelude.lua").into_function().map_err(|e| e.to_string())?;
-        let (step, begin): (Function, Function) = prelude.call(r).map_err(|e| describe(&e, &[]))?;
+        install_common(&lua, project, &rng).map_err(|e| e.to_string())?;
+        let (step, begin, scene): (Function, Function, Option<SceneRef>) = match project.kind {
+            Kind::TwoD => {
+                let map = Rc::new(Cell::new(None::<usize>));
+                let r = core(&lua, project, &out, &rng, &map, &mode).map_err(|e| e.to_string())?;
+                install_arcade(&lua, &out).map_err(|e| e.to_string())?;
+                let prelude = lua.load(PRELUDE).set_name("=prelude.lua").into_function().map_err(|e| e.to_string())?;
+                let (step, begin) = prelude.call(r).map_err(|e| describe(&e, &[]))?;
+                (step, begin, None)
+            }
+            Kind::ThreeD => three(&lua, project, &mode, media)?,
+        };
         let sandbox = lua
             .install_sandbox(SandboxConfig {
                 instruction_limit: Some(LOAD_BUDGET),
@@ -223,10 +322,22 @@ impl Vm {
             })
             .map_err(|e| e.to_string())?;
         let names: Vec<String> = project.scripts.keys().cloned().collect();
-        let vm = Vm { lua, sandbox, step: Some(step), out, names };
+        let vm = Vm { lua, sandbox, step: Some(step), out, scene, names };
         let main = &project.scripts["main"];
         vm.lua.load(main.as_bytes()).set_name("=main.lua").exec().map_err(|e| describe(&e, &vm.names))?;
-        if let Mode::Round { .. } = mode {
+        if let Mode::Round { set, .. } = mode {
+            let g = vm.lua.globals();
+            for (k, v) in set {
+                let r = match v {
+                    Scalar::Num(n) => g.set(k.as_str(), *n),
+                    Scalar::Str(t) => g.set(k.as_str(), t.as_str()),
+                    Scalar::Bool(b) => g.set(k.as_str(), *b),
+                };
+                r.map_err(|e| e.to_string())?;
+            }
+            begin.call::<_, ()>(()).map_err(|e| describe(&e, &vm.names))?;
+        } else if project.kind == Kind::ThreeD {
+            // The 3D title card plays the game behind it (`title` is true): an attract mode.
             begin.call::<_, ()>(()).map_err(|e| describe(&e, &vm.names))?;
         }
         vm.set_budget(FRAME_BUDGET);
@@ -323,7 +434,14 @@ impl Vm {
             o.things.clear();
             o.boxes.clear();
             o.texts.clear();
-            o.fx.clear();
+            // Not `fx`: the host takes it after every frame, and what
+            // `start()` asked for (in Vm::new, before any frame) waits in
+            // it for the first one.
+        }
+        // The 3D view: this frame's 2D starts empty.
+        #[cfg(feature = "3d")]
+        if let Some(sc) = &self.scene {
+            sc.borrow_mut().begin_frame();
         }
         let r = (|| -> omnilua::Result<(bool, Option<String>, f64, f64)> {
             let i = self.lua.create_table()?;
@@ -361,7 +479,6 @@ impl Vm {
                         DebugCmd::Lives(v) => (s(&e, "lives")?, e.push(*v)?),
                         DebugCmd::Invincible(on) => (s(&e, "inv")?, e.push(*on as i64)?),
                         DebugCmd::Hitboxes(on) => (s(&e, "boxes")?, e.push(*on as i64)?),
-                        DebugCmd::Level(l) => (s(&e, "level")?, e.push(l.as_str())?),
                         DebugCmd::Spawn(k) => (s(&e, "spawn")?, e.push(k.as_str())?),
                         DebugCmd::Knob(k, n, v) => (s(&e, "knob")?, {
                             e.push(k.as_str())?;
@@ -399,6 +516,11 @@ impl Vm {
             };
             Ok((over, heading, n(rest.get(1)), n(rest.get(2))))
         })();
+        // The 3D view: models' animations step after the game's frame (it may have started one).
+        #[cfg(feature = "3d")]
+        if let Some(sc) = &self.scene {
+            sc.borrow_mut().animate(dt);
+        }
         match r {
             Ok((over, heading, camx, camy)) => Ok(Step { over, heading, camx: camx as f32, camy: camy as f32 }),
             Err(e) => Err(describe(&e, &self.names)),
@@ -408,21 +530,49 @@ impl Vm {
 
 /// A Lua error as the creator (and Claude) should see it: the message with
 /// its `main.lua:<line>:` position. The instruction budget's own error has no
-/// position (omnilua 0.7.1), so it takes the innermost game line of the
+/// position (omnilua 0.7.1), and neither has one a Rust binding raises (a bad
+/// argument to `node:place`): both take the innermost game line of the
 /// traceback (inside a `pcall`, that's the `pcall`'s line).
 pub fn describe(e: &omnilua::Error, scripts: &[String]) -> String {
     let msg = e.to_string();
-    let tripped = msg.contains("instruction budget") || msg.contains("memory limit");
-    let tb = if tripped { e.traceback_lossy() } else { None };
     let ours = |l: &str| scripts.iter().any(|s| l.starts_with(&format!("{s}.lua:")));
-    match tb.as_deref().and_then(|tb| tb.lines().map(str::trim).find(|l| ours(l))) {
+    if ours(&msg) {
+        return msg;
+    }
+    let tripped = msg.contains("instruction budget") || msg.contains("memory limit");
+    match e.traceback_lossy().as_deref().and_then(|tb| tb.lines().map(str::trim).find(|l| ours(l))) {
         Some(line) => {
             let at = line.split(':').take(2).collect::<Vec<_>>().join(":");
+            if !tripped {
+                return format!("{at}: {msg}");
+            }
             let what = if msg.contains("memory") { "using too much memory (a table that only grows?)" } else { "a loop that never ends?" };
             format!("{at}: {msg} ({what})")
         }
         None => msg,
     }
+}
+
+/// The 3D view: the scene's bindings (scene.rs) and its prelude.
+#[cfg(feature = "3d")]
+fn three(lua: &Lua, project: &Rc<Project>, mode: &Mode, media: &Media) -> Result<(Function, Function, Option<SceneRef>), String> {
+    let scene = Rc::new(RefCell::new(crate::scene::Scene::new(media.models.clone(), media.audio.clone())));
+    let api = crate::scene::install(lua, &scene).map_err(|e| e.to_string())?;
+    let setup = || -> omnilua::Result<()> {
+        api.set("lives", project.lives)?;
+        api.set("title", matches!(mode, Mode::Title))?;
+        api.set("over_text", project.over.as_str())?;
+        Ok(())
+    };
+    setup().map_err(|e| e.to_string())?;
+    let prelude = lua.load(PRELUDE_3D).set_name("=prelude3d.lua").into_function().map_err(|e| e.to_string())?;
+    let (step, begin) = prelude.call(api).map_err(|e| describe(&e, &[]))?;
+    Ok((step, begin, Some(scene)))
+}
+
+#[cfg(not(feature = "3d"))]
+fn three(_: &Lua, _: &Rc<Project>, _: &Mode, _: &Media) -> Result<(Function, Function, Option<SceneRef>), String> {
+    Err("this is the Arcade build of the Studio engine: a 3D project plays on its 3D build (mb build picks it)".into())
 }
 
 fn num_or(v: Option<&f64>, d: f64) -> f64 {
@@ -557,7 +707,7 @@ fn core(lua: &Lua, project: &Rc<Project>, out: &Rc<RefCell<Out>>, rng: &Rc<RefCe
             })?,
         )?;
     }
-    if let Mode::Round { level: Some(l) } = mode {
+    if let Mode::Round { level: Some(l), .. } = mode {
         r.set("start_level", *l)?;
     }
     r.set("levels", project.maps.iter().map(|m| m.name.clone()).collect::<Vec<_>>())?;
@@ -725,18 +875,56 @@ fn core(lua: &Lua, project: &Rc<Project>, out: &Rc<RefCell<Out>>, rng: &Rc<RefCe
     Ok(r)
 }
 
-fn install_api(lua: &Lua, project: &Rc<Project>, out: &Rc<RefCell<Out>>, rng: &Rc<RefCell<Rng>>) -> omnilua::Result<()> {
+/// The Arcade's drawing and feel: text in canvas pixels and palette colours,
+/// and the effects the engine plays after the frame (`Fx`).
+fn install_arcade(lua: &Lua, out: &Rc<RefCell<Out>>) -> omnilua::Result<()> {
     let g = lua.globals();
 
-    // text("hi", x, y [, color]): on the screen this frame, in canvas pixels.
+    // text("hi", x, y [, color] [, { align, width, scale, shadow }]): on the
+    // screen this frame, in canvas pixels.
     let o = out.clone();
     g.set(
         "text",
-        lua.create_function(move |lua, (v, x, rest): (Value, f64, Variadic<f64>)| {
-            let rest: Vec<f64> = rest.into_vec();
+        lua.create_function(move |lua, (v, x, rest): (Value, f64, Variadic<Value>)| {
+            let rest = rest.into_vec();
             let s = to_s(lua, v)?;
-            o.borrow_mut().texts.push(TextDraw { s, x: x as f32, y: num_or(rest.first(), 0.0) as f32, color: (num_or(rest.get(1), 7.0) as i64 & 15) as u8 });
+            let num = |v: Option<&Value>| match v {
+                Some(Value::Integer(i)) => Some(*i as f64),
+                Some(Value::Number(f)) if f.is_finite() => Some(*f),
+                _ => None,
+            };
+            let opts = rest.iter().skip(1).find_map(|v| if let Value::Table(t) = v { Some(t.clone()) } else { None });
+            let opt = |k: &str| opts.as_ref().and_then(|t| t.get::<_, Value>(k).ok());
+            let align = match opt("align") {
+                Some(Value::String(a)) => match a.to_str()?.as_str() {
+                    "left" => Align::Left,
+                    "center" | "centre" => Align::Center,
+                    "right" => Align::Right,
+                    other => return Err(rt_err(format!("text: align is \"left\", \"center\" or \"right\", not {other:?}"))),
+                },
+                _ => Align::Left,
+            };
+            let scale = num(opt("scale").as_ref()).map_or(1, |n| n.round().clamp(1.0, TEXT_MAX_SCALE as f64) as u8);
+            let width = num(opt("width").as_ref()).filter(|w| *w > 0.0);
+            let text = TextDraw {
+                lines: wrap(&s, width, scale),
+                x: x as f32,
+                y: num(rest.first()).unwrap_or(0.0) as f32,
+                color: (num(rest.get(1)).unwrap_or(7.0) as i64 & 15) as u8,
+                align,
+                scale,
+                shadow: num(opt("shadow").as_ref()).map(|c| (c as i64 & 15) as u8),
+            };
+            o.borrow_mut().texts.push(text);
             Ok(())
+        })?,
+    )?;
+    // text_width("hi" [, scale]): how wide text() draws it, in canvas pixels.
+    g.set(
+        "text_width",
+        lua.create_function(|lua, (v, scale): (Value, Option<f64>)| {
+            let s = to_s(lua, v)?;
+            Ok(text_width(&s, scale.map_or(1, |n| n.round().clamp(1.0, TEXT_MAX_SCALE as f64) as u8)))
         })?,
     )?;
     let fx = |f: fn(&[Value]) -> Option<Fx>| {
@@ -778,6 +966,12 @@ fn install_api(lua: &Lua, project: &Rc<Project>, out: &Rc<RefCell<Out>>, rng: &R
             }
         })?,
     )?;
+    Ok(())
+}
+
+/// What every view has: saved data, the round's randomness, print and require.
+fn install_common(lua: &Lua, project: &Rc<Project>, rng: &Rc<RefCell<Rng>>) -> omnilua::Result<()> {
+    let g = lua.globals();
 
     // Saved data (the SDK's store; a debug session plays on a copy).
     g.set(
@@ -873,7 +1067,7 @@ fn install_api(lua: &Lua, project: &Rc<Project>, out: &Rc<RefCell<Out>>, rng: &R
 }
 
 /// `tostring(v)`, Lua's own: numbers as `%.14g`, NaN always `nan`.
-fn to_s(lua: &Lua, v: Value) -> omnilua::Result<String> {
+pub(crate) fn to_s(lua: &Lua, v: Value) -> omnilua::Result<String> {
     if let Value::String(s) = &v {
         return s.to_str();
     }

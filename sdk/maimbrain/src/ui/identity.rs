@@ -16,31 +16,8 @@ use super::style::*;
 use super::theme::{FontNames, Theme};
 use crate::gfx2d::Font;
 
-/// The identities, by name.
-pub const IDENTITIES: [&str; 17] = [
-    "riso", "crt", "neon", "storybook", "saloon", "swiss", "brutalist", "comic", "gothic", "bubblegum", "terminal", "field", "orbital", "gala", "notebook", "stadium", "cozy-pixel",
-];
-
-/// Words that pick each identity in `from_identity` (besides its name).
-const KEYWORDS: [(&str, &[&str]); 17] = [
-    ("riso", &["risograph", "zine", "print", "poster", "screenprint", "punk", "indie", "misregistered", "flyer"]),
-    ("crt", &["arcade", "8-bit", "8bit", "phosphor", "cabinet", "coin-op", "retro", "80s", "chiptune"]),
-    ("neon", &["synthwave", "outrun", "vaporwave", "retrowave", "miami", "nightclub", "laser", "club"]),
-    ("storybook", &["fairytale", "fairy", "fable", "children", "book", "whimsical", "woodland", "forest", "watercolor", "gentle", "tale"]),
-    ("saloon", &["western", "wild west", "cowboy", "frontier", "desert", "wanted", "sheriff", "circus", "carnival", "vaudeville", "old-timey"]),
-    ("swiss", &["minimal", "minimalist", "bauhaus", "modernist", "clean", "editorial", "helvetica", "international", "magazine", "typographic"]),
-    ("brutalist", &["brutal", "neo-brutalism", "neobrutalism", "raw", "blocky", "sticker", "chunky", "bold", "loud"]),
-    ("comic", &["comics", "superhero", "cartoon", "pop art", "kapow", "halftone", "pulp", "action"]),
-    ("gothic", &["horror", "haunted", "vampire", "medieval", "occult", "crypt", "metal", "castle", "spooky", "ghost", "creepy", "dark"]),
-    ("bubblegum", &["cute", "kawaii", "candy", "pastel", "sweet", "bubbly", "playful", "kids", "toy", "sugar"]),
-    ("terminal", &["hacker", "code", "console", "command line", "unix", "amber", "programmer", "computer", "ascii"]),
-    ("field", &["military", "army", "tactical", "stencil", "camo", "mission", "war", "ops", "crate", "industrial", "hazard"]),
-    ("orbital", &["space", "sci-fi", "scifi", "futuristic", "hud", "spaceship", "cockpit", "cyber", "tech", "orbit", "galaxy", "robot"]),
-    ("gala", &["elegant", "luxury", "art deco", "deco", "gatsby", "classy", "fashion", "noir", "fancy", "opera", "casino"]),
-    ("notebook", &["doodle", "sketch", "hand-drawn", "handdrawn", "handmade", "school", "paper", "scribble", "crayon", "homework", "diary"]),
-    ("stadium", &["sports", "scoreboard", "football", "basketball", "soccer", "team", "jersey", "varsity", "arena", "league", "racing"]),
-    ("cozy-pixel", &["pixel", "cozy", "farm", "rpg", "16-bit", "16bit", "snes", "adventure", "quest", "village", "garden"]),
-];
+pub use super::pick::{ArtColors, IDENTITIES, art_colors};
+use super::pick::KEYWORDS;
 
 #[allow(clippy::too_many_arguments)]
 fn theme(
@@ -126,6 +103,23 @@ impl Theme {
         use Texture as X;
         use TitleLayout as T;
         match name {
+            // A placeholder (Studio's starters): grey, the host sans, plain.
+            "greybox" => theme(
+                (hex(0x5a5a5e), hex(0x3c3c40)),
+                (hex(0x6e6e72), hex(0x55555a)),
+                0xffffff30,
+                hex(0xf2f2f2),
+                hex(0xbdbdc2),
+                hex(0x202024),
+                hex(0xe6e6e6),
+                hex(0x2a2a2e),
+                0x00000060,
+                12.0,
+                [Font::SansBold, Font::Sans, Font::SansBold],
+                names("", "", ""),
+                style(S::Rounded, Border::None, Shadow::None, X::None, B::Flat, X::None).layouts(T::Drop, R::Panel, H::Center).moving(Motion::Snappy, Case::AsWritten, 0.0),
+                [hex(0xf2f2f2), hex(0xbdbdc2), hex(0x8a8a90), hex(0xd8d8dc), hex(0x6e6e72)],
+            ),
             "crt" => theme(
                 (hex(0x071a0d), hex(0x020a04)),
                 (hex(0x0b2414), hex(0x06160c)),
@@ -444,13 +438,8 @@ impl Theme {
         let d = desc.to_lowercase();
         let words: Vec<&str> = d.split(|c: char| !(c.is_alphanumeric() || c == '-')).filter(|w| !w.is_empty()).collect();
         let has = |k: &str| if k.contains(' ') { d.contains(k) } else { words.contains(&k) };
-        let mut best = (0usize, IDENTITIES[(fnv(&d) % IDENTITIES.len() as u32) as usize]);
-        for (name, keys) in KEYWORDS {
-            let score = 3 * has(name) as usize + keys.iter().filter(|k| has(k)).count();
-            if score > best.0 {
-                best = (score, name);
-            }
-        }
+        let (name, score) = super::pick::pick_identity(desc);
+        let best = (score, name);
         let mut t = Theme::preset(best.1);
         let mut notes = match KEYWORDS.iter().find(|(n, _)| *n == best.1) {
             Some((name, keys)) if best.0 > 0 => {
@@ -557,9 +546,6 @@ impl Theme {
     }
 }
 
-fn fnv(s: &str) -> u32 {
-    s.bytes().fold(0x811c_9dc5u32, |h, b| (h ^ b as u32).wrapping_mul(0x0100_0193))
-}
 
 #[cfg(test)]
 mod tests {
@@ -609,3 +595,62 @@ mod tests {
         assert!(Theme::explain_identity("riso with a neon sign").contains("; neon (title layout, shadow)"));
     }
 }
+
+impl Theme {
+    /// The theme in the colours of the game's key art (`rgba`, `w` × `h`
+    /// pixels): the backdrop from its darkest common colour, panels a step
+    /// lighter, the accent its most vivid colour that stands out against
+    /// them, and text that reads on each (docs/STUDIO-2.md §4.12). The same
+    /// picture always gives the same colours.
+    pub fn from_art(self, rgba: &[u8], w: u32, h: u32) -> Theme {
+        match art_colors(rgba, w, h) {
+            Some(c) => self.with_art(c),
+            None => self,
+        }
+    }
+
+    /// The theme in colours [`art_colors`] picked (where the art was sampled
+    /// earlier: Studio's packer does it, the engine applies it).
+    pub fn with_art(self, c: ArtColors) -> Theme {
+        let mut t = self;
+        (t.bg_top, t.bg_bottom) = (super::color::lighten(c.bg, 0.06), super::color::darken(c.bg, 0.2));
+        (t.panel_top, t.panel_bottom) = (super::color::lighten(c.panel, 0.05), super::color::darken(c.panel, 0.12));
+        let light = luma(c.panel) < 0.5;
+        t.text = if light { hex(0xf7f4ee) } else { hex(0x161616) };
+        t.text_dim = with_alpha(t.text, 0.68);
+        t.outline = if light { super::color::darken(c.bg, 0.6) } else { hex(0xffffff) };
+        t.panel_border = with_alpha(t.text, 0.2);
+        t.secondary = with_alpha(t.text, 0.12);
+        t.on_secondary = t.text;
+        t = t.with_accent(c.accent);
+        t.gold = c.highlight;
+        t.confetti = [c.accent, c.highlight, c.panel, t.text, super::color::lighten(c.accent, 0.3)];
+        t
+    }
+}
+
+#[cfg(test)]
+mod art_tests {
+    use super::*;
+
+    /// Dusk art: a deep blue sky, a purple hill, a few orange lanterns.
+    #[test]
+    fn colors_from_art_are_its_own_and_readable() {
+        let (w, h) = (64u32, 64u32);
+        let mut px = Vec::new();
+        for y in 0..h {
+            for x in 0..w {
+                let c: [u8; 4] = if y < 40 { [20, 28, 70, 255] } else if (x / 8) % 3 == 0 && y < 48 { [255, 150, 40, 255] } else { [70, 40, 90, 255] };
+                px.extend(c);
+            }
+        }
+        let c = art_colors(&px, w, h).unwrap();
+        assert_eq!(c.bg, 0x141c46ff, "the sky, darkest common colour");
+        assert_eq!(c.accent, 0xff9628ff, "the lanterns");
+        let t = Theme::preset("storybook").from_art(&px, w, h);
+        assert!((luma(t.text) - luma(t.panel_top)).abs() > 0.5, "text reads on the panels");
+        assert_eq!(t, Theme::preset("storybook").from_art(&px, w, h), "the same art, the same theme");
+        assert_eq!(Theme::preset("greybox").fonts, FontNames::default());
+    }
+}
+

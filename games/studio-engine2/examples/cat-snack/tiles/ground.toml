@@ -1,0 +1,8 @@
+# Grass on top, earth below.
+[tiles.grass]
+frame = 1
+solid = true
+
+[tiles.dirt]
+frame = 2
+solid = true

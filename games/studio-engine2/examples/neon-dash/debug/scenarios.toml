@@ -1,0 +1,12 @@
+[[scenario]]
+name = "Rush hour"
+note = "three times as fast, from 200"
+score = 200
+[scenario.set]
+speed = 3
+
+[[scenario]]
+name = "Moon jump"
+note = "jumps twice as high"
+[scenario.knobs]
+"runner.jump" = 420

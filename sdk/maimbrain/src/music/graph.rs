@@ -67,6 +67,7 @@ pub struct Link {
     pub into_zone: Option<usize>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Graph {
     pub name: String,
     pub bpm: f64,
@@ -85,6 +86,12 @@ pub struct Graph {
     pub seamless: f32,
     /// A jump back shorter than this (bars) repeats what was just heard.
     pub min_repeat: u32,
+    /// `"loop": true`: the take (or its layers) is one seamless loop of
+    /// `end_bar` bars with its first downbeat `first_bar_seconds` in, made by
+    /// `mb studio-asset music --layers` from a plain loop. A Director plays it
+    /// in its loop mode (both layers looped in step, the tension kit on its
+    /// grid) as a graph of one zone named after it.
+    pub looped: bool,
     pub files: Files,
     /// How much louder than [`super::Levels::default`] the tension kit plays
     /// (`levels.tension_gain`): `mb music` measures the take on a phone and
@@ -186,6 +193,7 @@ impl Graph {
             link_post: sp.get("link_post_beats").f64().unwrap_or(1.0),
             seamless: sp.get("seamless").f64().unwrap_or(0.8) as f32,
             min_repeat: sp.get("min_repeat_bars").u32().unwrap_or(8),
+            looped: j.get("loop").bool() == Some(true),
             files,
             tension_gain: j.get("levels").get("tension_gain").f64().filter(|g| g.is_finite() && *g > 0.0).unwrap_or(1.0) as f32,
             zones,

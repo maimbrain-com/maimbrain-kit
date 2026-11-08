@@ -250,7 +250,7 @@ fn yes() -> bool {
 /// versions only add imports, so a game built for an older one keeps working
 /// unchanged, and an import added in version N needs `name = N` or later
 /// (`abi::Requires::Stdlib`).
-pub const STDLIB: &[(&str, u32)] = &[("mb2d", 2), ("mb3d", 2), ("gpu", 1)];
+pub const STDLIB: &[(&str, u32)] = &[("mb2d", 4), ("mb3d", 5), ("gpu", 1)];
 
 impl Manifest {
     pub fn parse(text: &str) -> Result<Manifest, String> {
@@ -360,9 +360,40 @@ impl Manifest {
     }
 
     /// Bundle formats beyond the plain one this game needs the app to know
-    /// ([`crate::studio::FORMATS`]): `studio` for a Studio game.
+    /// ([`crate::studio::FORMATS`]): `studio` for a Studio game on engine
+    /// 1.x, `studio2` on 2.0 or later (Luau, bytecode, exceptions in the
+    /// wasm: an app that opens only 1.0 never gets one); and `mb2d3` for a
+    /// game that declares `mb2d = 3`, which validators before it refuse
+    /// (every 2.0 game does, so an app that opens `studio2` opens `mb2d3`);
+    /// and `mb3d3` for one that declares `mb3d = 3` (engine 2.0's 3D build
+    /// from Phase 2a on), which validators before it refuse the same way;
+    /// and `mb3d4` for one that declares `mb3d = 4` (its ground surfaces,
+    /// docs/STUDIO-2.md Decided 70), again the same way; and `mb3d5` and
+    /// `mb2d4` for games with shaders (mb3d 5's materials, mb2d 4's sprite
+    /// shaders, §4.15), which only engine 2.0's shader builds declare, so
+    /// games without shaders never need the app that opens them.
     pub fn needs_formats(&self) -> Vec<&'static str> {
-        if self.engine.is_some() { vec!["studio"] } else { Vec::new() }
+        let mut f = match self.engine.as_deref().map(crate::studio::major) {
+            None => Vec::new(),
+            Some(Some(m)) if m >= crate::studio::LUAU_MAJOR => vec!["studio2"],
+            Some(_) => vec!["studio"],
+        };
+        if self.stdlib_version("mb2d") >= 3 {
+            f.push("mb2d3");
+        }
+        if self.stdlib_version("mb3d") >= 3 {
+            f.push("mb3d3");
+        }
+        if self.stdlib_version("mb3d") >= 4 {
+            f.push("mb3d4");
+        }
+        if self.stdlib_version("mb2d") >= 4 {
+            f.push("mb2d4");
+        }
+        if self.stdlib_version("mb3d") >= 5 {
+            f.push("mb3d5");
+        }
+        f
     }
 
     pub fn has_stdlib(&self, name: &str) -> bool {

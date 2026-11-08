@@ -1,0 +1,8 @@
+# Caught by the goblin: a heavy, falling thump.
+wave = "square"
+duty = 0.5
+freq = 160
+freq_end = 55
+duration = 0.16
+decay = 0.18
+volume = 0.55

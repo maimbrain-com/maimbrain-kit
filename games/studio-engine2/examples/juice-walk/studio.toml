@@ -1,0 +1,13 @@
+# Phase 3c's juice showcase (a test scene, not a game): two haulers walking
+# on terrain with footsteps and a servo hum, crates landing with impacts,
+# a combo, punches, and a slow-motion moment.
+title = "Juice Walk"
+tagline = "stomp, clang, combo"
+engine = "2.0"
+kind = "3d"
+orientation = "portrait"
+lives = 1
+
+id = "dev.maimbrain.studio2.juicewalk"
+version = "0.1.0"
+creator = "@maimbrain"

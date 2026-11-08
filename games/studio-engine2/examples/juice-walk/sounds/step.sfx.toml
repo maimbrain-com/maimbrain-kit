@@ -1,0 +1,7 @@
+# A lighter footfall: a short tick.
+wave = "noise"
+freq = 220
+freq_end = 140
+duration = 0.03
+decay = 0.08
+volume = 0.6

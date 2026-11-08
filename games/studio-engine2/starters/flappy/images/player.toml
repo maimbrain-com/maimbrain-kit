@@ -1,0 +1,7 @@
+# The chick: wings down, then a flap (pixel art: each art pixel is 2 units).
+frame = [32, 32]
+pixel = true
+
+[anims]
+idle = { frames = "1" }
+flap = { frames = "2-1", fps = 10 }

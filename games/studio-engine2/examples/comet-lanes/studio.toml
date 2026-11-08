@@ -1,0 +1,26 @@
+# Comet Lanes on engine 2.0: engine 1.0's 3D example
+# (games/studio-engine/examples/comet), moved up by upgrade_engine and
+# finished by hand. It runs on the 3D build with 1.0's 3D names.
+title = "Comet Lanes"
+tagline = "Drag to thread the gaps"
+kind = "3d"
+engine = "2.0"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.cometlanes"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[identity]
+name = "orbital"
+
+[[scores]]
+label = "Rings"
+order = "high"
+
+[text]
+over = "CRASHED!"
+
+[remix]
+allowed = true

@@ -1,0 +1,39 @@
+# The shooter starter: the shooter kit's Nova Pip, a vertical arcade shooter
+# for one thumb, rebuilt in Lua. Its rules and knobs are the kit's
+# (game/sim.lua, game/waves.lua). Its art, sounds, music, words and identity
+# below are the starter's (a little neon pod against a synthwave swarm), for
+# the game to replace with its own (game/main.lua says where each part lives).
+title = "Nova Pip"
+tagline = "one tiny pod. one big swarm."
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+# Three hearts, the HUD's (the sim keeps the same count: sim.LIVES).
+lives = 3
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.shooter"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "SHOT DOWN!"
+
+[[scores]]
+label = "Score"
+order = "high"
+
+# The same waves for everyone today (the waves come from the round's seed).
+[[scores]]
+id = "daily"
+label = "Daily score"
+daily = true
+
+# The cards and the score: neon, the synthwave night of the art, with the
+# kit's hot magenta.
+[identity]
+name = "neon"
+accent = 0xff2fb4
+
+[remix]
+allowed = true

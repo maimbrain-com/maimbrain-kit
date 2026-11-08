@@ -16,6 +16,76 @@ pub const FUEL_EXPORT: &str = "__mb_fuel";
 /// Exports with this prefix are reserved for the platform.
 pub const RESERVED_PREFIX: &str = "__mb";
 
+/// The version of this pass. Its output is a pure function of the input for
+/// one version, so a client may keep metered wasm by [`cache_key`] (SPEC
+/// "Studio bundles", "validated and metered once"). Bump it whenever
+/// `instrument`'s output changes: the `__mb_fuel` export, its type, where
+/// fuel is charged, or walrus's emitting. Entries of other versions are
+/// discarded.
+pub const METER_VERSION: u32 = 1;
+
+/// What metered wasm may be cached under: [`METER_VERSION`] and the SHA-256
+/// of the unmetered bytes, as `<version>-<sha hex>`.
+pub fn cache_key(wasm: &[u8]) -> String {
+    use sha2::Digest;
+    format!("{METER_VERSION}-{}", crate::bundle::hex(&sha2::Sha256::digest(wasm)))
+}
+
+/// Metered engines in a directory, one file a key (`<key>.wasm`): the
+/// metered wasm, then its SHA-256, so a file that's cut short or changed is
+/// metered again, not run. Writing an entry deletes those of other metering
+/// versions ([`DiskCache::sweep`]). `mb` keeps them in its cache directory,
+/// the app in `Caches/engines` (docs/STUDIO-2.md §4.8).
+pub struct DiskCache(pub std::path::PathBuf);
+
+fn sha(b: &[u8]) -> [u8; 32] {
+    <sha2::Sha256 as sha2::Digest>::digest(b).into()
+}
+
+impl DiskCache {
+    /// Deletes the entries of other metering versions (after an update that
+    /// changed the pass).
+    pub fn sweep(&self) {
+        let current = format!("{METER_VERSION}-");
+        for e in std::fs::read_dir(&self.0).into_iter().flatten().flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name.ends_with(".wasm") && !name.starts_with(&current) {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+}
+
+impl crate::bundle::MeterCache for DiskCache {
+    fn get(&self, key: &str) -> Option<Vec<u8>> {
+        let mut b = std::fs::read(self.0.join(format!("{key}.wasm"))).ok()?;
+        let body = b.len().checked_sub(32)?;
+        if sha(&b[..body]) != b[body..] {
+            return None;
+        }
+        b.truncate(body);
+        Some(b)
+    }
+
+    fn put(&self, key: &str, metered: &[u8]) {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static N: AtomicU64 = AtomicU64::new(0);
+        if std::fs::create_dir_all(&self.0).is_err() {
+            return;
+        }
+        // Written whole, then renamed: two writers at once (processes, or
+        // threads of one) never share a temporary file, and a reader never
+        // sees half of one.
+        let tmp = self.0.join(format!(".{key}.{}.{}.tmp", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
+        let data = [metered, &sha(metered)].concat();
+        if std::fs::write(&tmp, data).is_err() || std::fs::rename(&tmp, self.0.join(format!("{key}.wasm"))).is_err() {
+            let _ = std::fs::remove_file(&tmp);
+            return;
+        }
+        self.sweep();
+    }
+}
+
 /// Returns the metered module.
 pub fn instrument(wasm: &[u8]) -> Result<Vec<u8>, String> {
     let mut module = Module::from_buffer(wasm).map_err(|e| format!("metering: {e}"))?;

@@ -220,6 +220,7 @@ pub fn model(req: &ModelRequest) -> ModelOutput {
         notes: Vec::new(),
         tasks: if rigged { vec![("mock".into(), format!("{seed:016x}")), ("rig (mock)".into(), format!("mock-rig-{seed:016x}"))] } else { vec![("mock".into(), format!("{seed:016x}"))] },
         rig: rigged.then(|| (format!("mock-rig-{seed:016x}"), "mock".to_string())),
+        seconds: Vec::new(),
     }
 }
 

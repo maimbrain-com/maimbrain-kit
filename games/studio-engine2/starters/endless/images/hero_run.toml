@@ -1,0 +1,3 @@
+# The bun running: 4 frames. 3 texels an art pixel; the game draws it at half size.
+frame = [132, 132]
+pixel = true

@@ -1,0 +1,11 @@
+[[scenario]]
+name = "Wide gaps"
+note = "easy cliffs, from 20"
+score = 20
+[scenario.set]
+gap = 110
+
+[[scenario]]
+name = "Can't lose"
+note = "invincible, to look around"
+invincible = true

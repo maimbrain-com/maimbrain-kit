@@ -1,0 +1,5 @@
+# The sea: solid, and it ends the round.
+[tiles.water]
+frame = 1
+solid = true
+hazard = true

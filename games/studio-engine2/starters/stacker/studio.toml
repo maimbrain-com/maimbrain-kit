@@ -1,0 +1,44 @@
+# The stacker starter: the stacker kit's Picnic Pile, rebuilt in Lua, with
+# real physics (love.physics). Its paper cut-out art, sounds, music, words
+# and identity below are the starter's (snacks with faces stacked on a plate
+# in a sunny meadow, a paper bird dropping them), for the game to replace
+# with its own (game/main.lua says where each part lives).
+title = "Picnic Pile"
+tagline = "how high can lunch go?"
+engine = "2.0"
+kind = "2d"
+orientation = "portrait"
+# Three hearts: a snack that falls off (or a tumble) costs one.
+lives = 3
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.stacker"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "SPLAT!"
+
+[[scores]]
+label = "Snacks"
+order = "high"
+
+# Daily mode: the same snacks and twists for everyone today.
+[[scores]]
+id = "daily"
+label = "Today's snacks"
+daily = true
+
+# The cards and the HUD in the art's paper colours: storybook's wobbly
+# paper panels, the tomato red of the art for the accent, a chunky rounded
+# display face for the title and the numbers.
+[identity]
+name = "storybook"
+accent = 0xe8564f
+title_font = "Lilita One"
+number_font = "Lilita One"
+body_font = "Nunito"
+results = "floating"
+
+[remix]
+allowed = true

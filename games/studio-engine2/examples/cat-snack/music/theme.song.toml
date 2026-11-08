@@ -1,0 +1,19 @@
+# A bouncy loop: four channels, sixteenth notes.
+bpm = 128
+order = ["a", "a", "b", "a"]
+
+[voices.pulse1]
+duty = 0.25
+volume = 0.22
+
+[patterns.a]
+pulse1   = "E5 . G5 . A5 - . G5 E5 . D5 . C5 - - ."
+pulse2   = "C5 . . . E5 . . . C5 . . . G4 . . ."
+triangle = "C3 . C3 . G2 . G2 . A2 . A2 . G2 . G2 ."
+noise    = "x . . . X . . . x . x . X . . ."
+
+[patterns.b]
+pulse1   = "F5 . A5 . C6 - . A5 G5 . E5 . D5 - - ."
+pulse2   = "A4 . . . C5 . . . B4 . . . G4 . . ."
+triangle = "F2 . F2 . F2 . F2 . G2 . G2 . G2 . G2 ."
+noise    = "x . . . X . . . x . x . X . x ."

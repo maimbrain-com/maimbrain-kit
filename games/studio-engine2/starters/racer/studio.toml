@@ -1,0 +1,31 @@
+# The racer starter (3D): the racer kit's Swerve, a lane racer for one
+# thumb, rebuilt in Lua. Its rules and knobs are the kit's (game/main.lua).
+# Its look (game/look.lua: a coast road at sunset), sounds and identity
+# below are the starter's, a stand-in: make them the game's own, in
+# DESIGN.md's look (docs/STUDIO.md "The first version").
+title = "Swerve"
+tagline = "the sunset road never ends"
+engine = "2.0"
+kind = "3d"
+orientation = "portrait"
+lives = 1
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.racer"
+version = "0.1.0"
+creator = "@maimbrain"
+
+# The cards and HUD (the reference topic "identity"): the starter's outrun,
+# like its look.
+[identity]
+name = "neon"
+
+[text]
+over = "WRECKED!"
+
+[[scores]]
+label = "Score"
+order = "high"
+
+[remix]
+allowed = true

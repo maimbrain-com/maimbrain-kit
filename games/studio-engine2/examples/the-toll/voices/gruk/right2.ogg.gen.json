@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:03Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Bah. Somebody told you that one.",
+  "full_prompt": "[annoyed] Bah. Somebody told you that one.",
+  "seed": 863902214,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "522092e6cb3091be19647478e04ac3b7512a0abc22c61f4bc09bff6c595a3fe8"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/right2.wav",
+  "raw_sha256": "ac8578c01ba25a6eb8c3b9fc3d75f4f6d0c883621c017d4b6f5f8876703d229f",
+  "output_sha256": "1093b1895c3859da7ac6500bfe59b8aca88a556d81e1375f5ad5c71cbc2ae678",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "annoyed",
+    "kind": "voice",
+    "line": "right2",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/right2.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 863902214,
+    "speed": null,
+    "style": null,
+    "text": "Bah. Somebody told you that one.",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "cca09d452bade356",
+    "lips": "assets/vo/gruk/right2.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -15.980668067932129,
+    "peak_db": -4.134800910949707,
+    "phone_loss_db": -3.9000000953674316,
+    "seconds": 2.2794103622436523,
+    "subtitle": "Bah. Somebody told you that one.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

@@ -1,0 +1,29 @@
+# Lantern Path (docs/STUDIO-2.md §6.1): Phase 1's acceptance game. Run the
+# forest path at dusk and light every lantern before night falls. Its art
+# is placeholder (drawn by a script, not generated); its code is §6.1's.
+title = "Lantern Path"
+engine = "2.0"
+kind = "2d"
+orientation = "landscape"
+lives = 5                        # the difficulty bot's first-timer on target with one-thumb touch (STUDIO-2.md §9.2)
+level = true                     # won or lost: the difficulty bot judges it on how often each kind of player wins
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.lantern-path"
+version = "0.1.0"
+creator = "@maimbrain"
+
+[text]
+over = "LOST IN THE DARK"        # when the thorns take the last life and the engine ends the round
+
+[[scores]]
+label = "Lanterns"
+order = "high"
+
+[identity]
+name = "storybook"
+colors = "art"                   # from the dusk layers
+art = "dusk_0"
+
+[remix]
+allowed = true

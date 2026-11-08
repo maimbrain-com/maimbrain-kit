@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.7.0-dev voice",
+  "date": "2026-10-10T02:04:07Z",
+  "provider": "elevenlabs",
+  "model": "eleven_v4",
+  "prompt": "Sonny, I was crushing tin cans before your daddy was born.",
+  "full_prompt": "Sonny, I was crushing tin cans before your daddy was born.",
+  "seed": 1620062228,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "7d7fac5d65970e00533ba62436e6630d4060c2aa34ab676c261cc0c567d42150"
+  },
+  "est_cost_usd": 0.00464,
+  "cost_usd": 0.00464,
+  "raw": "art/raw/vo/granny/intro.pcm",
+  "raw_sha256": "668bd17c02832025ca85f8ee4371e9fd242da020bacac9ca5f401a0aa1da33bc",
+  "output_sha256": "8ecd8fb018338562ef281c8f6239498e65cc85fdea0ae5b6f5d1e59f127ed186",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "granny",
+    "delivery": "natural",
+    "emotion": null,
+    "kind": "voice",
+    "line": "intro",
+    "model": "eleven_v4",
+    "out": "assets/vo/granny/intro.ogg",
+    "provider": "elevenlabs",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1620062228,
+    "speed": null,
+    "style": null,
+    "text": "Sonny, I was crushing tin cans before your daddy was born.",
+    "voice_id": "0xfeQWDUrxAdTk1cqSyR"
+  },
+  "result": {
+    "key": "a70e3f4ac52a1185",
+    "lips": "assets/vo/granny/intro.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -17.406864166259766,
+    "peak_db": -2.5748744010925293,
+    "phone_loss_db": 0.0,
+    "seconds": 4.110816478729248,
+    "subtitle": "Sonny, I was crushing tin cans before your daddy was born.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Generated with ElevenLabs from a voice designed for this game (not a clone); check your plan's license terms."
+}

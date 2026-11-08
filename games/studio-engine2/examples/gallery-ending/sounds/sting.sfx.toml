@@ -1,0 +1,9 @@
+# ONE YEAR LATER: a soft rising chime.
+wave = "triangle"
+freq = 523
+duration = 0.5
+arp = [0, 4, 7, 12]
+arp_speed = 0.12
+attack = 0.01
+decay = 0.8
+volume = 0.45

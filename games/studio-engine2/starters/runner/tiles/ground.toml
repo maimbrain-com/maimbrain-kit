@@ -1,0 +1,10 @@
+# The ground: its top, and the fill under it.
+frame = [32, 32]
+
+[tiles.top]
+frame = 1
+solid = true
+
+[tiles.fill]
+frame = 2
+solid = true

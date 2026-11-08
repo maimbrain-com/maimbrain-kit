@@ -1,0 +1,8 @@
+# Steering into the edge: a dull low thud (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 110
+freq_end = 70
+duration = 0.08
+decay = 0.06
+volume = 0.5

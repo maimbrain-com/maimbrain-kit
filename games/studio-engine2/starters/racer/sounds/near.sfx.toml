@@ -1,0 +1,8 @@
+# A near miss: a quick rising chirp (a stand-in).
+wave = "square"
+duty = 0.25
+freq = 660
+freq_end = 1320
+duration = 0.12
+decay = 0.08
+volume = 0.45

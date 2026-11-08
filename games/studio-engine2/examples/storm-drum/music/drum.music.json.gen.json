@@ -1,0 +1,63 @@
+{
+  "generator": "mb 0.9.0 music",
+  "date": "2026-11-08T00:47:51Z",
+  "provider": "mock",
+  "model": "mock-music",
+  "prompt": "taiko drums and a bamboo flute",
+  "full_prompt": "taiko drums and a bamboo flute. Instrumental only, no vocals. One continuous instrumental piece at 120 BPM in 4/4, in one key and at one tempo from start to finish: the sections change the melody, the instruments and the energy, never the tempo or the key. No intro, no breakdown, no silence, no fade-out and no ending; each section moves straight into the next. About 44 seconds long, in these sections:\n[0:00 - 0:22] Calm: soft hand drums and flute.\n[0:22 - 0:44] Storm: pounding taiko and low brass. An original composition, not imitating any existing song or artist.",
+  "seed": 1586491244,
+  "seed_honored": true,
+  "references": [],
+  "style": null,
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/drum-1586491244.wav",
+  "raw_sha256": "eca942d052b4e64c2f79296b7bc2c3f0aa83744ef91896e15625de376914d7a0",
+  "output_sha256": "56ba4db3099c33556d1ef543004aeb10047eabf050d2d4b67418c06faddc6b67",
+  "allowed_names": [],
+  "model_text": "mock song at 120 BPM",
+  "recipe": {
+    "allow_names": [],
+    "bars": null,
+    "bpm": 120.0,
+    "brighten": false,
+    "key": null,
+    "kind": "music",
+    "layers": true,
+    "looping": false,
+    "model": "mock-music",
+    "name": "drum",
+    "negative": null,
+    "no_style": true,
+    "once": false,
+    "out": "music/drum.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "retries": 1,
+    "seconds": null,
+    "section_seconds": 22.0,
+    "sections": [
+      {
+        "desc": "soft hand drums and flute",
+        "name": "calm"
+      },
+      {
+        "desc": "pounding taiko and low brass",
+        "name": "storm"
+      }
+    ],
+    "seed": 1586491244,
+    "split_hz": 700.0,
+    "stingers": true,
+    "subject": "taiko drums and a bamboo flute",
+    "tension": true
+  },
+  "result": {
+    "graph": "drum",
+    "links": 91,
+    "risks": [],
+    "sections": 2
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

@@ -1,0 +1,17 @@
+bpm = 140
+order = ["a", "a", "b", "b"]
+
+[voices.pulse1]
+duty = 0.125
+volume = 0.2
+
+[patterns.a]
+pulse1   = "A4 A4 C5 A4 E5 . D5 C5 A4 A4 C5 A4 G5 . E5 D5"
+triangle = "A2 . A2 . A2 . A2 . F2 . F2 . G2 . G2 ."
+noise    = "X . x . X . x x X . x . X . x x"
+
+[patterns.b]
+pulse1   = "F4 F4 A4 F4 C5 . A4 C5 G4 G4 B4 G4 D5 . B4 D5"
+pulse2   = "C5 . . . . . . . D5 . . . . . . ."
+triangle = "F2 . F2 . F2 . F2 . G2 . G2 . G2 . G2 ."
+noise    = "X . x . X . x x X . x . X x X x"

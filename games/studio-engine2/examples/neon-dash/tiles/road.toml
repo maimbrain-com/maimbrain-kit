@@ -1,0 +1,7 @@
+[tiles.edge]
+frame = 1
+solid = true
+
+[tiles.under]
+frame = 2
+solid = true

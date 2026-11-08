@@ -1,0 +1,8 @@
+# A lantern: dark, then lit (pixel art, drawn twice as big).
+frame = [32, 48]
+hitbox = [8, 12, 16, 30]
+pixel = true
+
+[anims]
+dark = { frames = "1" }
+lit = { frames = "2" }

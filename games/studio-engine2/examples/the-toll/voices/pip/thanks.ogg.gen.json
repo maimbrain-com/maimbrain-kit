@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:03Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Thank you, Mister Gruk!",
+  "full_prompt": "[happy] Thank you, Mister Gruk!",
+  "seed": 656377863,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "1e13737dfb855fc0b19409019a060fbabc6462c61555fbf51cc0a0c316930468"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/pip/thanks.wav",
+  "raw_sha256": "c7230aa36a9f6a8296ffdb2cc883c374f134a95d3ea780292260d3d582b0b841",
+  "output_sha256": "b77da0ecc6ea511b79df33e3e0245ef8ffb1d72b3cd49d703f885a1df09ca30c",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "pip",
+    "delivery": "natural",
+    "emotion": "happy",
+    "kind": "voice",
+    "line": "thanks",
+    "model": "mock-voice",
+    "out": "assets/vo/pip/thanks.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 656377863,
+    "speed": null,
+    "style": null,
+    "text": "Thank you, Mister Gruk!",
+    "voice_id": "mock-713bb77-1"
+  },
+  "result": {
+    "key": "92640ce689cd5f82",
+    "lips": "assets/vo/pip/thanks.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -16.01030731201172,
+    "peak_db": -3.4780378341674805,
+    "phone_loss_db": -5.900000095367432,
+    "seconds": 1.6286394596099854,
+    "subtitle": "Thank you, Mister Gruk!",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

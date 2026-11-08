@@ -1,0 +1,8 @@
+# A mech hitting the arena floor: a long, low metal crash.
+wave = "noise"
+freq = 900
+freq_end = 40
+duration = 0.35
+attack = 0.003
+decay = 0.7
+volume = 0.9

@@ -1,0 +1,7 @@
+# A miss: a plain low blip (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 220
+duration = 0.2
+decay = 0.1
+volume = 0.6

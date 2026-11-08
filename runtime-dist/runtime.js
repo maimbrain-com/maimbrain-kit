@@ -76,6 +76,10 @@ function host_prepare() {
   const ret = wasm.host_prepare();
   return ret !== 0;
 }
+function host_prewarm_3d() {
+  const ret = wasm.host_prewarm_3d();
+  return ret !== 0;
+}
 function host_redraw() {
   const ret = wasm.host_redraw();
   return ret !== 0;
@@ -90,8 +94,8 @@ function host_resize(width, height) {
 function host_set_logical(width, height) {
   wasm.host_set_logical(width, height);
 }
-function host_set_stdlib(mb3d) {
-  wasm.host_set_stdlib(mb3d);
+function host_set_stdlib(mb3d, mb2d) {
+  wasm.host_set_stdlib(mb3d, mb2d);
 }
 function host_stats() {
   let deferred1_0;
@@ -135,6 +139,12 @@ function host_top_draws(n) {
 function host_track(node) {
   wasm.host_track(node);
 }
+function host_variant_begin() {
+  wasm.host_variant_begin();
+}
+function host_variant_end() {
+  wasm.host_variant_end();
+}
 function __wbg_get_imports() {
   const import0 = {
     __proto__: null,
@@ -169,6 +179,14 @@ function __wbg_get_imports() {
       const ret = arg0 === void 0;
       return ret;
     },
+    __wbg___wbindgen_string_get_0380ccaa2f57f0d9: function(arg0, arg1) {
+      const obj = arg1;
+      const ret = typeof obj === "string" ? obj : void 0;
+      var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      var len1 = WASM_VECTOR_LEN;
+      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    },
     __wbg___wbindgen_throw_41e9ee4f547fc59a: function(arg0, arg1) {
       throw new Error(getStringFromWasm0(arg0, arg1));
     },
@@ -190,6 +208,21 @@ function __wbg_get_imports() {
     __wbg_configure_1e2c1c9edad07d26: function() {
       return handleError(function(arg0, arg1) {
         arg0.configure(arg1);
+      }, arguments);
+    },
+    __wbg_copyBufferToBuffer_01766818654a9868: function() {
+      return handleError(function(arg0, arg1, arg2, arg3, arg4) {
+        arg0.copyBufferToBuffer(arg1, arg2, arg3, arg4);
+      }, arguments);
+    },
+    __wbg_copyBufferToBuffer_9c174b96fb08d551: function() {
+      return handleError(function(arg0, arg1, arg2, arg3, arg4, arg5) {
+        arg0.copyBufferToBuffer(arg1, arg2, arg3, arg4, arg5);
+      }, arguments);
+    },
+    __wbg_copyTextureToBuffer_1234b3210431ad05: function() {
+      return handleError(function(arg0, arg1, arg2, arg3) {
+        arg0.copyTextureToBuffer(arg1, arg2, arg3);
       }, arguments);
     },
     __wbg_createBindGroupLayout_b1bd63b4e88459d8: function() {
@@ -215,6 +248,12 @@ function __wbg_get_imports() {
     __wbg_createPipelineLayout_6eab52c327118937: function(arg0, arg1) {
       const ret = arg0.createPipelineLayout(arg1);
       return ret;
+    },
+    __wbg_createQuerySet_2dc8cde53df9849d: function() {
+      return handleError(function(arg0, arg1) {
+        const ret = arg0.createQuerySet(arg1);
+        return ret;
+      }, arguments);
     },
     __wbg_createRenderPipeline_0ebb7ebc653e9207: function() {
       return handleError(function(arg0, arg1) {
@@ -269,12 +308,24 @@ function __wbg_get_imports() {
       const ret = arg0.error;
       return ret;
     },
+    __wbg_features_5cac120c28ba0475: function(arg0) {
+      const ret = arg0.features;
+      return ret;
+    },
+    __wbg_features_dec7bd2fd3d91bd6: function(arg0) {
+      const ret = arg0.features;
+      return ret;
+    },
     __wbg_finish_09ec094c10f41e7b: function(arg0) {
       const ret = arg0.finish();
       return ret;
     },
     __wbg_finish_ec1c191f66a895b1: function(arg0, arg1) {
       const ret = arg0.finish(arg1);
+      return ret;
+    },
+    __wbg_getCompilationInfo_8d7753eae61b1c30: function(arg0) {
+      const ret = arg0.getCompilationInfo();
       return ret;
     },
     __wbg_getContext_635e36719cad2623: function() {
@@ -305,12 +356,20 @@ function __wbg_get_imports() {
       const ret = arg0.getPreferredCanvasFormat();
       return (__wbindgen_enum_GpuTextureFormat.indexOf(ret) + 1 || 102) - 1;
     },
+    __wbg_get_6c896e0571ddae51: function(arg0, arg1) {
+      const ret = arg0[arg1 >>> 0];
+      return ret;
+    },
     __wbg_get_fd12a9100976c296: function(arg0, arg1) {
       const ret = arg0[arg1 >>> 0];
       return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
     },
     __wbg_gpu_afdd4387c7afe5f9: function(arg0) {
       const ret = arg0.gpu;
+      return ret;
+    },
+    __wbg_has_eafa12e457ea88fb: function(arg0, arg1, arg2) {
+      const ret = arg0.has(getStringFromWasm0(arg1, arg2));
       return ret;
     },
     __wbg_height_aa756cf29b6d629c: function(arg0) {
@@ -370,8 +429,20 @@ function __wbg_get_imports() {
       const ret = arg0.length;
       return ret;
     },
+    __wbg_length_d4bdea10311bd9cf: function(arg0) {
+      const ret = arg0.length;
+      return ret;
+    },
+    __wbg_length_e5c9095a7f6375b0: function(arg0) {
+      const ret = arg0.length;
+      return ret;
+    },
     __wbg_limits_601ad2e086ef8141: function(arg0) {
       const ret = arg0.limits;
+      return ret;
+    },
+    __wbg_lineNum_042c3763c60dc731: function(arg0) {
+      const ret = arg0.lineNum;
       return ret;
     },
     __wbg_lost_bb454eb62101af1a: function(arg0) {
@@ -512,6 +583,17 @@ function __wbg_get_imports() {
       getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
       getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
     },
+    __wbg_message_e749324c0f7a61d2: function(arg0, arg1) {
+      const ret = arg1.message;
+      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const len1 = WASM_VECTOR_LEN;
+      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    },
+    __wbg_messages_9c17ef25feda781d: function(arg0) {
+      const ret = arg0.messages;
+      return ret;
+    },
     __wbg_minStorageBufferOffsetAlignment_5ba9b77792bdadb3: function(arg0) {
       const ret = arg0.minStorageBufferOffsetAlignment;
       return ret;
@@ -549,7 +631,7 @@ function __wbg_get_imports() {
           const a = state0.a;
           state0.a = 0;
           try {
-            return wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(a, state0.b, arg02, arg12);
+            return wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined_______true_(a, state0.b, arg02, arg12);
           } finally {
             state0.a = a;
           }
@@ -562,6 +644,10 @@ function __wbg_get_imports() {
     },
     __wbg_new_with_byte_offset_and_length_2f5d7fc2a828b74d: function(arg0, arg1, arg2) {
       const ret = new Uint8Array(arg0, arg1 >>> 0, arg2 >>> 0);
+      return ret;
+    },
+    __wbg_offset_3a6b58d78a1ea664: function(arg0) {
+      const ret = arg0.offset;
       return ret;
     },
     __wbg_onSubmittedWorkDone_1190213cee1ecf7e: function(arg0) {
@@ -599,6 +685,9 @@ function __wbg_get_imports() {
     __wbg_requestDevice_5cb8a582e55d08cb: function(arg0, arg1) {
       const ret = arg0.requestDevice(arg1);
       return ret;
+    },
+    __wbg_resolveQuerySet_770f23fabac49845: function(arg0, arg1, arg2, arg3, arg4, arg5) {
+      arg0.resolveQuerySet(arg1, arg2 >>> 0, arg3 >>> 0, arg4, arg5 >>> 0);
     },
     __wbg_resolve_0076e10020304ede: function(arg0) {
       const ret = Promise.resolve(arg0);
@@ -708,8 +797,14 @@ function __wbg_get_imports() {
     __wbg_set_buffer_8d0ac64ad20dfc84: function(arg0, arg1) {
       arg0.buffer = arg1;
     },
+    __wbg_set_buffer_910a40a90f97cfca: function(arg0, arg1) {
+      arg0.buffer = arg1;
+    },
     __wbg_set_buffers_5d0e0c50791f710e: function(arg0, arg1, arg2) {
       arg0.buffers = getArrayJsValueViewFromWasm0(arg1, arg2);
+    },
+    __wbg_set_bytes_per_row_1e824a5502b54b3d: function(arg0, arg1) {
+      arg0.bytesPerRow = arg1 >>> 0;
     },
     __wbg_set_bytes_per_row_c28583f0063160f1: function(arg0, arg1) {
       arg0.bytesPerRow = arg1 >>> 0;
@@ -733,6 +828,9 @@ function __wbg_get_imports() {
       arg0.compare = __wbindgen_enum_GpuCompareFunction[arg1];
     },
     __wbg_set_count_8ff0c9474e39a849: function(arg0, arg1) {
+      arg0.count = arg1 >>> 0;
+    },
+    __wbg_set_count_d9dc88156fd05bc7: function(arg0, arg1) {
       arg0.count = arg1 >>> 0;
     },
     __wbg_set_cull_mode_85d2b4ab0ce3a564: function(arg0, arg1) {
@@ -867,6 +965,9 @@ function __wbg_get_imports() {
     __wbg_set_label_612add98a4398f92: function(arg0, arg1, arg2) {
       arg0.label = getStringFromWasm0(arg1, arg2);
     },
+    __wbg_set_label_6f69e25822616a1b: function(arg0, arg1, arg2) {
+      arg0.label = getStringFromWasm0(arg1, arg2);
+    },
     __wbg_set_label_70a09ee68d6b1b26: function(arg0, arg1, arg2) {
       arg0.label = getStringFromWasm0(arg1, arg2);
     },
@@ -963,6 +1064,9 @@ function __wbg_get_imports() {
     __wbg_set_offset_f64_a903425d5a8e5815: function(arg0, arg1) {
       arg0.offset = arg1;
     },
+    __wbg_set_offset_f64_d1d115dd438165b5: function(arg0, arg1) {
+      arg0.offset = arg1;
+    },
     __wbg_set_onuncapturederror_bb813f1102da2296: function(arg0, arg1) {
       arg0.onuncapturederror = arg1;
     },
@@ -1006,6 +1110,9 @@ function __wbg_get_imports() {
       arg0.resource = arg1;
     },
     __wbg_set_rows_per_image_c6d50d227e634379: function(arg0, arg1) {
+      arg0.rowsPerImage = arg1 >>> 0;
+    },
+    __wbg_set_rows_per_image_deb456502f23c260: function(arg0, arg1) {
       arg0.rowsPerImage = arg1 >>> 0;
     },
     __wbg_set_sample_count_481c255a12054e1d: function(arg0, arg1) {
@@ -1091,6 +1198,9 @@ function __wbg_get_imports() {
     },
     __wbg_set_type_79cec55caf4cdb6d: function(arg0, arg1) {
       arg0.type = __wbindgen_enum_GpuBufferBindingType[arg1];
+    },
+    __wbg_set_type_7f7e54057b801caa: function(arg0, arg1) {
+      arg0.type = __wbindgen_enum_GpuQueryType[arg1];
     },
     __wbg_set_unclipped_depth_32b7caf29fa5633d: function(arg0, arg1) {
       arg0.unclippedDepth = arg1 !== 0;
@@ -1191,6 +1301,10 @@ function __wbg_get_imports() {
       const ret = arg0.then(arg1);
       return ret;
     },
+    __wbg_type_13aa9a89966fd222: function(arg0) {
+      const ret = arg0.type;
+      return (__wbindgen_enum_GpuCompilationMessageType.indexOf(ret) + 1 || 4) - 1;
+    },
     __wbg_unconfigure_835307f58dc68d80: function(arg0) {
       arg0.unconfigure();
     },
@@ -1223,39 +1337,49 @@ function __wbg_get_imports() {
       }, arguments);
     },
     __wbindgen_generic_0000000000000001: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000002: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_);
       return ret;
     },
     __wbindgen_generic_0000000000000003: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__133);
       return ret;
     },
     __wbindgen_generic_0000000000000004: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_);
       return ret;
     },
     __wbindgen_generic_0000000000000005: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__135);
       return ret;
     },
     __wbindgen_generic_0000000000000006: function(arg0, arg1) {
-      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121);
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__136);
       return ret;
     },
-    __wbindgen_generic_0000000000000007: function(arg0) {
+    __wbindgen_generic_0000000000000007: function(arg0, arg1) {
+      const ret = makeMutClosure(arg0, arg1, wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__137);
+      return ret;
+    },
+    __wbindgen_generic_0000000000000008: function(arg0) {
       const ret = arg0;
       return ret;
     },
-    __wbindgen_generic_0000000000000008: function(arg0, arg1) {
+    __wbindgen_generic_0000000000000009: function(arg0, arg1) {
       const ret = getArrayU8FromWasm0(arg0, arg1);
       return ret;
     },
-    __wbindgen_generic_0000000000000009: function(arg0, arg1) {
+    __wbindgen_generic_000000000000000a: function(arg0, arg1) {
       const ret = getStringFromWasm0(arg0, arg1);
+      return ret;
+    },
+    __wbindgen_generic_000000000000000b: function(arg0, arg1) {
+      var v0 = getArrayU8FromWasm0(arg0, arg1).slice();
+      wasm.__wbindgen_free(arg0, arg1 * 1, 1);
+      const ret = v0;
       return ret;
     },
     __wbindgen_init_externref_table: function() {
@@ -1273,38 +1397,44 @@ function __wbg_get_imports() {
     "./mb_host_bg.js": import0
   };
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true_(arg0, arg1, arg2);
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2) {
-  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__119(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__135(arg0, arg1, arg2) {
+  wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuDeviceLostInfo__GpuDeviceLostInfo______true__135(arg0, arg1, arg2);
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___JsValue__core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true_(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true_(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__120(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__133(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__133(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121(arg0, arg1, arg2) {
-  const ret = wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___wasm_bindgen_e975d0159ebe613f___sys__JsNullable_wgpu_fd698230df9aedf1___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_e975d0159ebe613f___JsError___true__121(arg0, arg1, arg2);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__136(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__136(arg0, arg1, arg2);
   if (ret[1]) {
     throw takeFromExternrefTable0(ret[0]);
   }
 }
-function wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
-  wasm.wasm_bindgen_e975d0159ebe613f___convert__closures_____invoke___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined___js_sys_2c053e71ed51c19a___Function_fn_wasm_bindgen_e975d0159ebe613f___JsValue_____wasm_bindgen_e975d0159ebe613f___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__137(arg0, arg1, arg2) {
+  const ret = wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___wasm_bindgen_2ccad679d069c0c7___sys__JsNullable_wgpu_fd94312bbd074efb___backend__webgpu__webgpu_sys__gen_GpuError__GpuError___core_37ee0ce0c4cd57d5___result__Result_____wasm_bindgen_2ccad679d069c0c7___JsError___true__137(arg0, arg1, arg2);
+  if (ret[1]) {
+    throw takeFromExternrefTable0(ret[0]);
+  }
+}
+function wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined_______true_(arg0, arg1, arg2, arg3) {
+  wasm.wasm_bindgen_2ccad679d069c0c7___convert__closures_____invoke___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined___js_sys_5498cb17bb331448___Function_fn_wasm_bindgen_2ccad679d069c0c7___JsValue_____wasm_bindgen_2ccad679d069c0c7___sys__Undefined_______true_(arg0, arg1, arg2, arg3);
 }
 var __wbindgen_enum_GpuAddressMode = ["clamp-to-edge", "repeat", "mirror-repeat"];
 var __wbindgen_enum_GpuAutoLayoutMode = ["auto"];
@@ -1314,6 +1444,7 @@ var __wbindgen_enum_GpuBufferBindingType = ["uniform", "storage", "read-only-sto
 var __wbindgen_enum_GpuCanvasAlphaMode = ["opaque", "premultiplied"];
 var __wbindgen_enum_GpuCanvasToneMappingMode = ["standard", "extended"];
 var __wbindgen_enum_GpuCompareFunction = ["never", "less", "equal", "less-equal", "greater", "not-equal", "greater-equal", "always"];
+var __wbindgen_enum_GpuCompilationMessageType = ["error", "warning", "info"];
 var __wbindgen_enum_GpuCullMode = ["none", "front", "back"];
 var __wbindgen_enum_GpuDeviceLostReason = ["unknown", "destroyed"];
 var __wbindgen_enum_GpuFilterMode = ["nearest", "linear"];
@@ -1323,6 +1454,7 @@ var __wbindgen_enum_GpuLoadOp = ["load", "clear"];
 var __wbindgen_enum_GpuMipmapFilterMode = ["nearest", "linear"];
 var __wbindgen_enum_GpuPowerPreference = ["low-power", "high-performance"];
 var __wbindgen_enum_GpuPrimitiveTopology = ["point-list", "line-list", "line-strip", "triangle-list", "triangle-strip"];
+var __wbindgen_enum_GpuQueryType = ["occlusion", "timestamp"];
 var __wbindgen_enum_GpuSamplerBindingType = ["filtering", "non-filtering", "comparison"];
 var __wbindgen_enum_GpuStencilOperation = ["keep", "zero", "replace", "invert", "increment-clamp", "decrement-clamp", "increment-wrap", "decrement-wrap"];
 var __wbindgen_enum_GpuStorageTextureAccess = ["write-only", "read-only", "read-write"];
@@ -2089,19 +2221,34 @@ var Audio = class {
       if (typeof window !== "undefined") window.addEventListener(ev, unlock, { capture: true, passive: true });
     }
   }
-  /** WebKit plays Web Audio as "ambient" (muted by the silent switch)
-   *  unless the page asks for playback (PLAN Q14). */
+  /** WebKit plays Web Audio as "ambient" (muted by the silent switch) unless
+   *  the page holds playback (PLAN Q14). It's held with a media element playing
+   *  a silent stream while the page is on screen, not
+   *  `navigator.audioSession.type = "playback"`: that makes the AudioContext
+   *  Now Playing, which WebKit publishes from its GPU process with no app
+   *  attached, so iOS shows it in the Dynamic Island over the pause pill. A
+   *  stream, not a short looping file: on iPhone each wrap of a file holds up
+   *  the page's frames and they show out of order (pace.ts). */
   setPlayback(on) {
+    this.playback = on;
     const session = navigator.audioSession;
-    if (session) {
-      session.type = on ? "playback" : "ambient";
-      post({ op: "log", level: 0, msg: `runtime: audio session ${session.type}` });
-    } else if (on && !this.silence) {
-      this.silence = new window.Audio(new URL("silence.wav", import.meta.url).href);
-      this.silence.loop = true;
-      void this.silence.play().catch((e) => post({ op: "log", level: 2, msg: `runtime: silent audio failed: ${e}` }));
-      post({ op: "log", level: 0, msg: "runtime: audio session via silent media element" });
-    } else if (!on && this.silence) {
+    if (session) session.type = on ? "auto" : "ambient";
+    post({ op: "log", level: 0, msg: `runtime: sound ${on ? "on (plays with the ringer off)" : "off (ambient)"}` });
+    this.holdPlayback();
+  }
+  /** Sound is on (the app's mute button): the page holds playback while it's on screen. */
+  playback = false;
+  /** Plays the silent stream while sound is on and the page is on screen (active,
+   *  or paused quietly). Only then: a neighbour starting media would interrupt
+   *  the page that's playing. It comes from the context, so it starts with one. */
+  holdPlayback() {
+    if (typeof window === "undefined") return;
+    const hold = this.playback && (this.active || this.quiet);
+    if (hold && !this.silence && this.ctx) {
+      this.silence = new window.Audio();
+      this.silence.srcObject = this.ctx.createMediaStreamDestination().stream;
+      void this.silence.play().catch((e) => post({ op: "log", level: 1, msg: `runtime: silent audio waiting for a tap: ${e}` }));
+    } else if (!hold && this.silence) {
       this.silence.pause();
       this.silence = null;
     }
@@ -2114,6 +2261,7 @@ var Audio = class {
       this.quiet = false;
       this.applyGain();
     }
+    this.holdPlayback();
     if (!this.ctx) {
       this.createContext();
       return;
@@ -2135,6 +2283,7 @@ var Audio = class {
     this.active = false;
     this.quiet = quiet;
     this.applyGain();
+    this.holdPlayback();
     if (!quiet) void this.ctx?.suspend().catch(() => {
     });
     this.invalidateClock(true);
@@ -2175,7 +2324,9 @@ var Audio = class {
     this.prevMap = null;
   }
   createContext() {
-    const ctx = new AudioContext({ latencyHint: "interactive" });
+    const given = typeof window === "undefined" ? void 0 : window.__MB_AUDIO_CONTEXT;
+    if (given) delete window.__MB_AUDIO_CONTEXT;
+    const ctx = given && given.state !== "closed" ? given : new AudioContext({ latencyHint: "interactive" });
     const master = ctx.createGain();
     master.gain.value = this.muted || this.userMuted ? 0 : MASTER_GAIN;
     const limiter = ctx.createDynamicsCompressor();
@@ -2213,6 +2364,7 @@ var Audio = class {
       else this.voices.delete(id);
     }
     this.flush();
+    this.holdPlayback();
   }
   /** Replaces a context that won't run with a fresh one. */
   rebuild(why) {
@@ -2222,12 +2374,16 @@ var Audio = class {
     this.ctx = null;
     this.master = null;
     this.buses.detach();
+    this.silence?.pause();
+    this.silence = null;
     void old?.close().catch(() => {
     });
     this.createContext();
   }
   unlock() {
     if (!this.active) return;
+    if (this.silence?.paused) void this.silence.play().catch(() => {
+    });
     if (!this.ctx) this.createContext();
     const ctx = this.ctx;
     if (ctx.state === "running") return;
@@ -2239,7 +2395,8 @@ var Audio = class {
   }
   // --- the clock -----------------------------------------------------------------
   /** Called once per frame, after game time has advanced and before
-   *  mb_update: `now` is the frame's requestAnimationFrame timestamp,
+   *  mb_update: `now` is the frame's requestAnimationFrame timestamp
+   *  as paced to whole display frames (pace.ts),
    *  `game` its game time, `scale` game seconds per wall second. */
   frame(now, game, scale) {
     if (this.ff) {
@@ -2648,6 +2805,118 @@ async function loadBoot() {
   return await res.json();
 }
 
+// src/pixelfont.ts
+var SVG = "http://www.w3.org/2000/svg";
+var INK = "#0B0C18";
+var GLYPHS = {
+  A: [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+  B: ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
+  C: [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
+  D: ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
+  E: ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+  F: ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+  G: [".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".####"],
+  H: ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+  I: [".###.", "..#..", "..#..", "..#..", "..#..", "..#..", ".###."],
+  J: ["..###", "...#.", "...#.", "...#.", "...#.", "#..#.", ".##.."],
+  K: ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+  L: ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+  M: ["#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#"],
+  N: ["#...#", "#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#"],
+  O: [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+  P: ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+  Q: [".###.", "#...#", "#...#", "#...#", "#.#.#", "#..#.", ".##.#"],
+  R: ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
+  S: [".####", "#....", "#....", ".###.", "....#", "....#", "####."],
+  T: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+  U: ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+  V: ["#...#", "#...#", "#...#", "#...#", "#...#", ".#.#.", "..#.."],
+  W: ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "#.#.#", ".#.#."],
+  X: ["#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#"],
+  Y: ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
+  Z: ["#####", "....#", "...#.", "..#..", ".#...", "#....", "#####"],
+  "0": [".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
+  "1": ["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
+  "2": [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"],
+  "3": ["#####", "...#.", "..#..", "...#.", "....#", "#...#", ".###."],
+  "4": ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#."],
+  "5": ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."],
+  "6": ["..##.", ".#...", "#....", "####.", "#...#", "#...#", ".###."],
+  "7": ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."],
+  "8": [".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."],
+  "9": [".###.", "#...#", "#...#", ".####", "....#", "...#.", ".##.."],
+  "#": [".#.#.", ".#.#.", "#####", ".#.#.", "#####", ".#.#.", ".#.#."],
+  "%": ["##...", "##..#", "...#.", "..#..", ".#...", "#..##", "...##"],
+  ".": [".....", ".....", ".....", ".....", ".....", ".##..", ".##.."],
+  "\u2026": [".....", ".....", ".....", ".....", ".....", ".....", "#.#.#"],
+  ",": [".....", ".....", ".....", ".....", ".##..", "..#..", ".#..."],
+  "!": ["..#..", "..#..", "..#..", "..#..", "..#..", ".....", "..#.."],
+  "?": [".###.", "#...#", "....#", "...#.", "..#..", ".....", "..#.."],
+  "-": [".....", ".....", ".....", "#####", ".....", ".....", "....."],
+  "+": [".....", "..#..", "..#..", "#####", "..#..", "..#..", "....."],
+  "/": [".....", "....#", "...#.", "..#..", ".#...", "#....", "....."],
+  ":": [".....", ".##..", ".##..", ".....", ".##..", ".##..", "....."],
+  "'": ["..#..", "..#..", ".#...", ".....", ".....", ".....", "....."],
+  "@": [".###.", "#...#", "#.###", "#.#.#", "#.##.", "#....", ".###."],
+  "&": [".##..", "#..#.", "#.#..", ".#...", "#.#.#", "#..#.", ".##.#"],
+  "\u25B2": [".....", "..#..", ".###.", "#####", ".....", ".....", "....."],
+  "\u25BC": [".....", ".....", ".....", "#####", ".###.", "..#..", "....."],
+  "\u2605": [".....", "..#..", "#####", ".###.", ".#.#.", "#...#", "....."],
+  "\xB7": [".....", ".....", ".....", "..#..", ".....", ".....", "....."],
+  _: [".....", ".....", ".....", ".....", ".....", ".....", "#####"],
+  // Not in Pixel.swift.
+  "\u25C0": ["....#", "...##", "..###", ".####", "..###", "...##", "....#"],
+  "\u25B6": ["#....", "##...", "###..", "####.", "###..", "##...", "#...."],
+  "\xD7": [".....", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "....."]
+};
+var BLANK = ".....";
+function drawable(text) {
+  return [...text.toUpperCase()].every((ch) => ch === " " || ch in GLYPHS);
+}
+function pixelText(text, px, color = "currentColor", shadow = INK) {
+  const chars = [...text.toUpperCase()];
+  const rows = Array.from({ length: 7 }, (_, y) => chars.map((ch) => GLYPHS[ch]?.[y] ?? BLANK).join("."));
+  return pixelArt(rows, px, color, shadow, text);
+}
+function snapPx(px, dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1) {
+  return Math.max(1, Math.round(px * dpr)) / dpr;
+}
+function pixelArt(rows, px, color = "currentColor", shadow = INK, label) {
+  px = snapPx(px);
+  const w = Math.max(0, ...rows.map((r) => r.length));
+  const h = rows.length;
+  const pad = shadow ? 1 : 0;
+  let d = "";
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      if (row[x] !== "#") continue;
+      let end = x;
+      while (row[end + 1] === "#") end++;
+      d += `M${x} ${y}h${end - x + 1}v1h${-(end - x + 1)}z`;
+      x = end;
+    }
+  });
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", `0 0 ${w + pad} ${h + pad}`);
+  svg.setAttribute("width", String((w + pad) * px));
+  svg.setAttribute("height", String((h + pad) * px));
+  svg.setAttribute("shape-rendering", "crispEdges");
+  if (label !== void 0) {
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", label);
+  } else svg.setAttribute("aria-hidden", "true");
+  const path = (fill, off) => {
+    const p = document.createElementNS(SVG, "path");
+    p.setAttribute("d", d);
+    p.setAttribute("fill", fill);
+    if (off) p.setAttribute("transform", `translate(${off} ${off})`);
+    svg.appendChild(p);
+  };
+  if (shadow) path(shadow, 1);
+  path(color, 0);
+  return svg;
+}
+
 // src/debug.ts
 var DEBUG_KIND = 15;
 var MAX_JSON = 64 * 1024;
@@ -2724,68 +2993,88 @@ var REPEAT_DELAY = 350;
 var REPEAT_EVERY = 90;
 var PAD = { A: 0, B: 1, LB: 4, RB: 5, SELECT: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
 var HID = { ENTER: 40, ESC: 41, SPACE: 44, GRAVE: 53, RIGHT: 79, LEFT: 80, DOWN: 81, UP: 82, Q: 20, E: 8 };
+var BUG = ["#.......#", ".#.###.#.", "..#####..", "#.#.#.#.#", ".#######.", "#.#####.#", ".#######.", "#..###..#", "...#.#..."];
+var CHEVRON = ["#...", ".#..", "..#.", "...#", "..#.", ".#..", "#..."];
+var NOTCH = "polygon(var(--s) 0,calc(100% - var(--s)) 0,calc(100% - var(--s)) var(--s),100% var(--s),100% calc(100% - var(--s)),calc(100% - var(--s)) calc(100% - var(--s)),calc(100% - var(--s)) 100%,var(--s) 100%,var(--s) calc(100% - var(--s)),0 calc(100% - var(--s)),0 var(--s),var(--s) var(--s))";
+var BOX = "linear-gradient(var(--hi),var(--hi)) calc(var(--b) + var(--s)) var(--b)/calc(100% - 2*var(--b) - 2*var(--s)) 2px no-repeat,linear-gradient(var(--f),var(--f)) calc(var(--b) + var(--s)) var(--b)/calc(100% - 2*var(--b) - 2*var(--s)) calc(100% - 2*var(--b)) no-repeat,linear-gradient(var(--f),var(--f)) var(--b) calc(var(--b) + var(--s))/calc(100% - 2*var(--b)) calc(100% - 2*var(--b) - 2*var(--s)) no-repeat,linear-gradient(var(--o),var(--o)) var(--s) 0/calc(100% - 2*var(--s)) 100% no-repeat,linear-gradient(var(--o),var(--o)) 0 var(--s)/100% calc(100% - 2*var(--s)) no-repeat";
 var CSS = `
 .mbdbg{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;
-  padding-top:env(safe-area-inset-top);background:rgba(0,0,0,.25);font:15px/1.25 -apple-system,system-ui,sans-serif;color:#f2f2f5;-webkit-tap-highlight-color:transparent}
-.mbdbg *{box-sizing:border-box}
-.mbdbg-panel{width:min(520px,100%);max-height:72vh;display:flex;flex-direction:column;background:rgba(22,22,28,.97);
-  border:1px solid rgba(255,255,255,.12);border-bottom:0;border-radius:18px 18px 0 0;overflow:hidden;box-shadow:0 -8px 30px rgba(0,0,0,.45);
+  padding-top:env(safe-area-inset-top);background:rgba(0,0,0,.25);font:15px/1.25 -apple-system,system-ui,sans-serif;color:#f4f1de;-webkit-tap-highlight-color:transparent}
+.mbdbg *,.mbdbg-bar *{box-sizing:border-box}
+.mbdbg svg,.mbdbg-bar svg,.mbdbg-speed svg{display:block;flex:none}
+:where(.mbdbg,.mbdbg-bar) button{margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;-webkit-appearance:none;appearance:none}
+/* A notched panel or button (pixelPanel): the hard ink shadow is ::before, offset by --dx/--dy; the
+   outline and fill are ::after (the element's own background would paint under the shadow). */
+.mbdbg-px{--s:4px;--b:3px;--f:#22264a;--o:#0b0c18;--hi:transparent;--dx:4px;--dy:4px;position:relative;isolation:isolate}
+.mbdbg-px::before,.mbdbg-px::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none}
+.mbdbg-px::before{background:#0b0c18;clip-path:${NOTCH};transform:translate(var(--dx),var(--dy))}
+.mbdbg-px::after{background:${BOX}}
+.mbdbg-panel{width:min(520px,100%);max-height:72vh;display:flex;flex-direction:column;background:#14162b;
+  border-radius:22px 22px 0 0;overflow:hidden;box-shadow:0 -8px 30px rgba(0,0,0,.45);
   padding-bottom:env(safe-area-inset-bottom);transition:transform .18s ease-out}
 @media (orientation:landscape){
   .mbdbg{align-items:stretch;justify-content:flex-end;padding-top:0}
-  .mbdbg-panel{width:min(400px,55vw);max-height:none;height:100%;border:1px solid rgba(255,255,255,.12);border-right:0;border-radius:18px 0 0 18px;
+  .mbdbg-panel{width:min(400px,55vw);max-height:none;height:100%;border-radius:22px 0 0 22px;
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) 0}
   .mbdbg-grab{display:none}
 }
-.mbdbg-grab{width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,.28);margin:8px auto 0;flex:none}
-.mbdbg-head{display:flex;align-items:center;gap:8px;padding:8px 8px 6px 16px;touch-action:none}
-.mbdbg-title{flex:1;min-width:0;font-weight:700;font-size:16px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mbdbg-title span{color:#9a9aa6;font-weight:500;font-size:13px;margin-left:6px}
-.mbdbg-chip{flex:none;font:700 12px -apple-system,system-ui,sans-serif;padding:4px 9px;border-radius:9px;background:rgba(255,255,255,.1);color:#c9c9d1}
-.mbdbg-chip.on{background:#34d3c5;color:#062a27}
-.mbdbg-leaverow{padding:0 12px 8px;flex:none}
-.mbdbg-confirm{padding:6px 16px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:0}
-.mbdbg-confirm button{flex:none}
-.mbdbg-confirm h3{margin:4px 0 0;font-size:17px;color:#fff}
-.mbdbg-confirm p{margin:0;color:#b9b9c3;font-size:14px;line-height:1.4}
-.mbdbg-confirm .then{color:#9fe9e0;font-size:13px}
-.mbdbg-primary{height:46px;border:0;border-radius:12px;background:#34d3c5;color:#062a27;font:700 15px -apple-system,system-ui,sans-serif}
-.mbdbg-secondary{height:42px;border:0;border-radius:12px;background:rgba(255,255,255,.08);color:#fff;font:600 15px -apple-system,system-ui,sans-serif}
-.mbdbg-primary.sel,.mbdbg-secondary.sel{box-shadow:inset 0 0 0 2px #ffb347}
-.mbdbg-primary.danger{background:#ff6b5b;color:#fff}
-.mbdbg-foot{flex:none;padding:8px 12px 10px;border-top:1px solid rgba(255,255,255,.08)}
-.mbdbg-foot button{width:100%}
-.mbdbg-headsw{flex:none;display:flex;align-items:center;gap:8px;border:0;background:transparent;color:#c9c9d1;font:600 13px -apple-system,system-ui,sans-serif;padding:4px}
-.mbdbg-x{width:36px;height:36px;border:0;border-radius:18px;background:rgba(255,255,255,.08);color:#fff;font-size:18px}
-.mbdbg-tabs{display:flex;gap:6px;padding:4px 12px 10px;overflow-x:auto;scrollbar-width:none;flex:none}
+.mbdbg-grab{width:36px;height:5px;border-radius:3px;background:#4a4f7a;margin:8px auto 0;flex:none}
+.mbdbg-head{display:flex;align-items:center;gap:8px;padding:10px 12px 12px 16px;touch-action:none;flex:none}
+.mbdbg-name{flex:1;min-width:0;margin-left:4px;color:#8d91b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbdbg-done{flex:none;padding:6px 4px;color:#ffd447;font:600 17px -apple-system,system-ui,sans-serif}
+.mbdbg-band{--hi:rgba(255,255,255,.07);flex:none;display:flex;align-items:center;gap:12px;margin:0 20px 16px 16px;padding:12px 12px 12px 14px;min-height:64px;text-align:left}
+.mbdbg-band .lab{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.mbdbg-bsub{font-size:12px;line-height:1.3;color:#8d91b8}
+.mbdbg-band.on{--f:#3ee0c8;color:#0b0c18}
+.mbdbg-band.on .mbdbg-bsub{color:rgba(11,12,24,.75)}
+.mbdbg-band.on .mbdbg-sw{--f:#1d6f63}
+.mbdbg-band.preview{color:#3ee0c8}
+.mbdbg-sw{--s:3px;--b:2px;--f:#2e3366;--o:#0b0c18;--hi:transparent;position:relative;flex:none;width:50px;height:28px;background:${BOX}}
+.mbdbg-sw::after{content:"";position:absolute;top:5px;left:5px;width:18px;height:18px;background:#f4f1de;box-shadow:inset -2px -2px 0 rgba(11,12,24,.22);transition:left .15s}
+.mbdbg-sw.on{--f:#3ee0c8}.mbdbg-sw.on::after{left:27px}
+.mbdbg-confirm{padding:2px 20px 16px 16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1;min-height:0}
+.mbdbg-confirm h3{margin:2px 0 0}
+.mbdbg-confirm h3 svg{max-width:100%;height:auto}
+.mbdbg-confirm p{margin:0;color:#c3c6e0;font-size:15px;line-height:1.4}
+.mbdbg-then{--b:2px;--dx:3px;--dy:3px;flex:none;display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:4px;color:#3ee0c8}
+.mbdbg-then span{min-width:0;color:#f4f1de;font-weight:600;font-size:14px;overflow-wrap:anywhere}
+.mbdbg-btn{--f:#2e3366;flex:none;height:44px;display:flex;align-items:center;justify-content:center;color:#f4f1de}
+.mbdbg-btn.primary{--f:#3ee0c8;color:#0b0c18}
+.mbdbg-btn.danger{--f:#ff5c7a;color:#0b0c18}
+.mbdbg-btn.sel{outline:2px solid #3ee0c8;outline-offset:4px}
+.mbdbg-tabs{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none;flex:none}
+/* More sections than fit: the strip fades out at the edge it scrolls on to. */
+.mbdbg-tabs.more{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent)}
 .mbdbg-tabs::-webkit-scrollbar{display:none}
-.mbdbg-tab{flex:none;height:30px;padding:0 12px;border:0;border-radius:15px;background:rgba(255,255,255,.08);color:#c9c9d1;font:600 13px/30px -apple-system,system-ui,sans-serif}
-.mbdbg-tab.on{background:#ffb347;color:#1a1408}
-.mbdbg-rows{overflow-y:auto;padding:0 8px 8px;-webkit-overflow-scrolling:touch;flex:1;min-height:0}
-.mbdbg-row{display:flex;align-items:center;gap:10px;min-height:46px;padding:6px 8px 6px 10px;border-radius:10px}
-.mbdbg-row.sel{background:rgba(255,179,71,.16);box-shadow:inset 0 0 0 1.5px rgba(255,179,71,.7)}
-.mbdbg-row.act:active{background:rgba(255,255,255,.08)}
+.mbdbg-tab{--s:3px;--b:2px;--f:#2e3366;--dx:0px;--dy:3px;flex:none;height:32px;padding:0 9px;display:flex;align-items:center;color:#8d91b8}
+.mbdbg-tab>span{font-weight:600;font-size:13px}
+.mbdbg-tab.on{--f:#3ee0c8;--dy:1px;color:#0b0c18;transform:translateY(2px)}
+.mbdbg-rows{overflow-y:auto;padding:2px 20px 14px 16px;-webkit-overflow-scrolling:touch;flex:1;min-height:0}
+.mbdbg-list{--hi:rgba(255,255,255,.07);padding:3px}
+.mbdbg-row{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 12px 8px 14px}
+.mbdbg-row+.mbdbg-row{border-top:2px solid rgba(11,12,24,.6)}
+.mbdbg-row.sel{--s:2px;background:rgba(62,224,200,.12);box-shadow:inset 0 0 0 2px #3ee0c8;clip-path:${NOTCH}}
+.mbdbg-row.act:active{background:rgba(255,255,255,.06)}
 .mbdbg-lab{flex:1;min-width:0}
 .mbdbg-lab div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mbdbg-hint{font-size:12px;color:#9a9aa6}
-.mbdbg-go{color:#9a9aa6;font-size:20px}
-.mbdbg-sure{color:#ff6b5b;font-weight:600;font-size:13px}
-.mbdbg-sw{width:46px;height:28px;border-radius:14px;background:rgba(255,255,255,.18);position:relative;flex:none;transition:background .15s}
-.mbdbg-sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:11px;background:#fff;transition:left .15s}
-.mbdbg-sw.on{background:#34c759}.mbdbg-sw.on::after{left:21px}
-.mbdbg-val{display:flex;align-items:center;flex:none}
-.mbdbg-val b{min-width:64px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
-.mbdbg-arr{width:36px;height:36px;border:0;border-radius:18px;background:rgba(255,255,255,.08);color:#fff;font-size:18px;touch-action:manipulation}
-.mbdbg-empty{padding:16px 10px;color:#9a9aa6;font-size:13px}
-.mbdbg-leave{display:block;width:100%;height:40px;border:1.5px solid #ff6b5b;border-radius:10px;background:transparent;color:#ff8a7d;font:700 14px -apple-system,system-ui,sans-serif}
-.mbdbg-leave.sure{background:#ff6b5b;color:#fff}
-.mbdbg-bar{position:fixed;z-index:50;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));display:flex;gap:8px;
-  padding:8px;background:rgba(22,22,28,.92);border:1px solid rgba(255,255,255,.12);border-radius:14px;font:600 14px -apple-system,system-ui,sans-serif}
-.mbdbg-bar button{height:40px;padding:0 14px;border:0;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font:inherit}
-.mbdbg-bar button.sel{box-shadow:inset 0 0 0 1.5px #ffb347}
-.mbdbg-bar span{align-self:center;color:#9a9aa6;font-weight:500;padding:0 6px;font-variant-numeric:tabular-nums}
-.mbdbg-speed{position:fixed;z-index:49;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));padding:3px 8px;border-radius:8px;
-  background:rgba(255,179,71,.9);color:#1a1408;font:700 12px -apple-system,system-ui,sans-serif;pointer-events:none}
+.mbdbg-lab div:first-child{font-weight:600}
+.mbdbg-hint{margin-top:2px;font-size:12px;color:#8d91b8}
+.mbdbg-go{margin-right:2px}
+.mbdbg-sure{color:#ff5c7a;font-weight:600;font-size:13px}
+.mbdbg-val{display:flex;align-items:center;gap:6px;flex:none;padding-right:2px}
+.mbdbg-val b{min-width:56px;display:flex;justify-content:center}
+.mbdbg-val b.opt{display:block;max-width:132px;font-weight:600;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbdbg-arr{--s:3px;--b:2px;--f:#2e3366;--dx:2px;--dy:2px;flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:#f4f1de;touch-action:manipulation}
+/* \u25C0 and \u25B6 sit a font pixel off centre in their cells. */
+.mbdbg-arr:first-child svg{transform:translateX(-1px)}.mbdbg-arr:last-child svg{transform:translateX(1px)}
+.mbdbg-empty{padding:4px 2px 12px;color:#8d91b8;font-size:13px}
+.mbdbg-bar{--f:#14162b;position:fixed;z-index:50;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:8px;
+  padding:10px 14px 13px 10px;white-space:nowrap;color:#f4f1de;font:600 14px -apple-system,system-ui,sans-serif}
+.mbdbg-bar .mbdbg-btn{--s:3px;--b:2px;--dx:0px;--dy:3px;height:40px;padding:0 10px}
+.mbdbg-bar .mbdbg-btn.sel{--o:#3ee0c8;outline:0}
+.mbdbg-bar>svg{margin:0 2px;color:#8d91b8}
+.mbdbg-speed{--s:3px;--b:2px;--f:#3ee0c8;--dx:2px;--dy:2px;position:fixed;z-index:49;top:max(8px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));
+  padding:6px 8px;color:#0b0c18;pointer-events:none}
 `;
 var DebugMenu = class {
   constructor(name, hooks, pollPads, tainted) {
@@ -3022,7 +3311,7 @@ var DebugMenu = class {
     this.confirmSel = 0;
     this.render();
   }
-  /** The header's switch: on (asks first) or off (asks, then restarts on the real save). */
+  /** The mode band's switch: on (asks first) or off (asks, then restarts on the real save). */
   flip() {
     if (!this.tainted) return this.ask({ ...TURN_ON, run: () => {
     } });
@@ -3136,7 +3425,7 @@ var DebugMenu = class {
       return;
     }
     this.bar = document.createElement("div");
-    this.bar.className = "mbdbg-bar";
+    this.bar.className = "mbdbg-bar mbdbg-px";
     document.body.appendChild(this.bar);
     this.renderBar();
   }
@@ -3150,15 +3439,11 @@ var DebugMenu = class {
       ["\u25B6 Play", () => this.leaveStep(true)]
     ];
     buttons.forEach(([label, f], i) => {
-      const b = document.createElement("button");
-      b.textContent = label;
-      if (i === this.barSel) b.className = "sel";
+      const b = pixelButton(`mbdbg-btn${i === this.barSel ? " sel" : ""}`, label, true, 1.5);
       b.addEventListener("click", f);
       bar.appendChild(b);
     });
-    const n = document.createElement("span");
-    n.textContent = `${this.stepped} stepped`;
-    bar.appendChild(n);
+    bar.appendChild(pixelText(`${this.stepped} stepped`, 1.5));
   }
   async runSteps(n) {
     if (this.stepping) return;
@@ -3248,33 +3533,43 @@ var DebugMenu = class {
     root.textContent = "";
     const panel = el("div", "mbdbg-panel");
     const head = el("div", "mbdbg-head");
-    const title = el("div", "mbdbg-title", "Debug");
-    title.appendChild(el("span", "", this.name));
-    head.appendChild(title);
-    if (this.hooks.leave) {
-      const sw = el("button", "mbdbg-headsw");
-      sw.setAttribute("role", "switch");
-      sw.setAttribute("aria-checked", String(this.tainted));
-      sw.setAttribute("aria-label", "Debug mode");
-      sw.appendChild(el("span", "", this.tainted ? "On" : "Off"));
-      sw.appendChild(el("div", `mbdbg-sw${this.tainted ? " on" : ""}`));
-      sw.addEventListener("click", () => this.flip());
-      head.appendChild(sw);
-    } else head.appendChild(el("div", "mbdbg-chip on", "Preview"));
-    const x = el("button", "mbdbg-x", "\u2715");
-    x.addEventListener("click", () => this.close());
-    head.appendChild(x);
+    head.append(pixelArt(BUG, 2.5, "#3ee0c8"), pixelText("Debug", 2.5, "#f4f1de"), el("div", "mbdbg-name", this.name));
+    const done = el("button", "mbdbg-done", "Done");
+    done.addEventListener("click", () => this.close());
+    head.appendChild(done);
     this.dragToClose(head, panel);
     panel.append(el("div", "mbdbg-grab"), head);
+    const on = this.tainted;
+    const band = el(this.hooks.leave ? "button" : "div", `mbdbg-band mbdbg-px${!this.hooks.leave ? " preview" : on ? " on" : ""}`);
+    const words = el("div", "lab");
+    if (this.hooks.leave) {
+      band.setAttribute("role", "switch");
+      band.setAttribute("aria-checked", String(on));
+      band.setAttribute("aria-label", "Debug mode");
+      words.append(
+        pixelText(on ? "Debug mode on" : "Debug mode off", 1.75, "currentColor", on ? null : void 0),
+        el("div", "mbdbg-bsub", on ? "On a copy of your save. Scores don't count." : "Look around. Nothing changes until you pick something.")
+      );
+      band.append(words, el("div", `mbdbg-sw${on ? " on" : ""}`));
+      band.addEventListener("click", () => this.flip());
+    } else {
+      words.append(pixelText("Preview", 1.75), el("div", "mbdbg-bsub", "Debug mode is always on here."));
+      band.appendChild(words);
+    }
+    panel.appendChild(band);
     if (this.confirming) {
       const c = el("div", "mbdbg-confirm");
       const q2 = this.confirming;
-      c.appendChild(el("h3", "", q2.title));
+      c.appendChild(el("h3", "")).appendChild(pixelText(q2.title, 2.25, "#f4f1de"));
       c.appendChild(el("p", "", q2.body));
-      if (q2.then) c.appendChild(el("div", "then", `Then: ${q2.then}`));
-      const yes = el("button", `mbdbg-primary${q2.danger ? " danger" : ""}${this.confirmSel === 0 ? " sel" : ""}`, q2.yes);
+      if (q2.then) {
+        const then = el("div", "mbdbg-then mbdbg-px");
+        then.append(pixelText("Then", 1.5), el("span", "", q2.then));
+        c.appendChild(then);
+      }
+      const yes = pixelButton(`mbdbg-btn ${q2.danger ? "danger" : "primary"}${this.confirmSel === 0 ? " sel" : ""}`, q2.yes, false);
       yes.addEventListener("click", () => this.confirmYes());
-      const no = el("button", `mbdbg-secondary${this.confirmSel === 1 ? " sel" : ""}`, "Cancel");
+      const no = pixelButton(`mbdbg-btn${this.confirmSel === 1 ? " sel" : ""}`, "Cancel", true);
       no.addEventListener("click", () => this.confirmNo());
       c.append(yes, no);
       panel.appendChild(c);
@@ -3283,7 +3578,8 @@ var DebugMenu = class {
     }
     const tabs = el("div", "mbdbg-tabs");
     secs.forEach((s, i) => {
-      const t = el("button", `mbdbg-tab${i === this.tab ? " on" : ""}`, s.title);
+      const t = el("button", `mbdbg-tab mbdbg-px${i === this.tab ? " on" : ""}`);
+      t.appendChild(drawable(s.title) ? pixelText(s.title, 1.5, "currentColor", null) : el("span", "", s.title));
       t.addEventListener("click", () => {
         this.tab = i;
         this.sel = 0;
@@ -3297,22 +3593,17 @@ var DebugMenu = class {
     if (this.sections.length === 0 && sec.title === "Platform") {
       rows.appendChild(el("div", "mbdbg-empty", "This game declares no debug items of its own."));
     }
-    sec.items.forEach((it, i) => rows.appendChild(this.row(it, i === this.sel, i)));
+    const list = el("div", "mbdbg-list mbdbg-px");
+    sec.items.forEach((it, i) => list.appendChild(this.row(it, i === this.sel, i)));
+    if (sec.items.length) rows.appendChild(list);
     panel.append(tabs, rows);
-    if (this.hooks.report) {
-      const foot = el("div", "mbdbg-foot");
-      const b = el("button", "mbdbg-secondary", "Write your agent a note");
-      b.addEventListener("click", () => {
-        this.closeQuietly();
-        requestAnimationFrame(() => requestAnimationFrame(() => this.hooks.report?.()));
-      });
-      foot.appendChild(b);
-      panel.appendChild(foot);
-    }
     root.appendChild(panel);
     rows.scrollTop = keepScroll;
-    if (scrollToSel) rows.children[this.sel]?.scrollIntoView({ block: "nearest" });
+    if (scrollToSel) list.children[this.sel]?.scrollIntoView({ block: "nearest" });
     tabs.children[this.tab]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const fade = () => tabs.classList.toggle("more", tabs.scrollLeft + tabs.clientWidth < tabs.scrollWidth - 1);
+    tabs.addEventListener("scroll", fade, { passive: true });
+    fade();
   }
   /** Dragging the sheet's header down (or right, as a side sheet) far enough closes it. */
   dragToClose(handle, panel) {
@@ -3350,7 +3641,8 @@ var DebugMenu = class {
       this.sel = index;
     };
     if (it.kind === "action") {
-      r.appendChild(this.sureId === it.id ? el("div", "mbdbg-sure", "Tap again") : el("div", "mbdbg-go", "\u203A"));
+      if (this.sureId === it.id) r.appendChild(el("div", "mbdbg-sure", "Tap again"));
+      else r.appendChild(el("div", "mbdbg-go")).appendChild(pixelArt(CHEVRON, 2, "#8d91b8", null));
       r.addEventListener("click", () => {
         choose();
         this.activate(it);
@@ -3363,9 +3655,14 @@ var DebugMenu = class {
       });
     } else {
       const val = el("div", "mbdbg-val");
-      const shown = it.kind === "number" ? fmt(it.value) : it.options[it.value] ?? "";
-      const minus = el("button", "mbdbg-arr", "\u2039");
-      const plus = el("button", "mbdbg-arr", "\u203A");
+      const shown = it.kind === "number" ? el("b", "") : el("b", "opt", it.options[it.value] ?? "");
+      if (it.kind === "number") shown.appendChild(pixelText(fmt(it.value), 2, "#3ee0c8"));
+      const minus = el("button", "mbdbg-arr mbdbg-px");
+      minus.setAttribute("aria-label", "Less");
+      minus.appendChild(pixelText("\u25C0", 2, "currentColor", null));
+      const plus = el("button", "mbdbg-arr mbdbg-px");
+      plus.setAttribute("aria-label", "More");
+      plus.appendChild(pixelText("\u25B6", 2, "currentColor", null));
       const bump = (d) => {
         choose();
         if (it.kind === "number") this.setValue(it, round(it.value + d * it.step, it.step));
@@ -3373,7 +3670,7 @@ var DebugMenu = class {
       };
       holdRepeat(minus, () => bump(-1), it.kind === "number");
       holdRepeat(plus, () => bump(1), it.kind === "number");
-      val.append(minus, el("b", "", shown), plus);
+      val.append(minus, shown, plus);
       r.appendChild(val);
     }
     return r;
@@ -3385,7 +3682,7 @@ var DebugMenu = class {
     const i = sec?.items.findIndex((x) => x.id === id) ?? -1;
     const row = this.root?.querySelectorAll(".mbdbg-row")[i];
     if (row) {
-      row.style.background = "rgba(52,199,89,.3)";
+      row.style.background = "rgba(91,227,125,.3)";
       setTimeout(() => row.style.background = "", 250);
     }
   }
@@ -3398,10 +3695,12 @@ var DebugMenu = class {
       return;
     }
     if (!this.badge) {
-      this.badge = el("div", "mbdbg-speed");
+      this.badge = el("div", "mbdbg-speed mbdbg-px");
       document.body.appendChild(this.badge);
     }
-    this.badge.textContent = SPEED_NAMES[this.speedIndex] ?? "";
+    const name = SPEED_NAMES[this.speedIndex] ?? "";
+    this.badge.replaceChildren(pixelText(name.replace("\xBC", "1/4").replace("\xBD", "1/2"), 1.75, "currentColor", null));
+    this.badge.firstElementChild?.setAttribute("aria-label", name);
   }
   startPolling() {
     if (!this.pollPads || this.polling || typeof navigator === "undefined" || !navigator.getGamepads) return;
@@ -3430,6 +3729,11 @@ function el(tag, cls, text) {
   if (cls) e.className = cls;
   if (text !== void 0) e.textContent = text;
   return e;
+}
+function pixelButton(cls, label, shadow, px = 1.75) {
+  const b = el("button", `${cls} mbdbg-px`);
+  b.appendChild(pixelText(label, px, "currentColor", shadow ? void 0 : null));
+  return b;
 }
 function round(v, step) {
   const decimals = Math.min(6, Math.max(0, -Math.floor(Math.log10(step)) + 1));
@@ -3624,7 +3928,68 @@ function spread(values) {
   const at = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))];
   return { p50: at(0.5), p95: at(0.95), max: v[v.length - 1] };
 }
+var LONG_FRAME_MS = 25;
+var PERF_SAMPLES = 16384;
+var PERF_DRAWN_EVERY = 30;
+var Perf = class {
+  samples = { update: [], render: [], present: [] };
+  max = { update: 0, render: 0, present: 0 };
+  stride = 1;
+  frames = 0;
+  long = 0;
+  intervals = 0;
+  ms = 0;
+  peaks = { draws: 0, nodes: 0, particles: 0 };
+  /** One live, presented frame; `drawn` reads what it drew (`host_stats()`), called now and then. */
+  add(f, drawn) {
+    if (f.present === null) return;
+    this.frames++;
+    if (f.interval !== null) {
+      this.intervals++;
+      this.ms += f.interval;
+      if (f.interval > LONG_FRAME_MS) this.long++;
+    }
+    const t = { update: f.mb_update, render: f.mb_render, present: f.present };
+    for (const k of ["update", "render", "present"]) this.max[k] = Math.max(this.max[k], t[k]);
+    if (this.frames % this.stride === 0) {
+      for (const k of ["update", "render", "present"]) this.samples[k].push(t[k]);
+      if (this.samples.update.length >= PERF_SAMPLES) {
+        for (const k of ["update", "render", "present"]) this.samples[k] = this.samples[k].filter((_, i) => i % 2 === 0);
+        this.stride *= 2;
+      }
+    }
+    if (this.frames % PERF_DRAWN_EVERY === 1) {
+      const d = drawn();
+      const n = (k) => typeof d[k] === "number" ? d[k] : 0;
+      this.peaks.draws = Math.max(this.peaks.draws, n("draws") + n("draws2d"));
+      this.peaks.nodes = Math.max(this.peaks.nodes, n("nodes"));
+      this.peaks.particles = Math.max(this.peaks.particles, n("particles"));
+    }
+  }
+  /** The summary (null before any frame): `{ frames, seconds, long_frames, update, render, present, peaks }`. */
+  report(opts) {
+    const out = this.frames === 0 ? null : {
+      frames: this.frames,
+      seconds: this.ms / 1e3,
+      long_frames: this.long,
+      update: { ...spread(this.samples.update), max: this.max.update },
+      render: { ...spread(this.samples.render), max: this.max.render },
+      present: { ...spread(this.samples.present), max: this.max.present },
+      peaks: { ...this.peaks }
+    };
+    if (opts?.reset) {
+      this.samples = { update: [], render: [], present: [] };
+      this.max = { update: 0, render: 0, present: 0 };
+      this.stride = 1;
+      this.frames = this.long = this.intervals = this.ms = 0;
+      this.peaks = { draws: 0, nodes: 0, particles: 0 };
+    }
+    return out;
+  }
+};
 var Stats = class {
+  /** A play session's costs, for the device report (`mb.perf()`). */
+  perf = new Perf();
   /** Ring buffer: `next` is where the next frame goes. */
   ring = [];
   next = 0;
@@ -4890,6 +5255,48 @@ var abi_default = {
       ]
     },
     {
+      name: "mb2d_image_filter",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb2d",
+        version: 3
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb2d_shader",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb2d",
+        version: 4
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb2d_shader_use",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb2d",
+        version: 4
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
       name: "mb3d_mesh",
       params: [
         "i32",
@@ -5756,6 +6163,64 @@ var abi_default = {
       ]
     },
     {
+      name: "mb3d_node_transforms",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 3
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_material_surfaces",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 4
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_shader",
+      params: [
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 5
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
+      name: "mb3d_material_shader",
+      params: [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      requires: {
+        stdlib: "mb3d",
+        version: 5
+      },
+      results: [
+        "i32"
+      ]
+    },
+    {
       name: "mb_sound",
       params: [
         "i32"
@@ -6033,6 +6498,8 @@ var HOST_DIRECT = [
   "mb2d_rrect",
   "mb2d_text_style",
   "mb2d_antialias",
+  // mb2d 3
+  "mb2d_image_filter",
   "mb3d_model_spawn",
   "mb3d_node",
   "mb3d_node_parent",
@@ -6070,6 +6537,11 @@ var INSTANCE_SIZE = 44;
 var SKIN_JOINT_SIZE = 68;
 var MAX_JOINTS = 64;
 var MAX_INSTANCES_PER_NODE = 16384;
+var NODE_TRANSFORM_SIZE = 44;
+var MAX_NODES = 4096;
+var SURFACES_MAX_BYTES = 32 + 8 * 32 + 16 * 64;
+var SHADER_MAX_BYTES = 64 * 1024;
+var SHADER_PARAMS_SIZE = 16 + 256;
 var FOG_SIZE = 48;
 var STYLE_SIZE = 32;
 var TEXT_DESC_SIZE = 64;
@@ -6107,6 +6579,86 @@ function base64(b) {
   let s = "";
   for (const c of b) s += String.fromCharCode(c);
   return btoa(s);
+}
+var REENTRY = new Uint8Array([
+  0,
+  97,
+  115,
+  109,
+  1,
+  0,
+  0,
+  0,
+  1,
+  4,
+  1,
+  96,
+  0,
+  0,
+  2,
+  13,
+  1,
+  1,
+  109,
+  6,
+  109,
+  101,
+  109,
+  111,
+  114,
+  121,
+  2,
+  0,
+  0,
+  3,
+  2,
+  1,
+  0,
+  7,
+  9,
+  1,
+  5,
+  116,
+  111,
+  117,
+  99,
+  104,
+  0,
+  0,
+  10,
+  10,
+  1,
+  8,
+  0,
+  65,
+  0,
+  40,
+  2,
+  0,
+  26,
+  11
+]);
+var reentryModule = null;
+function gameReentry(s) {
+  let mem = null;
+  let touch = () => {
+  };
+  return () => {
+    const m = s.memory();
+    if (m !== mem) {
+      mem = m;
+      reentryModule ??= new WebAssembly.Module(REENTRY);
+      touch = new WebAssembly.Instance(reentryModule, { m: { memory: m } }).exports.touch;
+    }
+    touch();
+  };
+}
+function backToGame(reenter, f) {
+  return ((...a) => {
+    const r = f(...a);
+    reenter();
+    return r;
+  });
 }
 function buildImports(s, host, m) {
   const utf8 = new TextDecoder("utf-8", { fatal: false });
@@ -6234,6 +6786,17 @@ function buildImports(s, host, m) {
       const n = assetToHost(asset);
       return n < 0 ? n : host.mbh_font_load(n);
     }),
+    // 5.3 mb2d 4: sprite shaders
+    mb2d_shader: ((ptr, len) => {
+      if (len <= 0 || len > SHADER_MAX_BYTES) return -2 /* InvalidArgument */;
+      toHost(slice(ptr, len));
+      return host.mbh_shader2d(len);
+    }),
+    mb2d_shader_use: ((shader, ptr) => {
+      if (shader !== 0) toHost(slice(ptr, SHADER_PARAMS_SIZE));
+      else toHost(new Uint8Array(SHADER_PARAMS_SIZE));
+      return host.mbh_shader_use(shader);
+    }),
     mb2d_font_metrics: ((font, out) => {
       const r = host.mbh_font_metrics(font);
       if (r >= 0) bytes().set(new Uint8Array(host.memory.buffer, host.host_scratch(32), 32), out);
@@ -6294,6 +6857,29 @@ function buildImports(s, host, m) {
       if (count < 0 || count > MAX_INSTANCES_PER_NODE) return -4 /* Quota */;
       toHost(slice(ptr, count * INSTANCE_SIZE));
       return host.mbh_instances(node, count);
+    }),
+    // 5.4 mb3d 3: the frame's node transforms in one call
+    mb3d_node_transforms: ((ptr, count) => {
+      if (count < 0 || count > MAX_NODES) return -4 /* Quota */;
+      toHost(slice(ptr, count * NODE_TRANSFORM_SIZE));
+      return host.mbh_node_transforms(count);
+    }),
+    // 5.4 mb3d 4: a material's ground surfaces
+    // 5.4 mb3d 5: shader materials
+    mb3d_shader: ((ptr, len) => {
+      if (len <= 0 || len > SHADER_MAX_BYTES) return -2 /* InvalidArgument */;
+      toHost(slice(ptr, len));
+      return host.mbh_shader(len);
+    }),
+    mb3d_material_shader: ((material, shader, ptr) => {
+      if (shader !== 0) toHost(slice(ptr, SHADER_PARAMS_SIZE));
+      else toHost(new Uint8Array(SHADER_PARAMS_SIZE));
+      return host.mbh_material_shader(material, shader);
+    }),
+    mb3d_material_surfaces: ((material, ptr, len) => {
+      if (len < 0 || len > SURFACES_MAX_BYTES) return -2 /* InvalidArgument */;
+      toHost(slice(ptr, len));
+      return host.mbh_material_surfaces(material, len);
     }),
     mb3d_skin: ((node, ptr, count) => {
       if (count < 0 || count > MAX_JOINTS) return -4 /* Quota */;
@@ -6507,6 +7093,10 @@ function buildImports(s, host, m) {
       return 0;
     })
   };
+  const reenter = gameReentry(s);
+  for (const name of Object.keys(impl)) {
+    if (name.startsWith("mb2d_") || name.startsWith("mb3d_")) impl[name] = backToGame(reenter, impl[name]);
+  }
   for (const name of HOST_DIRECT) {
     const f = host[name];
     if (typeof f === "function") impl[name] = f;
@@ -6635,7 +7225,7 @@ var Session = class {
   log(level, msg) {
     const fn = level >= 3 ? console.error : level === 2 ? console.warn : console.log;
     fn(`[game] ${msg}`);
-    post({ op: "log", level, msg: msg.slice(0, 2e3) });
+    post({ op: "log", level, msg: msg.slice(0, msg.startsWith("studio-bot ") ? 1 << 20 : 2e3) });
     if (this.logs.length < NOTES_PER_FRAME) this.logs.push(`${LEVELS[level] ?? "info"}: ${msg.slice(0, 200)}`);
   }
   /** SPEC §5.1 `mb_mark`: a no-op for the game; the tools see it. */
@@ -6748,6 +7338,222 @@ var Assets = class {
   }
 };
 
+// src/pace.ts
+var KEEP3 = 32;
+var MIN_PERIOD_MS = 4;
+var MAX_PERIOD_MS = 70;
+var MAX_VSYNC_MS = 22;
+var LEARN_AFTER = 8;
+var CLUSTER_SHARE = 0.25;
+var CLUSTER_WIDTH = 0.25;
+var FIT_SHARE = 0.2;
+var LATE_SHARE = 0.75;
+var OWED_FRAMES = 2;
+var OWED_SHARE = 0.25;
+var OWED_MIN_MS = 3;
+var SAME_FRAME_MS = 1;
+var PULL = 0.1;
+var TOO_SOON_SHARE = 0.7;
+function liveFrameTime(pacer, now, scale, maxDt) {
+  const paced = pacer.frame(now);
+  const scaled = (paced.ms ?? pacer.cadence) / 1e3 * scale;
+  const dt = Math.fround(Math.min(scaled, maxDt));
+  const lost = scaled > maxDt ? Math.fround(scaled - dt) : 0;
+  return { dt, lost, at: paced.at };
+}
+var Pacer = class {
+  /** Paced time of the last frame (ms, the timestamps' clock); null before the first. */
+  at = null;
+  /** The last callback's own timestamp, for learning. */
+  stamp = null;
+  /** The last frame's own timestamp, for `tooSoon`. */
+  shown = null;
+  intervals = [];
+  /** The page's usual frame interval (ms), as learned. */
+  cadence = 1e3 / 60;
+  /** The display's vsync (ms), as learned: what intervals are rounded to. */
+  vsync = 1e3 / 60;
+  /** A cadence has been learned; until then frames aren't paced. */
+  learned = false;
+  /** How far the last frame's paced time was from its timestamp (ms, + behind), when
+   *  that's more than OWED_SHARE of a vsync: a frame after should make it up. */
+  owed = 0;
+  /** Frames in a row that ended owing, the same way. */
+  owedFrames = 0;
+  /** The screen's vsync (ms), once a slow page's intervals have shown it (vsyncUnder). */
+  screen = null;
+  /** Longer than this (ms) is a stall, not paced. (Not a parameter property:
+   *  `npm test` runs this file with Node's type stripping.) */
+  maxGapMs;
+  constructor(maxGapMs) {
+    this.maxGapMs = maxGapMs;
+  }
+  /** The next frame starts afresh (a start or resume: the gap isn't game time). */
+  reset() {
+    this.at = null;
+    this.stamp = null;
+    this.shown = null;
+    this.owed = 0;
+    this.owedFrames = 0;
+  }
+  /** A display frame with requestAnimationFrame timestamp `now`: the ms of game
+   *  time it advances (null for the first frame after a reset) and its paced
+   *  time (`at`, on the timestamps' clock). Never negative. */
+  frame(now) {
+    const at = this.at;
+    if (this.stamp !== null) this.learn(now - this.stamp);
+    this.stamp = now;
+    this.shown = now;
+    if (at === null) {
+      this.at = now;
+      return { ms: null, at: now };
+    }
+    const ahead = now - at;
+    const v = this.vsync;
+    if (!this.learned || ahead > this.maxGapMs || ahead < -v) {
+      this.owed = 0;
+      this.owedFrames = 0;
+      this.at = now;
+      return { ms: Math.max(ahead, 0), at: now };
+    }
+    let n = Math.round(ahead / v - LATE_SHARE + 0.5);
+    if (n === 0 && ahead >= SAME_FRAME_MS) n = 1;
+    const target = at + n * v;
+    const off = now - target;
+    let next;
+    const owedMs = Math.max(v * OWED_SHARE, OWED_MIN_MS);
+    const owing = Math.abs(off) > owedMs && Math.sign(off) === Math.sign(this.owed);
+    if (owing && this.owedFrames >= OWED_FRAMES) {
+      next = Math.max(at, now);
+    } else {
+      next = Math.max(at, target + off * PULL);
+    }
+    const gap = now - next;
+    if (Math.abs(gap) > owedMs) {
+      this.owedFrames = Math.sign(gap) === Math.sign(this.owed) ? this.owedFrames + 1 : 1;
+      this.owed = gap;
+    } else {
+      this.owedFrames = 0;
+      this.owed = 0;
+    }
+    this.at = next;
+    return { ms: next - at, at: next };
+  }
+  /** A callback with timestamp `now` came so soon after the last frame that
+   *  it shouldn't draw one (see the top of this file). The next `frame` then
+   *  moves game time by the whole vsyncs since the last one. Never before a
+   *  cadence is learned, so a page that really runs faster gets to show it. */
+  tooSoon(now) {
+    if (!this.learned || this.shown === null || this.stamp === null) return false;
+    const since = now - this.shown;
+    if (since < 0 || since >= this.vsync * TOO_SOON_SHARE) return false;
+    this.learn(now - this.stamp);
+    this.stamp = now;
+    return true;
+  }
+  learn(interval) {
+    if (!(interval >= MIN_PERIOD_MS && interval <= MAX_PERIOD_MS)) return;
+    this.intervals.push(interval);
+    if (this.intervals.length > KEEP3) this.intervals.shift();
+    if (this.intervals.length < LEARN_AFTER) return;
+    const cadence = this.cadenceOf();
+    if (cadence === null) return;
+    this.cadence = cadence;
+    let v = cadence <= MAX_VSYNC_MS ? cadence : this.vsyncUnder(cadence);
+    for (let pass = 0; pass < 3; pass++) {
+      let ms = 0;
+      let count = 0;
+      for (const x of this.intervals) {
+        const n = Math.round(x / v);
+        if (n >= 1 && Math.abs(x / v - n) <= FIT_SHARE) {
+          ms += x;
+          count += n;
+        }
+      }
+      if (count === 0) break;
+      v = ms / count;
+    }
+    this.vsync = v;
+    this.learned = true;
+  }
+  /** The page's cadence: its shortest regular interval, the shortest cluster
+   *  that holds a good share of the intervals (late frames run long, and a
+   *  60 Hz page on a 120 Hz panel has the odd short one). From each interval,
+   *  shortest first, the window moves to the mean of what it holds until it
+   *  settles (mean shift), so it's the cluster's middle, not its low edge. */
+  cadenceOf() {
+    const sorted = [...this.intervals].sort((a, b) => a - b);
+    const need = sorted.length * CLUSTER_SHARE;
+    let tried = 0;
+    for (const v of sorted) {
+      if (v < tried) continue;
+      let center = v;
+      let count = 0;
+      for (let i = 0; i < 8; i++) {
+        let sum = 0;
+        count = 0;
+        for (const w of sorted) {
+          if (w >= center * (1 - CLUSTER_WIDTH) && w <= center * (1 + CLUSTER_WIDTH)) {
+            sum += w;
+            count++;
+          }
+        }
+        if (count === 0) break;
+        const moved = sum / count;
+        if (Math.abs(moved - center) < 0.01) break;
+        center = moved;
+      }
+      if (count >= need) return center;
+      tried = center * (1 + CLUSTER_WIDTH);
+    }
+    return null;
+  }
+  /** The vsync of a page slower than any screen (`cadence` over MAX_VSYNC_MS):
+   *  the largest `cadence / k` under it that the recent intervals are whole
+   *  multiples of (2 × 16.7 ms for 30 fps on a 60 Hz screen; 3 × 8.3 ms for
+   *  40 fps on 120 Hz, once a frame there has taken 33 ms). The last interval
+   *  isn't counted (whether the next makes up for it isn't known yet), nor is
+   *  a pair that adds up to a whole number (a slip and its make-up). A finer
+   *  vsync that the intervals once needed is the screen's, and is kept. */
+  vsyncUnder(cadence) {
+    const xs = this.intervals;
+    const fits = (x, v) => Math.abs(x / v - Math.round(x / v)) <= FIT_SHARE;
+    let fewest = Infinity;
+    let best = cadence / Math.ceil(cadence / MAX_VSYNC_MS);
+    let clean = null;
+    let forced = false;
+    for (let k = Math.ceil(cadence / MAX_VSYNC_MS); cadence / k >= MIN_PERIOD_MS; k++) {
+      const v = cadence / k;
+      let misfits = 0;
+      for (let i = 0; i < xs.length - 1; i++) {
+        if (fits(xs[i], v)) continue;
+        if (fits(xs[i] + xs[i + 1], v)) {
+          i++;
+          continue;
+        }
+        if (i > 0) misfits++;
+      }
+      if (misfits === 0) {
+        clean = v;
+        break;
+      }
+      forced = true;
+      if (misfits < fewest) {
+        fewest = misfits;
+        best = v;
+      }
+    }
+    if (clean === null) return best;
+    if (forced) this.screen = clean;
+    const screen2 = this.screen;
+    if (screen2 !== null && screen2 < clean) {
+      const k = Math.round(cadence / screen2);
+      if (Math.abs(cadence / k / screen2 - 1) < 0.05) return cadence / k;
+    }
+    return clean;
+  }
+};
+
 // src/run.ts
 var INIT_BUDGET_MS = 500;
 var CALLBACK_BUDGET_MS = 250;
@@ -6790,7 +7596,11 @@ var Runtime = class _Runtime {
   suspended = false;
   /** mb_suspend was called and mb_resume is owed (live sessions only). */
   guestSuspended = false;
-  last = null;
+  /** Live frames' dt: whole display frames, not the timestamps' wobble (pace.ts). */
+  pacer = new Pacer(MAX_DT * 1e3);
+  /** The paced time of the frame being run (ms, rAF clock), where its game time is heard
+   *  (audio) and its events are timed; null outside a live display frame. */
+  frameAt = null;
   /** Previous displayed frame's timestamp, for mb3d's adaptive render scale. */
   lastShown = null;
   /** Frames this session has run: one per mb_update. */
@@ -6924,7 +7734,7 @@ var Runtime = class _Runtime {
       this.session.audio.setMuted(false);
     }
     this.suspended = false;
-    this.last = null;
+    this.pacer.reset();
     this.lastShown = null;
     this.input.take();
     this.session.audio.resume();
@@ -6945,6 +7755,10 @@ var Runtime = class _Runtime {
   tick(now) {
     if (!this.running || this.suspended || this.stopped) return;
     this.lastTick = performance.now();
+    if (this.source.kind !== "replay" && this.pacer.tooSoon(now)) {
+      this.raf = requestAnimationFrame((t) => this.tick(t));
+      return;
+    }
     this.frameInterval = this.lastShown !== null ? now - this.lastShown : null;
     if (this.frameInterval !== null) {
       host_frame_time(this.frameInterval);
@@ -6956,14 +7770,12 @@ var Runtime = class _Runtime {
     if (this.source.kind === "replay") {
       this.replayTick();
     } else {
-      const raw = this.last === null ? 1 / 60 : Math.max((now - this.last) / 1e3, 0);
-      this.last = now;
-      const scaled = raw * _Runtime.timeScale;
-      const dt = Math.fround(Math.min(scaled, MAX_DT));
-      const lost = scaled > MAX_DT ? Math.fround(scaled - dt) : 0;
-      this.liveFrame(dt, { now, dt, scale: _Runtime.timeScale }, lost);
+      const { dt, lost, at } = liveFrameTime(this.pacer, now, _Runtime.timeScale, MAX_DT);
+      this.frameAt = at;
+      this.liveFrame(dt, { now: at, dt, scale: _Runtime.timeScale }, lost);
     }
     this.frameNow = null;
+    this.frameAt = null;
     this.frameInterval = null;
     if (++this.ticks % HEARTBEAT_EVERY === 0) {
       post({ op: "heartbeat", frame: this.ticks, time: this.session.gameTime - this.origin.time, worst: Math.round(this.beatWorst), dropped: this.beatDropped });
@@ -7097,6 +7909,24 @@ var Runtime = class _Runtime {
     });
     return p;
   }
+  /** Headless (`mb play --check readability`): has the guest draw the frame
+   *  just run again with the debug parameter `studio_isolate` set to
+   *  `variant` (Studio engine 2.0 then leaves out the HUD, or draws its
+   *  subject alone), between `host_variant_begin` and `host_variant_end`,
+   *  and `capture` what it drew. The frame as it was, its draw hash
+   *  included, is put back after, so the run goes on as it would have. */
+  async renderVariant(variant, capture) {
+    const params = this.session.params;
+    params.set("studio_isolate", variant);
+    host_variant_begin();
+    try {
+      this.timed("mb_render", () => this.guest.mb_render());
+      return await capture();
+    } finally {
+      host_variant_end();
+      params.delete("studio_isolate");
+    }
+  }
   /** The sensor readings that differ from what the guest saw last frame. */
   sampleSensors() {
     const s = this.sensors;
@@ -7145,7 +7975,7 @@ var Runtime = class _Runtime {
     this.session.beginFrame(dt, events, sensors, lost);
     if (sensors?.screen) host_set_logical(this.session.screen[0], this.session.screen[1]);
     host_step(dt);
-    this.session.audio.frame(this.frameNow ?? performance.now(), this.session.gameTime, this.source.kind === "live" ? _Runtime.timeScale : 1);
+    this.session.audio.frame(this.frameAt ?? this.frameNow ?? performance.now(), this.session.gameTime, this.source.kind === "live" ? _Runtime.timeScale : 1);
     const update = this.timed("mb_update", () => this.guest.mb_update(dt));
     if (this.stopped) return null;
     this.frames++;
@@ -7180,6 +8010,7 @@ var Runtime = class _Runtime {
       stat.top = JSON.parse(host_top_draws(TOP_OVER));
     }
     this.stats.push(stat);
+    if (this.source.kind === "live") this.stats.perf.add(stat, () => kept ? drawn : JSON.parse(host_stats()));
     return stat;
   }
   /** Runs a guest callback under the watchdogs; returns how long it took (ms). */
@@ -7342,7 +8173,10 @@ var Runtime = class _Runtime {
    *  guest traps or runs out of fuel. On another build the log may name
    *  assets this one never asked for: those are skipped and counted
    *  (`missingAssets`), as watch mode's restore does, and the run goes on. */
-  async replayAll(onFrame) {
+  /** Runs the whole log. `onFrame` hears each frame's number before it runs;
+   *  `afterFrame` runs (and is awaited) after it, for the headless runner's
+   *  captures. */
+  async replayAll(onFrame, afterFrame) {
     if (this.source.kind !== "replay") throw new Error("replayAll needs a replay session");
     this.presenting = false;
     const frames = this.source.log.frames;
@@ -7353,6 +8187,7 @@ var Runtime = class _Runtime {
       this.cursor++;
       onFrame?.(this.frames + 1);
       this.step(f.dt, f.events ?? [], f, f.calls, f.lost);
+      if (afterFrame) await afterFrame(this.frames);
     }
     return { ...this.brief(), missingAssets };
   }
@@ -7402,7 +8237,7 @@ async function createSession(page2, source, seedOverride, from, paramsOverride) 
   const locale = log2?.locale ?? boot.locale;
   const screen2 = new Float32Array(log2 ? log2.screen : page2.screen);
   host_new_session();
-  host_set_stdlib(boot.manifest.stdlib.mb3d ?? 0);
+  host_set_stdlib(boot.manifest.stdlib.mb3d ?? 0, boot.manifest.stdlib.mb2d ?? 0);
   host_set_logical(screen2[0], screen2[1]);
   page2.audio.newSession();
   const session = new Session(page2.audio, seed, dailySeed, hexBytes(playerId), locale, screen2, page2.gameBase, store, page2.assets);
@@ -7971,6 +8806,7 @@ async function main() {
   let { layout, screen: screen2 } = fit(canvas, m, view);
   const host = await __wbg_init({ module_or_path: new URL("mb_host_bg.wasm", import.meta.url) });
   await bootGpu(() => host_init(canvas, screen2[0], screen2[1]));
+  if ((m.stdlib.mb3d ?? 0) > 0) present(host_prewarm_3d);
   const gameBase = boot.gameBase ?? "../game/";
   const module = await WebAssembly.compile(await (await fetch(`${gameBase}game.wasm`)).arrayBuffer());
   const input = new Input(canvas, () => layout, m.inputs.includes("touch"), m.inputs.includes("mouse"));
@@ -8157,7 +8993,7 @@ async function main() {
     if (next.session.round === 1) next.session.play?.start();
     if (hold) next.startHeld();
     else next.start();
-    post({ op: "restarted", replay: false, resumed: { frames: r.frames, of: r.of, missingAssets: r.missingAssets } });
+    post({ op: "restarted", replay: false, resumed: { frames: r.frames, of: r.of, missingAssets: r.missingAssets, round: next.session.round } });
   };
   const restore2 = async (saved, progress) => {
     endSeek();
@@ -8228,7 +9064,6 @@ async function main() {
           location.reload();
         }
       } : {},
-      ...hasNative && boot.debugReport === true ? { report: () => post({ op: "debug-report" }) } : {},
       taint: () => {
         page2.debugOn = true;
         rt.markDebug();
@@ -8363,6 +9198,8 @@ async function main() {
       const loading = rt.session.assets.loading();
       return { ...JSON.parse(host_stats()), top, budgets: BUDGETS, cpu, loading, ...page2.stats.report(opts) };
     },
+    // What play on this device cost since the last read (the app's Studio device report, docs/STUDIO-2.md §8.3).
+    perf: (opts) => page2.stats.perf.report(opts),
     track: (node = 0) => host_track(node >>> 0),
     screenshot: async (name = `shot-${rt.brief().frames}`) => {
       present(host_redraw);

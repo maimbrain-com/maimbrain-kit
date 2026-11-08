@@ -1,0 +1,6 @@
+pixel = true
+frame = [96, 96]
+
+[anims]
+shut = { frames = "1" }
+open = { frames = "2" }

@@ -1,0 +1,26 @@
+# The Rust UI Gallery's ENDING page (games/gallery, page 13) rebuilt from
+# the Studio 2.0 API (docs/STUDIO-2.md §9.5, Phase 4 acceptance): a ~20 s
+# epilogue as a cutscene over a real 3D arena at dusk. Letterbox, a fade
+# in, camera shots (wide, on Granny, on Rocko, the sunset, a crane up for
+# the credits), the beaten champion's line, her mech falling on a cue,
+# Rocko's two lines, ONE YEAR LATER, a closing line, credits with the cast,
+# a fade out. Its portraits are the gallery's own; its lines are subtitles
+# (no recordings, as in the Rust page).
+title = "Last Round"
+tagline = "the champion falls"
+engine = "2.0"
+kind = "3d"
+orientation = "portrait"
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.gallery-ending"
+version = "0.1.0"
+creator = "@maimbrain"
+
+# The gallery's default theme: the first of Theme::identities().
+[identity]
+name = "riso"
+body_font = "work-sans"    # the gallery draws riso's boxes in a sans (Inter); riso's Space Mono overflows them
+
+[remix]
+allowed = true

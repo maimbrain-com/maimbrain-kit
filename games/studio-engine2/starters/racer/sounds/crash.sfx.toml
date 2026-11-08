@@ -1,0 +1,8 @@
+# The crash: a long noisy boom (a stand-in).
+wave = "noise"
+freq = 300
+freq_end = 40
+duration = 0.6
+attack = 0.005
+decay = 0.6
+volume = 0.8

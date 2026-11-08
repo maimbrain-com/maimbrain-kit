@@ -408,3 +408,96 @@ fn collision_groups_filter() {
     assert!(w.position(ghost).y > 640.0, "ghost fell through the ground");
     assert!((w.position(lander).y - 590.0).abs() < 2.0, "lander landed: {:?}", w.position(lander));
 }
+
+/// Ground (top at y = 600), a one-way ledge (top at y = 500, x 100–260)
+/// and a wall at x = 330.
+fn platforms(w: &mut World) {
+    ground(w);
+    w.add(Body::fixed(180.0, 505.0), Shape::rect(160.0, 10.0).one_way());
+    w.add(Body::fixed(340.0, 400.0), Shape::rect(20.0, 400.0));
+}
+
+#[test]
+fn a_2d_character_jumps_up_through_a_one_way_ledge_lands_on_it_and_drops_through() {
+    let mut w = World::new();
+    platforms(&mut w);
+    let mut c = Character::new(&mut w, vec2(180.0, 570.0), Shape::rect(20.0, 40.0), CharacterSettings::default(), 0);
+    let mut v = Vec2::ZERO;
+    let step = |w: &mut World, c: &mut Character, v: &mut Vec2, jump: bool, drop: bool| {
+        if jump && c.on_floor() {
+            v.y = -700.0;
+        }
+        v.y += 1800.0 * DT;
+        *v = c.move_and_slide(w, *v, DT, drop);
+        w.step(DT);
+    };
+    for _ in 0..30 {
+        step(&mut w, &mut c, &mut v, false, false);
+    }
+    assert!(c.on_floor() && (c.position().y - 580.0).abs() < 1.5, "on the ground: {:?}", c.position());
+    // Up through the ledge from below, and down onto it.
+    step(&mut w, &mut c, &mut v, true, false);
+    for _ in 0..60 {
+        step(&mut w, &mut c, &mut v, false, false);
+    }
+    assert!(c.on_floor() && (c.position().y - 480.0).abs() < 1.5, "on the ledge: {:?}", c.position());
+    // Down through it.
+    for _ in 0..40 {
+        step(&mut w, &mut c, &mut v, false, true);
+    }
+    assert!(c.on_floor() && (c.position().y - 580.0).abs() < 1.5, "back on the ground: {:?}", c.position());
+    // Walks into the wall and stops; the wall takes its velocity.
+    for _ in 0..90 {
+        v.x = 200.0;
+        step(&mut w, &mut c, &mut v, false, false);
+    }
+    assert!((c.position().x - (330.0 - 10.0)).abs() < 1.5 && c.on_wall(), "at the wall: {:?}", c.position());
+    assert!(v.x.abs() < 1e-3);
+}
+
+
+#[test]
+fn floor_stop_on_slope_off_lets_a_2d_character_slide_down_a_gentle_slope() {
+    for stop in [true, false] {
+        let mut w = World::new();
+        // A 25° slope (pixels, +y down), rising to the right.
+        w.add(Body::fixed(200.0, 400.0), Shape::rect(400.0, 20.0).rotated(-25f32.to_radians()));
+        let s = CharacterSettings { floor_stop_on_slope: stop, ..CharacterSettings::default() };
+        let mut c = Character::new(&mut w, vec2(200.0, 340.0), Shape::rect(20.0, 40.0), s, 0);
+        let mut v = Vec2::ZERO;
+        for _ in 0..30 {
+            v.y += 1800.0 * DT;
+            v = c.move_and_slide(&mut w, v, DT, false);
+        }
+        let x0 = c.position().x;
+        for _ in 0..60 {
+            v.x = 0.0;
+            v.y += 1800.0 * DT;
+            v = c.move_and_slide(&mut w, v, DT, false);
+        }
+        let moved = x0 - c.position().x;
+        assert!(c.on_floor());
+        if stop {
+            assert!(moved.abs() < 1.0, "stops on the slope: moved {moved}");
+        } else {
+            assert!(moved > 10.0, "slides down it: moved {moved}");
+        }
+    }
+}
+
+/// A platform's character that went leaves nothing behind in its world.
+#[test]
+fn a_removed_2d_character_leaves_nothing_in_the_way() {
+    let mut w = World::new();
+    ground(&mut w);
+    let a = Character::new(&mut w, vec2(180.0, 570.0), Shape::rect(20.0, 40.0), CharacterSettings::default(), 0);
+    a.remove(&mut w);
+    let mut b = Character::new(&mut w, vec2(120.0, 570.0), Shape::rect(20.0, 40.0), CharacterSettings::default(), 0);
+    let mut v = Vec2::ZERO;
+    for _ in 0..60 {
+        v.x = 200.0;
+        v.y += 1800.0 * DT;
+        v = b.move_and_slide(&mut w, v, DT, false);
+    }
+    assert!(b.position().x > 300.0, "walked through where the first was: {:?}", b.position());
+}

@@ -17,7 +17,7 @@ use super::color::{fade, lighten, with_alpha};
 use super::icon::Icon;
 use super::layout::{Layout, Rect};
 use super::shape::{disc, sparkle};
-use super::text::{VAlign, fmt_int, text};
+use super::text::{VAlign, fmt_int, metrics, text};
 use super::theme::Theme;
 use super::widgets::{Button, ButtonKind, Tap, ribbon};
 use crate::gfx2d;
@@ -566,14 +566,19 @@ impl ResultsCard {
             }
         }
         let cx = p.cx();
-        // Heading straddling the panel's top edge.
+        // Heading straddling the panel's top edge, fitted across the panel
+        // (a game's own heading can be long: "PUSHIN' UP DAISIES"); two
+        // lines straddle it together.
         let hsize = th.fit(th.title_font, 38.0);
         let head_y = if panel { p.y } else { p.y + 10.0 };
         let heading = th.case(&self.heading);
-        let ht = super::layouts::styled(th, &heading, th.title_font, hsize, th.text);
+        let ht = super::layouts::fit_heading(super::layouts::styled(th, &heading, th.title_font, hsize, th.text), p.w - 16.0);
         let ht = if panel || th.style.outlined { ht.outline(th.outline_em.max(0.04), th.outline) } else { ht };
-        ht.alpha(a).middle().draw(cx, head_y);
-        let mut y = head_y + hsize * 0.9;
+        let below = (ht.lines().len().max(1) - 1) as f32 * metrics(th.title_font).line * ht.fitted_size();
+        ht.alpha(a).middle().draw(cx, head_y - below / 2.0);
+        // The label under it (under the second line: a bit more, as
+        // shrunk letters sit closer).
+        let mut y = head_y + if below > 0.0 { below / 2.0 + ht.fitted_size() * 0.9 + 8.0 } else { hsize * 0.9 };
         if !self.label.is_empty() {
             let ls = th.fit(th.body_font, 15.0);
             let l = text(&self.label).font(th.body_font).size(ls).color(th.text_dim).tracking(0.12);
@@ -785,8 +790,13 @@ impl Countdown {
         let s = 1.6 - 0.6 * Ease::BackOut.at((phase * 3.0).min(1.0));
         let a = if phase > 0.75 { 1.0 - (phase - 0.75) / 0.25 } else { 1.0 };
         let (cx, cy) = (layout.screen.cx(), layout.screen.cy());
-        disc(cx, cy, 70.0, with_alpha(theme.outline, 0.35 * a));
-        super::widgets::ring_meter(cx, cy, 70.0, 6.0, if n == 0 { 1.0 } else { 1.0 - phase }, fade(theme.accent, a), fade(with_alpha(theme.text, 0.15), a));
+        // A face in the identity's panel colour, so the number reads over
+        // anything, ringed in its style (stepped for pixel, glowing for neon).
+        disc(cx, cy, 70.0, fade(with_alpha(theme.panel_bottom, 0.9), a));
+        gfx2d::push();
+        gfx2d::translate(cx, cy);
+        super::widget::ring_in(theme, 74.0, if n == 0 { 1.0 } else { 1.0 - phase }, theme.accent, a);
+        gfx2d::pop();
         gfx2d::push();
         gfx2d::translate(cx, cy);
         gfx2d::scale(s, s);

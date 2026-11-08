@@ -1,0 +1,10 @@
+[package]
+name = "mb-shader"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+description = "Shader materials' checks (docs/STUDIO-2.md §4.15, Decided 49–51): naga validation, the loop cap as text, the static cost. Shared by mb-host (the app) and mb (write_files, mb build)"
+
+[dependencies]
+# The same naga as wgpu's (mb-host's dev-dependency); its WGSL front end and validator only.
+naga = { version = "30", features = ["wgsl-in"] }

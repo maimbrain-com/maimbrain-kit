@@ -1,0 +1,5 @@
+behaviour = "hazard"
+hitbox = [2, 2, 12, 9]
+
+[anims]
+idle = { frames = [1, 2], fps = 12 }

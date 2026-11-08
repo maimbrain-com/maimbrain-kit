@@ -1,0 +1,11 @@
+# The cat: drag it left and right (arrows, A/D, the d-pad or the stick too).
+behaviour = "player.drag"
+hitbox = [2, 4, 12, 10]
+
+[anims]
+idle = { frames = [1] }
+chomp = { frames = [2] }
+
+[knobs]
+speed = 140
+y = 0        # moves left and right only

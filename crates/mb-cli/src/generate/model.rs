@@ -687,7 +687,7 @@ fn add_rig(a: &ModelArgs, job: &mut ModelJob, sc: &mut Sidecar, raw: &mut Raw) -
         if a.rig_task.is_some() {
             job.rig = true;
             job.rig_type = Some(ty.clone());
-            add_tasks(sc, &[(format!("rig ({ty})"), id)], &["adopted the rig task with --rig-task".to_string()], 0.0, account);
+            add_tasks(sc, &[(format!("rig ({ty})"), id)], &[], &["adopted the rig task with --rig-task".to_string()], 0.0, account);
         }
         return Ok(true);
     }
@@ -769,14 +769,14 @@ fn add_rig(a: &ModelArgs, job: &mut ModelJob, sc: &mut Sidecar, raw: &mut Raw) -
     if provider_name != job.provider && job.provider == "import" {
         job.provider = provider_name;
     }
-    add_tasks(sc, &tasks, &out.notes, out.cost_usd.unwrap_or(0.0), prov.via());
+    add_tasks(sc, &tasks, &out.seconds, &out.notes, out.cost_usd.unwrap_or(0.0), prov.via());
     Ok(true)
 }
 
 /// Adds a rig's tasks, notes and cost to a sidecar about to be reprocessed.
-fn add_tasks(sc: &mut Sidecar, tasks: &[(String, String)], notes: &[String], cost: f64, via: Option<&str>) {
+fn add_tasks(sc: &mut Sidecar, tasks: &[(String, String)], seconds: &[(String, f64)], notes: &[String], cost: f64, via: Option<&str>) {
     let mut all = sc.result["tasks"].as_array().cloned().unwrap_or_default();
-    all.extend(tasks.iter().map(|(s, id)| task_json(s, id, via)));
+    all.extend(tasks.iter().map(|(s, id)| task_json(s, id, via, seconds_of(seconds, id))));
     sc.result["tasks"] = json!(all);
     let mut n = sc.result["notes"].as_array().cloned().unwrap_or_default();
     n.extend(notes.iter().map(|s| json!(s)));
@@ -785,13 +785,23 @@ fn add_tasks(sc: &mut Sidecar, tasks: &[(String, String)], notes: &[String], cos
 }
 
 /// A provider task for the sidecar's `result.tasks`, with `"via": "maimbrain"`
-/// when it ran on Maimbrain's keys (so on Maimbrain's Tripo account).
-fn task_json(step: &str, id: &str, via: Option<&str>) -> Value {
+/// when it ran on Maimbrain's keys (so on Maimbrain's Tripo account), and
+/// `seconds`, how long it took from its start to its result, when mb waited
+/// for it.
+fn task_json(step: &str, id: &str, via: Option<&str>, seconds: Option<f64>) -> Value {
     let mut t = json!({ "step": step, "id": id });
     if let Some(v) = via {
         t["via"] = json!(v);
     }
+    if let Some(s) = seconds {
+        t["seconds"] = json!(s);
+    }
     t
+}
+
+/// How long task `id` took, if mb waited for it.
+fn seconds_of(seconds: &[(String, f64)], id: &str) -> Option<f64> {
+    seconds.iter().find(|(t, _)| t == id).map(|(_, s)| *s)
 }
 
 /// Whose keys ran the task `id` in a sidecar's `result.tasks` ("maimbrain", or None: yours).
@@ -1212,6 +1222,7 @@ pub fn execute(game: &Path, job: &ModelJob, variants: u32, dry_run: bool, limit:
     if !game.is_dir() {
         return Err(format!("{} isn't a directory (pass the game directory first)", game.display()));
     }
+    super::maimbrain::making(game, &job.name);
     let (style, style_sha) = if job.no_style { (Style::default(), None) } else { Style::load(game)? };
     let style_ref = style_sha.map(|s| FileRef { path: "art/style.toml".into(), sha256: s });
     let verdict = super::ip::check(&[&job.subject, &style.style, &style.keywords.join(" "), &style.kind("3d").prompt, &style.kind("3d_object").prompt], &job.allow_names);
@@ -1293,7 +1304,7 @@ pub fn execute(game: &Path, job: &ModelJob, variants: u32, dry_run: bool, limit:
                     eprintln!("  warning: the model came back without a rig");
                 }
                 let raw = Raw { glb: out.glb, clips: out.clips };
-                let tasks = out.tasks.iter().map(|(s, id)| task_json(s, id, prov.via())).collect();
+                let tasks = out.tasks.iter().map(|(s, id)| task_json(s, id, prov.via(), seconds_of(&out.seconds, id))).collect();
                 outs.push((seed, raw, out.cost_usd, out.text, out.notes, tasks, prov.via().map(str::to_string)));
             }
             (outs, image.map(|i| vec![i.1]).unwrap_or_default())
@@ -1544,7 +1555,7 @@ mod tests {
 
     #[test]
     fn tasks_record_whose_keys_ran_them() {
-        let result = json!({ "tasks": [task_json("text-to-model", "task_gen", None), task_json("rig (biped)", "task_rig", Some("maimbrain"))] });
+        let result = json!({ "tasks": [task_json("text-to-model", "task_gen", None, None), task_json("rig (biped)", "task_rig", Some("maimbrain"), None)] });
         assert_eq!(result["tasks"][0], json!({ "step": "text-to-model", "id": "task_gen" }), "yours: no via, as before");
         assert_eq!((task_via(&result, "task_gen"), task_via(&result, "task_rig")), (None, Some("maimbrain")));
         assert_eq!(rig_task_of(&result), Some(("task_rig".to_string(), "biped".to_string())));

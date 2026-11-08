@@ -40,9 +40,18 @@ const A: Requires = Requires::Always;
 const MB2D: Requires = Requires::Stdlib("mb2d", 1);
 /// Added in mb2d 2: game fonts (SPEC §5.3).
 const MB2D2: Requires = Requires::Stdlib("mb2d", 2);
+const MB2D3: Requires = Requires::Stdlib("mb2d", 3);
+/// Added in mb2d 4: games' sprite shaders (docs/STUDIO-2.md §4.15).
+const MB2D4: Requires = Requires::Stdlib("mb2d", 4);
 const MB3D: Requires = Requires::Stdlib("mb3d", 1);
 /// Added in mb3d 2: skinned and animated glTF, instancing, freeing resources, fog, toon and outlines, 3D text, depth of field, speed effects, reflections, sky v2, ripples and wakes, the beauty pass.
 const MB3D2: Requires = Requires::Stdlib("mb3d", 2);
+/// Added in mb3d 3: the frame's node transforms in one call (Studio engine 2.0's 3D build).
+const MB3D3: Requires = Requires::Stdlib("mb3d", 3);
+/// Added in mb3d 4: a material's ground surfaces, photographs blended per pixel by height and slope (Studio engine 2.0's `Terrain`).
+const MB3D4: Requires = Requires::Stdlib("mb3d", 4);
+/// Added in mb3d 5: games' shader materials (WGSL, checked; docs/STUDIO-2.md §4.15).
+const MB3D5: Requires = Requires::Stdlib("mb3d", 5);
 
 pub const IMPORTS: &[Import] = &[
     // 5.1 sys
@@ -87,6 +96,11 @@ pub const IMPORTS: &[Import] = &[
     // 5.3 mb2d 2: game fonts
     f("mb2d_font_load", &[I32], &[I32], MB2D2),
     f("mb2d_font_metrics", &[I32, I32], &[I32], MB2D2),
+    // 5.3 mb2d 3: an image sampled nearest (pixel art at any scale)
+    f("mb2d_image_filter", &[I32, I32], &[I32], MB2D3),
+    // 5.3 mb2d 4: sprite shaders
+    f("mb2d_shader", &[I32, I32], &[I32], MB2D4),
+    f("mb2d_shader_use", &[I32, I32], &[I32], MB2D4),
     // 5.4 mb3d: resources
     f("mb3d_mesh", &[I32, I32], &[I32], MB3D),
     f("mb3d_texture", &[I32], &[I32], MB3D),
@@ -166,6 +180,13 @@ pub const IMPORTS: &[Import] = &[
     f("mb3d_anim_mask", &[I32, I32, F32, F32, I32, I32], &[I32], MB3D2),
     f("mb3d_anim_take", &[I32, I32], &[I32], MB3D2),
     f("mb3d_node_get_parent", &[I32], &[I32], MB3D2),
+    // 5.4 mb3d 3: node transforms, batched
+    f("mb3d_node_transforms", &[I32, I32], &[I32], MB3D3),
+    // 5.4 mb3d 4: ground surfaces
+    f("mb3d_material_surfaces", &[I32, I32, I32], &[I32], MB3D4),
+    // 5.4 mb3d 5: shader materials
+    f("mb3d_shader", &[I32, I32], &[I32], MB3D5),
+    f("mb3d_material_shader", &[I32, I32, I32], &[I32], MB3D5),
 
 
 

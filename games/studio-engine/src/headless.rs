@@ -19,9 +19,11 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 
 use maimbrain::debug::{Item, Pick};
+use maimbrain::motion::Ease;
 use maimbrain::sys::{self, Level};
 
 use crate::project::TILE;
+use crate::vm::{Align, TEXT_EM, TEXT_LINE, text_width};
 use crate::{Studio, logical_size};
 
 #[derive(Default)]
@@ -70,7 +72,7 @@ impl Studio {
 
     fn pick_by_label(&mut self, spec: &str) {
         let Some(p) = self.project.clone() else { return };
-        let menu = self.debug.menu(&p, &self.menu, None);
+        let menu = self.debug.menu(&p, &self.menu, None, false);
         for part in spec.split(';').map(str::trim).filter(|s| !s.is_empty()) {
             let (label, value) = match part.rsplit_once('=') {
                 Some((l, v)) => (l.trim(), v.trim()),
@@ -105,6 +107,10 @@ impl Studio {
             j.push('}');
             return j;
         };
+        if p.kind == crate::project::Kind::ThreeD {
+            self.dump_3d(&p, &mut j);
+            return j;
+        }
         let card = self.card_mode(&p);
         let (w, h) = if card { (p.canvas.1.min(p.canvas.0), p.canvas.0.max(p.canvas.1)) } else { p.canvas };
         let mode = if card {
@@ -135,7 +141,10 @@ impl Studio {
             quote(&mut j, e);
         }
         // The draw list: ["rect", x, y, w, h, rgba] | ["circle", cx, cy, r, rgba]
-        // | ["img", path, sx, sy, sw, sh, x, y, w, h, flip] (s* in the PNG's pixels).
+        // | ["img", path, sx, sy, sw, sh, x, y, w, h, flip] (s* in the PNG's pixels)
+        // | ["text", x, y, size, rgba, centred, outline, s] (the pixel font, `size`
+        // its em; the top-left of its first line, or its middle if centred;
+        // `outline` 0 for none).
         let mut d: Vec<String> = Vec::new();
         let rect = |d: &mut Vec<String>, x: f32, y: f32, w: f32, h: f32, c: u32| d.push(format!("[\"rect\",{x},{y},{w},{h},{c}]"));
         let img = |d: &mut Vec<String>, path: &str, src: [f32; 4], dst: [f32; 4], flip: bool| {
@@ -217,6 +226,44 @@ impl Studio {
                 }
             }
         }
+        // Then the text, over everything, as the device draws it after the
+        // canvas: popups (rising and fading; Inter Bold on the device, the
+        // pixel font here), then text() in the pixel font at its size
+        // (vm::TEXT_EM px an em, times its scale), as lib.rs lays it out.
+        if let Some((v, _)) = live.filter(|_| !card) {
+            let (ox, oy, s) = self.transform(&p);
+            let text = |d: &mut Vec<String>, x: f32, y: f32, size: f32, c: u32, centred: bool, outline: u32, t: &str| {
+                let mut e = format!("[\"text\",{x},{y},{size},{c},{},{outline},", centred as u8);
+                quote(&mut e, t);
+                e.push(']');
+                d.push(e);
+            };
+            for pu in &self.feel.popups.list {
+                let t = pu.age / pu.life;
+                let pop = Ease::BackOut.at((pu.age / 0.22).min(1.0)).max(0.01);
+                let y = pu.y - pu.rise * Ease::ExpoOut.at(t);
+                let a = if t > 0.6 { 1.0 - (t - 0.6) / 0.4 } else { 1.0 };
+                let alpha = |c: u32| (c & 0xffff_ff00) | ((c & 0xff) as f32 * a).round() as u32;
+                text(&mut d, (pu.x - ox) / s, (y - oy) / s, pu.size * pop / s, alpha(pu.color), true, alpha(0x1a0f2eff), &pu.text);
+            }
+            // One entry a line, at its own size in canvas pixels, from its left end.
+            for t in &v.out.borrow().texts {
+                let size = (TEXT_EM * t.scale as f64) as f32;
+                for (i, l) in t.lines.iter().enumerate() {
+                    let w = text_width(l, t.scale) as f32;
+                    let x = t.x - match t.align {
+                        Align::Left => 0.0,
+                        Align::Center => w / 2.0,
+                        Align::Right => w,
+                    };
+                    let y = t.y + i as f32 * (TEXT_LINE * t.scale as f64) as f32;
+                    if let Some(c) = t.shadow {
+                        text(&mut d, x + size / 8.0, y + size / 8.0, size, p.color(c), false, 0, l);
+                    }
+                    text(&mut d, x, y, size, p.color(t.color), false, 0, l);
+                }
+            }
+        }
         let _ = write!(j, ",\"draw\":[{}]", d.join(","));
         let things: Vec<String> = live
             .map(|(v, _)| v.things())
@@ -238,7 +285,7 @@ impl Studio {
                     .iter()
                     .map(|t| {
                         let mut s = String::new();
-                        quote(&mut s, &t.s);
+                        quote(&mut s, &t.lines.join(" "));
                         s
                     })
                     .collect()
@@ -246,5 +293,56 @@ impl Studio {
             .unwrap_or_default();
         let _ = write!(j, ",\"texts\":[{}]}}", texts.join(","));
         j
+    }
+}
+
+impl Studio {
+    /// The 3D view's frame for `mb play`: the round's state and the 2D the
+    /// game drew over its scene, in logical units. The scene itself needs a
+    /// GPU to draw, which the headless player hasn't (yet): its frame shows
+    /// the HUD on a plain background, and `scene` says how much is in it.
+    fn dump_3d(&self, p: &crate::project::Project, j: &mut String) {
+        let mode = match self.rounds.stage() {
+            maimbrain::rounds::Stage::Title => "title",
+            maimbrain::rounds::Stage::Over => "over",
+            _ => "play",
+        };
+        let (w, h) = logical_size(p.orientation);
+        let _ = write!(j, ",\"mode\":\"{mode}\",\"w\":{w},\"h\":{h},\"logical\":[{w},{h}],\"camera\":[0,0],\"view\":\"3d\"");
+        let live = match self.rounds.stage() {
+            maimbrain::rounds::Stage::Title => self.title.as_ref(),
+            _ => self.round.as_ref(),
+        };
+        if let Some(v) = live.filter(|_| mode != "title") {
+            let _ = write!(j, ",\"score\":{},\"lives\":{}", v.number("score"), v.number("lives"));
+        }
+        if let Some(e) = &self.error {
+            j.push_str(",\"error\":");
+            quote(j, e);
+        }
+        #[cfg_attr(not(feature = "3d"), allow(unused_mut))]
+        let mut d: Vec<String> = vec![format!("[\"rect\",0,0,{w},{h},{}]", 0x0b0d1fffu32)];
+        #[cfg(feature = "3d")]
+        if let Some(sc) = live.and_then(|v| v.scene.as_ref()) {
+            let sc = sc.borrow();
+            let (nodes, meshes, materials) = sc.counts();
+            let _ = write!(j, ",\"scene\":{{\"nodes\":{nodes},\"meshes\":{meshes},\"materials\":{materials}}}");
+            for item in &sc.hud {
+                match item {
+                    crate::scene::Hud::Text { s, x, y, size, color, align, .. } => {
+                        // Right-aligned text ends at x on the phone: here it's
+                        // written from its left end, at the pixel font's width
+                        // (TEXT_ADVANCE an em of TEXT_EM, times its size).
+                        let x = if *align == 1 { x - (text_width(s, 1) / TEXT_EM) as f32 * size } else { *x };
+                        let mut t = format!("[\"text\",{x},{y},{size},{color},{},0,", (*align == 0) as u8);
+                        quote(&mut t, s);
+                        t.push(']');
+                        d.push(t);
+                    }
+                    crate::scene::Hud::Rect { x, y, w, h, color } => d.push(format!("[\"rect\",{x},{y},{w},{h},{color}]")),
+                }
+            }
+        }
+        let _ = write!(j, ",\"draw\":[{}],\"things\":[]}}", d.join(","));
     }
 }

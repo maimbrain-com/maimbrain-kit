@@ -1,0 +1,9 @@
+# The combo going up: a quick rising arpeggio.
+wave = "square"
+duty = 0.25
+freq = 520
+duration = 0.15
+decay = 0.08
+arp = [0, 4, 7]
+arp_speed = 0.04
+volume = 0.6

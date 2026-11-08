@@ -56,6 +56,20 @@ struct State {
     drawn: Vec<u64>,
     /// The debug menu the game last declared (`debug::show`).
     debug_menu: Option<crate::debug::Menu>,
+    /// The sensors' readings ([`Host::sense`]): what `sensors::tilt()` and
+    /// the rest read until changed. None (the default) is "no sample yet".
+    sensors: Sensed,
+}
+
+/// Sensor readings a test hands the game (SPEC §5.7), as the replay log's
+/// frames carry them: tilt and motion xyz in g, the attitude's quaternion
+/// xyzw and rotation rate xyz, loudness 0–1. None is unavailable.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Sensed {
+    pub tilt: Option<[f32; 3]>,
+    pub motion: Option<[f32; 3]>,
+    pub attitude: Option<[f32; 7]>,
+    pub loudness: Option<f32>,
 }
 
 thread_local! {
@@ -115,6 +129,7 @@ impl Host {
                 drawing: FNV,
                 drawn: Vec::new(),
                 debug_menu: None,
+                sensors: Sensed::default(),
             })
         });
         Host(())
@@ -122,6 +137,12 @@ impl Host {
 
     pub fn set_daily_seed(&self, seed: u64) {
         with(|s| s.daily = seed);
+    }
+
+    /// The sensors' readings from the next frame on (each read the same
+    /// within a frame, as on a phone), until changed again.
+    pub fn sense(&self, sensed: Sensed) {
+        with(|s| s.sensors = sensed);
     }
 
     /// A new session of the game, as the platform starts one: the clock back
@@ -152,6 +173,20 @@ impl Host {
         with(|s| s.due.clear());
         game.render();
         with(|s| s.drawn.push(s.drawing));
+    }
+
+    /// A frame nobody watches (a bot's rounds, docs/STUDIO-2.md §8.1): as
+    /// [`frame`](Host::frame) without `render()`, so [`drawn`](Host::drawn)
+    /// gets nothing for it.
+    pub fn update<G: crate::Game>(&self, game: &mut G, dt: f32) {
+        super::advance(dt);
+        let now = super::time();
+        with(|s| {
+            s.frame += 1;
+            s.due = s.queue.due(now);
+        });
+        game.update(dt);
+        with(|s| s.due.clear());
     }
 
     /// Frames of `dt` until `seconds` more of game time have passed.
@@ -199,6 +234,11 @@ impl Host {
     /// Everything the game asked for so far, in order.
     pub fn calls(&self) -> Vec<Call> {
         with(|s| s.calls.clone()).unwrap_or_default()
+    }
+
+    /// Everything the game asked for since the last time, which it forgets.
+    pub fn take_calls(&self) -> Vec<Call> {
+        with(|s| std::mem::take(&mut s.calls)).unwrap_or_default()
     }
 
     /// Forgets the recorded calls (saved data stays).
@@ -275,6 +315,36 @@ pub(crate) unsafe fn draw_bytes(tag: u32, ptr: *const u8, len: usize) {
             s.drawing = (s.drawing ^ *b as u64).wrapping_mul(0x100_0000_01b3);
         }
     });
+}
+
+/// `mb3d_node_transforms`: recorded as that many `mb3d_node_transform`
+/// calls, so batching doesn't change a frame's fingerprint.
+pub(crate) unsafe fn node_transforms(ptr: *const u8, count: u32) -> i32 {
+    for k in 0..count as usize {
+        let at = unsafe { ptr.add(k * 44) };
+        let node = u32::from_le_bytes(unsafe { std::slice::from_raw_parts(at, 4) }.try_into().unwrap());
+        unsafe { draw_bytes(20 ^ node, at.add(4), 40) };
+    }
+    0
+}
+
+/// `mb_tilt`, `mb_motion` and `mb_attitude`: the reading into `out`, 0;
+/// or −6 without one.
+pub(crate) unsafe fn sensor(out: *mut u8, pick: impl FnOnce(&Sensed) -> Option<Vec<f32>>) -> i32 {
+    match with(|s| pick(&s.sensors)).flatten() {
+        Some(v) => {
+            for (k, x) in v.iter().enumerate() {
+                unsafe { out.add(k * 4).cast::<f32>().write_unaligned(*x) };
+            }
+            0
+        }
+        None => -6,
+    }
+}
+
+/// `mb_loudness`: 0–1, or −1 without a reading.
+pub(crate) fn loudness() -> f32 {
+    with(|s| s.sensors.loudness).flatten().unwrap_or(-1.0)
 }
 
 pub(crate) fn debug_menu(menu: crate::debug::Menu) {

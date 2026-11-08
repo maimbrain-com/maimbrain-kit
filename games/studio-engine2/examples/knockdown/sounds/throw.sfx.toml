@@ -1,0 +1,8 @@
+# The ball leaving the hand: a quick whoosh.
+wave = "noise"
+freq = 1100
+freq_end = 320
+duration = 0.1
+attack = 0.03
+decay = 0.08
+volume = 0.3

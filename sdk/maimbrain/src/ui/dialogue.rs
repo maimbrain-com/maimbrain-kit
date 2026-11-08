@@ -321,6 +321,8 @@ struct Files {
     /// The line's script text, shown (typed out at 30 characters a second)
     /// when its timing doesn't load.
     fallback: Option<String>,
+    /// It has a recording that's still decoding ([`VoiceLine::expecting_sound`]).
+    expects: bool,
 }
 
 impl Files {
@@ -450,6 +452,7 @@ impl VoiceLine {
             failed: false,
             path: base.to_string(),
             fallback: None,
+            expects: false,
         };
         VoiceLine { files: Rc::new(RefCell::new(files)), vol: 1.0 }
     }
@@ -480,8 +483,44 @@ impl VoiceLine {
 
     /// A line from a sound and timing you already have.
     pub fn new(sound: Option<Sound>, lips: Lips) -> VoiceLine {
-        let files = Files { sound_asset: None, pack: None, lips_asset: None, sound, lips: Some(lips), failed: false, path: String::new(), fallback: None };
+        let files = Files { sound_asset: None, pack: None, lips_asset: None, sound, lips: Some(lips), failed: false, path: String::new(), fallback: None, expects: false };
         VoiceLine { files: Rc::new(RefCell::new(files)), vol: 1.0 }
+    }
+
+    /// Says a line made with [`VoiceLine::new`] has a recording that comes
+    /// later ([`VoiceLine::set_sound`]): it counts as spoken for its whole
+    /// length whether or not its sound has arrived, so how the line behaves
+    /// (when a tap moves it on, the ducking) never depends on decoding.
+    pub fn expecting_sound(self) -> VoiceLine {
+        self.files.borrow_mut().expects = true;
+        self
+    }
+
+    /// It has a recording, decoded or still coming.
+    pub fn expects_sound(&self) -> bool {
+        let f = self.files.borrow();
+        f.expects || f.sound.is_some()
+    }
+
+    /// A line started before its sound arrived: once the sound is here, it
+    /// plays from where the line is now (or from its start, if that's still
+    /// ahead), and the handle is kept, so a late decode loses only the words
+    /// already gone, never the line. Nothing about its timing changes.
+    pub fn catch_up(&self, p: &mut Playing, now: f64) {
+        if p.voice.is_some() || now >= p.start + p.dur as f64 {
+            return;
+        }
+        self.poll();
+        let Some(s) = self.files.borrow().sound else { return };
+        p.voice = Some(if now <= p.start { s.play_at(self.vol, 0.0, 1.0, p.start) } else { s.play_from(self.vol, 0.0, 1.0, now, now - p.start, 0.03) });
+    }
+
+    /// Gives a line made with [`VoiceLine::new`] its sound once it's
+    /// decoded (clones share it). A game that decodes its lines a little
+    /// ahead of use, to keep decoded audio small, hands each one over here;
+    /// the line's timing never depends on when that happens.
+    pub fn set_sound(&self, sound: Sound) {
+        self.files.borrow_mut().sound = Some(sound);
     }
 
     pub fn volume(mut self, vol: f32) -> VoiceLine {
@@ -518,10 +557,11 @@ impl VoiceLine {
     }
 
     /// Its voice: Some(true) heard, Some(false) none (a subtitle line, or
-    /// its `.ogg` failed), None still loading.
+    /// its `.ogg` failed), None still loading (or still to be given, a line
+    /// [`VoiceLine::expecting_sound`]).
     pub(crate) fn voiced(&self) -> Option<bool> {
         let f = self.files.borrow();
-        if f.sound.is_some() { Some(true) } else if f.sound_asset.is_some() { None } else { Some(false) }
+        if f.sound.is_some() { Some(true) } else if f.sound_asset.is_some() || f.expects { None } else { Some(false) }
     }
 
     /// The timing, once loaded.
@@ -582,6 +622,10 @@ pub struct Ducker {
     base: f32,
     on: bool,
     sent: Option<f32>,
+    /// It sets `Bus::Music`'s volume itself (the default). Off, it only
+    /// keeps [`Ducker::ducked`] and [`Ducker::gain`], for a game that mixes the
+    /// music bus from several sources and multiplies them.
+    pub to_bus: bool,
 }
 
 impl Default for Ducker {
@@ -592,7 +636,7 @@ impl Default for Ducker {
 
 impl Ducker {
     pub fn new(db: f32) -> Ducker {
-        Ducker { db, attack: 0.12, release: 0.6, base: 1.0, on: false, sent: None }
+        Ducker { db, attack: 0.12, release: 0.6, base: 1.0, on: false, sent: None, to_bus: true }
     }
 
     /// The game's own music level (0–4, 1 = as is), applied now with a short
@@ -629,7 +673,9 @@ impl Ducker {
     fn send(&mut self, ramp: f32) {
         let g = self.gain();
         if self.sent != Some(g) {
-            Bus::Music.volume(g, ramp);
+            if self.to_bus {
+                Bus::Music.volume(g, ramp);
+            }
             self.sent = Some(g);
         }
     }
@@ -701,6 +747,8 @@ pub struct Portrait {
     blink_row: Option<u32>,
     /// Drawn on the right of the dialogue box, mirrored to face in.
     pub right: bool,
+    /// Where the sheet's top left is in its image (an atlas page), in pixels.
+    pub origin: (f32, f32),
     /// Sheet pixels per art pixel ([`Portrait::art_pixels`]).
     pub density: f32,
     /// Nothing drawn outside the rect it's drawn in ([`Portrait::clipped`]).
@@ -746,6 +794,7 @@ impl Portrait {
             expressions: Vec::new(),
             blink_row: None,
             right: false,
+            origin: (0.0, 0.0),
             density: guess_density(cell_w, cell_h),
             clip: false,
             seed,
@@ -806,6 +855,12 @@ impl Portrait {
     /// The sheet row with the blink frames.
     pub fn blinks(mut self, row: u32) -> Portrait {
         self.blink_row = Some(row);
+        self
+    }
+
+    /// The sheet starts at `(x, y)` in its image: one packed into an atlas.
+    pub fn at(mut self, x: u32, y: u32) -> Portrait {
+        self.origin = (x as f32, y as f32);
         self
     }
 
@@ -906,7 +961,7 @@ impl Portrait {
         // Knocked and shaken, in whole units so the pixels stay put.
         let dst = Rect::new(home.x + (re.dx * w).round(), home.y + (re.dy * w).round(), w, h);
         let (col, row) = self.cell(expression, mouth, t);
-        let src = [col as f32 * self.cell_w, row as f32 * self.cell_h, self.cell_w, self.cell_h];
+        let src = [self.origin.0 + col as f32 * self.cell_w, self.origin.1 + row as f32 * self.cell_h, self.cell_w, self.cell_h];
         let grid = Grid { clip, ..Grid::over(dst) };
         let glitch = damage::glitch(&cond, &re, t, self.seed);
         let blit = |tint: u32| {
@@ -1014,11 +1069,14 @@ struct Said {
     cut_in: bool,
     /// A narration line: its id in [`Narration`].
     told: Option<u64>,
+    /// Stays until [`Dialogue::skip`] ([`Dialogue::say_held`]): a question
+    /// waiting for its answer. Taps only show its text.
+    hold: bool,
 }
 
 impl Said {
     fn new(speaker: &str, line: &VoiceLine, expression: &str) -> Said {
-        Said { speaker: speaker.to_string(), line: line.clone(), expression: expression.to_string(), queued: sys::time(), playing: None, shown: false, next: false, cut_in: false, told: None }
+        Said { speaker: speaker.to_string(), line: line.clone(), expression: expression.to_string(), queued: sys::time(), playing: None, shown: false, next: false, cut_in: false, told: None, hold: false }
     }
 
     fn told(t: Told) -> Said {
@@ -1047,7 +1105,14 @@ impl Said {
     }
 
     fn speaking(&self, now: f64) -> bool {
-        self.playing.is_some_and(|p| p.voice.is_some() && now < p.start + p.dur as f64)
+        self.playing.is_some_and(|p| (p.voice.is_some() || self.line.expects_sound()) && now < p.start + p.dur as f64)
+    }
+
+    /// Its sound arrived after it started: heard from where it is.
+    fn catch_up(&mut self, now: f64) {
+        if let Some(p) = &mut self.playing {
+            self.line.catch_up(p, now);
+        }
     }
 
     /// Not started yet, or its line (voice or subtitle) still running.
@@ -1074,7 +1139,8 @@ impl Said {
             speaker: self.speaker.clone(),
             expression: self.expression.clone(),
             mouth: self.elapsed(now).map_or(0, |t| self.line.mouth_at(t)),
-            complete: self.playing.is_some() && revealed >= n && !self.speaking(now),
+            // A held question is never "done, tap on": it waits for its answer.
+            complete: self.playing.is_some() && revealed >= n && !self.speaking(now) && !self.hold,
             revealed,
             text,
         }
@@ -1148,6 +1214,8 @@ pub struct Dialogue {
     voiced: Vec<(String, bool, bool)>,
     /// Speakers already warned about speaking without a voice.
     warned: Vec<String>,
+    /// Cutscene lines dismissed so far (moved on from, skipped or cleared).
+    done: u64,
 }
 
 impl Dialogue {
@@ -1173,13 +1241,22 @@ impl Dialogue {
             now: sys::time(),
             voiced: Vec::new(),
             warned: Vec::new(),
+            done: 0,
         }
     }
 
     /// Gives a speaker a portrait (speakers without one just get a name plate).
     pub fn cast(mut self, name: &str, portrait: Portrait) -> Dialogue {
-        self.cast.push((name.to_string(), portrait));
+        self.set_cast(name, portrait);
         self
+    }
+
+    /// Gives a speaker a portrait, or a new one (cast again mid-game).
+    pub fn set_cast(&mut self, name: &str, portrait: Portrait) {
+        match self.cast.iter_mut().find(|(n, _)| n == name) {
+            Some(c) => c.1 = portrait,
+            None => self.cast.push((name.to_string(), portrait)),
+        }
     }
 
     /// Draws the cutscene box your own way: `f` gets each frame's
@@ -1212,6 +1289,31 @@ impl Dialogue {
             self.drop_bark();
         }
         self.queue.push_back(Said::new(speaker, line, expression));
+    }
+
+    /// Queues a line that stays up, once said, until [`Dialogue::skip`]: a
+    /// question the game shows its answers for (see [`Dialogue::asking`]).
+    /// Taps show its text at once but never move it on, nor does
+    /// [`Advance::Auto`]; a bark may show while it waits, once its voice is done.
+    pub fn say_held(&mut self, speaker: &str, line: &VoiceLine, expression: &str) {
+        self.say(speaker, line, expression);
+        if let Some(s) = self.queue.back_mut() {
+            s.hold = true;
+        }
+    }
+
+    /// A held line ([`Dialogue::say_held`]) is up with all its text out:
+    /// time for the answers.
+    pub fn asking(&self) -> bool {
+        self.current.as_ref().is_some_and(|c| c.hold && c.playing.is_some() && c.revealed(self.now) >= c.line.text().chars().count())
+    }
+
+    /// How many cutscene lines have been dismissed since the dialogue was
+    /// made (moved on from, skipped, or cleared by [`Dialogue::skip_all`]),
+    /// in the order they were queued: a game counts these to know which of
+    /// its lines are done.
+    pub fn lines_done(&self) -> u64 {
+        self.done
     }
 
     /// Takes the bark bubble's line away (stopping its voice); a narration
@@ -1274,7 +1376,9 @@ impl Dialogue {
 
     /// Whether a bark may start now: no cutscene, nothing being spoken, the gap since the last bark passed.
     fn free_to_bark(&self, now: f64) -> bool {
-        !self.active() && !self.bark.as_ref().is_some_and(|b| b.busy(now)) && self.last_bark.is_none_or(|t| now - t >= self.bark_cooldown as f64)
+        // A held question whose voice is done doesn't hold the barks back.
+        let waiting = self.queue.is_empty() && self.current.as_ref().is_some_and(|c| c.hold && c.playing.is_some() && !c.busy(now));
+        (!self.active() || waiting) && !self.bark.as_ref().is_some_and(|b| b.busy(now)) && self.last_bark.is_none_or(|t| now - t >= self.bark_cooldown as f64)
     }
 
     fn show_bark(&mut self, said: Said, now: f64) {
@@ -1313,6 +1417,7 @@ impl Dialogue {
     fn next_line(&mut self) {
         if let Some(cur) = self.current.take() {
             cur.stop();
+            self.done += 1;
         }
         if self.queue.is_empty() {
             self.finished = true;
@@ -1333,6 +1438,7 @@ impl Dialogue {
         self.drop_bark();
         for s in self.current.take().into_iter().chain(self.queue.drain(..)) {
             s.stop();
+            self.done += 1;
         }
         self.box_open = false;
         self.ducker.set(false);
@@ -1363,7 +1469,10 @@ impl Dialogue {
             return true;
         }
         let s = cur.showing(t);
-        if s.complete || cur.next {
+        if cur.hold {
+            // A question: a tap shows its text, never moves it on.
+            cur.shown = true;
+        } else if s.complete || cur.next {
             // Done, or a second tap while the voice finishes: the player skips it.
             self.next_line();
         } else if s.revealed < s.text.chars().count() {
@@ -1384,6 +1493,7 @@ impl Dialogue {
         // A line moves on by itself once its voice is over: at once if it was
         // tapped, after the pause with auto-advance.
         let due = self.current.as_ref().and_then(|cur| match self.advance {
+            _ if cur.hold => None,
             _ if cur.next => cur.end(),
             Advance::Auto { pause } => cur.end().map(|end| end + pause as f64),
             Advance::Tap => None,
@@ -1408,6 +1518,12 @@ impl Dialogue {
         // Take in the queued lines' files as they arrive, so each starts at once when its turn comes.
         for s in &self.queue {
             s.line.poll();
+        }
+        if let Some(cur) = &mut self.current {
+            cur.catch_up(now);
+        }
+        if let Some(b) = &mut self.bark {
+            b.catch_up(now);
         }
         if let Some(cur) = &mut self.current
             && cur.start(now)
@@ -1544,7 +1660,15 @@ impl Dialogue {
             let cx = if right { tx + tw - pw / 2.0 } else { tx + pw / 2.0 };
             pill_in(th, &name, cx, r.y, 28.0, th.accent, th.on_accent, None);
         }
-        let size = th.fit(th.body_font, 18.0);
+        // A long line in a wide font (riso's Space Mono) shrinks to fit the
+        // box, by the whole line so it doesn't change size as it types.
+        let room = h - 24.0 - 12.0;
+        let line_h = super::text::metrics(th.body_font).line;
+        let step = th.body_font.metrics().pixel_em.max(1.0);
+        let mut size = th.fit(th.body_font, 18.0);
+        while size - step >= 12.0 && text(&s.text).font(th.body_font).size(size).wrap(tw).lines().len() as f32 * line_h * size > room {
+            size = th.fit(th.body_font, size - step);
+        }
         typed(&s.text, s.revealed, th, size, tx, r.y + 24.0, tw, 1.0);
         if s.complete {
             let bob = ((self.now * 6.0).sin() * 2.0) as f32;
@@ -1676,6 +1800,38 @@ mod tests {
         line.files.borrow_mut().lips = None;
         line.files.borrow_mut().fail();
         assert_eq!(line.text(), "Clean hit.");
+    }
+
+    /// A line whose sound decodes after it started is heard from where it
+    /// is, and it lasts and moves on just as it would have: decoding never
+    /// moves the timing.
+    #[test]
+    fn a_late_sound_starts_partway_and_the_timing_holds() {
+        let lips = Lips::parse(b"mblips 1\ndur 2.0\ntext Oi. Nobody crosses.\n").unwrap();
+        let run = |late: Option<f64>| {
+            sys::test::reset();
+            let line = VoiceLine::new(None, lips.clone()).expecting_sound();
+            let mut d = Dialogue::new(Theme::default()).auto_advance(0.5);
+            d.say("GRUK", &line, "");
+            let mut out = Vec::new();
+            for f in 0..240 {
+                sys::test::advance(1.0 / 60.0);
+                if late.is_some_and(|t| sys::time() >= t) && !line.has_sound() {
+                    line.set_sound(Sound(3));
+                }
+                let e = d.update(1.0 / 60.0);
+                let voiced = d.current.as_ref().and_then(|c| c.playing).is_some_and(|p| p.voice.is_some());
+                out.push((f, e, d.current().map(|s| (s.revealed, s.complete)), d.ducker.ducked()));
+                if f == 120 {
+                    assert_eq!(voiced, late.is_some(), "the voice is kept once it arrives");
+                }
+            }
+            out
+        };
+        let silent = run(None);
+        assert_eq!(run(Some(1.0)), silent, "a sound arriving 1 s in changes nothing but what's heard");
+        assert_eq!(run(Some(0.0)), silent);
+        assert!(silent.iter().any(|(_, e, ..)| *e == Some(DialogueEvent::Finished)));
     }
 
     #[test]
@@ -1882,6 +2038,25 @@ mod tests {
         d.say("B", &line("Hey.", 50, 0.5), "");
         run(&mut d, 3.0);
         assert!(!host.calls().iter().any(|c| matches!(c, Call::Log { .. })));
+    }
+
+    /// A bark whose recording is still coming (a game that decodes its
+    /// lines as they're wanted) isn't a speaker without a voice: its sound
+    /// arrives a frame later and is heard from where the line is.
+    #[test]
+    fn a_line_still_waiting_for_its_sound_is_not_called_silent() {
+        use crate::sys::test::{Call, Host};
+        let host = Host::start(1);
+        let mut d = Dialogue::new(Theme::default()).auto_advance(0.1);
+        d.say("GIRL", &voiced("Mum?", 50, 0.5), "");
+        run(&mut d, 1.0);
+        let ouch = VoiceLine::new(None, line("Ouch!", 50, 0.6).lips().unwrap()).expecting_sound();
+        assert!(d.bark("MOTHER", &ouch, ""));
+        run(&mut d, 1.0 / 60.0);
+        ouch.set_sound(Sound(2));
+        run(&mut d, 2.0);
+        let warned = host.calls().into_iter().any(|c| matches!(c, Call::Log { level: sys::Level::Warn, .. }));
+        assert!(!warned, "MOTHER's bark has a voice, a frame late");
     }
 
     /// Steps until `f` holds, returning the game time it did (None within `seconds`).

@@ -1,0 +1,12 @@
+# The runner: tap, Space, Up or A jumps; hold for higher.
+behaviour = "player.runner"
+hitbox = [4, 1, 8, 14]
+
+[anims]
+idle = { frames = [1] }
+run = { frames = [1, 2], fps = 10 }
+jump = { frames = [3] }
+
+[knobs]
+jump = 290
+gravity = 900

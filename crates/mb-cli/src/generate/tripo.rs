@@ -324,7 +324,12 @@ impl Tripo {
     }
 
     fn auth(&self) -> Vec<(String, String)> {
-        vec![("Authorization".to_string(), format!("Bearer {}", self.key))]
+        let mut headers = vec![("Authorization".to_string(), format!("Bearer {}", self.key))];
+        // On Maimbrain's key, what it's for (Credits in the app); Tripo itself never hears it.
+        if self.maimbrain {
+            headers.extend(super::maimbrain::making_headers());
+        }
+        headers
     }
 
     fn data(&self, r: super::provider::Response) -> Result<Value, String> {
@@ -379,8 +384,10 @@ impl Tripo {
         }
     }
 
-    /// Waits for a task; returns its data and adds its credits to `credits`.
-    fn wait(&self, what: &str, id: &str, credits: &mut f64) -> Result<Value, String> {
+    /// Waits for a task; returns its data, adds its credits to `credits` and
+    /// how long it took to `seconds`.
+    fn wait(&self, what: &str, id: &str, credits: &mut f64, seconds: &mut Vec<(String, f64)>) -> Result<Value, String> {
+        let t0 = std::time::Instant::now();
         let d = self.poll.wait(&format!("tripo {what}"), || {
             let d = self.data(self.http.get(&self.url(&format!("/tasks/{id}")), &self.auth())?)?;
             let st = d["status"].as_str().unwrap_or("");
@@ -395,6 +402,7 @@ impl Tripo {
             }
         })?;
         *credits += d["credits_consumed"].as_f64().unwrap_or(0.0);
+        seconds.push((id.to_string(), (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0));
         Ok(d)
     }
 
@@ -483,7 +491,7 @@ impl Provider for Tripo {
         let slot = self.slot(pool, n);
         let gen_id = self.create(path, &body)?;
         out.tasks.push((what.into(), gen_id.clone()));
-        let d = self.wait(what, &gen_id, &mut credits)?;
+        let d = self.wait(what, &gen_id, &mut credits, &mut out.seconds)?;
         drop(slot);
         out.glb = self.fetch(what, &d)?;
         out.cost_usd = Some(credits * 0.01);
@@ -535,7 +543,7 @@ impl Tripo {
                     None => {
                         let id = self.create("/animations/rig-check", &json!({ "input": input }))?;
                         out.tasks.push(("rig-check".into(), id.clone()));
-                        let d = self.wait("rig-check", &id, credits)?;
+                        let d = self.wait("rig-check", &id, credits, &mut out.seconds)?;
                         if d["output"]["riggable"].as_bool() == Some(false) {
                             return Err("Tripo says this model can't be rigged (try --rig-type)".into());
                         }
@@ -545,7 +553,7 @@ impl Tripo {
                 let rig_model = if rig_type == "biped" { "v1.0-20240301" } else { "v2.5-20260210" };
                 let id = self.create("/animations/rig", &json!({ "input": input, "model": rig_model, "rig_type": rig_type, "spec": "tripo", "out_format": "glb" }))?;
                 out.tasks.push((format!("rig ({rig_type})"), id.clone()));
-                let d = self.wait("rig", &id, credits)?;
+                let d = self.wait("rig", &id, credits, &mut out.seconds)?;
                 out.glb = self.fetch("rig", &d)?;
                 out.rigged = true;
                 out.text = Some(format!("rig type {rig_type}"));
@@ -565,7 +573,7 @@ impl Tripo {
             let body = json!({ "input": rig_id, "animation": p, "out_format": "glb", "bake_animation": true, "export_with_geometry": true, "animate_in_place": true });
             let got = self.create("/animations/retarget", &body).and_then(|id| {
                 out.tasks.push((format!("animate {a}"), id.clone()));
-                let d = self.wait(&format!("animate {a}"), &id, credits)?;
+                let d = self.wait(&format!("animate {a}"), &id, credits, &mut out.seconds)?;
                 self.fetch("animate", &d)
             });
             match got {
@@ -636,6 +644,11 @@ mod tests {
         assert!(out.rigged && out.notes.is_empty(), "{:?}", out.notes);
         assert_eq!(out.clips.len(), 1);
         assert!((out.cost_usd.unwrap() - 0.75).abs() < 1e-9);
+        // Each task's time, for the sidecar's result.tasks.
+        let timed: Vec<&str> = out.seconds.iter().map(|(id, _)| id.as_str()).collect();
+        let ids: Vec<&str> = out.tasks.iter().map(|(_, id)| id.as_str()).collect();
+        assert_eq!(timed, ids);
+        assert!(out.seconds.iter().all(|(_, s)| *s >= 0.0));
         let sent = fake.sent.borrow();
         assert_eq!(sent[0].0, "https://openapi.tripo3d.ai/v3/generation/text-to-model");
         assert_eq!(sent[0].1[0], ("Authorization".to_string(), "Bearer tsk_test".to_string()));

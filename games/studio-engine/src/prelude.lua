@@ -500,6 +500,8 @@ function debug.choice(label, options, f, index)
   if type(options) ~= "table" or #options == 0 then error("debug.choice needs a list of options", 2) end
   item("choice", label, f, { value = (index or 1) - 1, options = options })
 end
+-- The Studio tab's Invincible is on: a game that takes lives itself skips it.
+function debug.invincible() return invincible end
 
 -- What the engine reads for its own menu (not for games).
 -- Every live thing as { kind, x, y }, for `mb play`'s summary (not for games).
@@ -544,7 +546,6 @@ local function debug_input(d)
     elseif op == "lives" then lives = c[2]
     elseif op == "inv" then invincible = c[2] ~= 0
     elseif op == "boxes" then show_boxes = c[2] ~= 0
-    elseif op == "level" then local ok, err = enter(c[2]) if not ok then error(err, 0) end
     elseif op == "spawn" then
       local k = kinds[c[2]]
       if k then

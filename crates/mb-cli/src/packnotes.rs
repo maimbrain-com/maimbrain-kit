@@ -428,7 +428,7 @@ fn unused_note(files: &BTreeMap<String, Vec<u8>>, refs: &Refs) -> Option<String>
 /// `mb build`'s size warnings: near or over the bundle's (`compressed`),
 /// the startup set's or the wasm's limit, with what to look at.
 pub fn size_notes(files: &BTreeMap<String, Vec<u8>>, refs: &Refs, compressed: u64, startup: u64, wasm: u64, startup_assets: &[String]) -> Vec<String> {
-    use mb_format::bundle::{MAX_COMPRESSED, MAX_STARTUP, MAX_WASM};
+    use mb_format::bundle::{LARGE, MAX_COMPRESSED, MAX_STARTUP, MAX_WASM};
     let mb = |b: u64| format!("{:.1} MB", b as f64 / MIB);
     let state = |v: u64, max: u64| if v > max { Some("over") } else if v as f64 > max as f64 * NEAR { Some("near") } else { None };
     let mut out = Vec::new();
@@ -443,6 +443,12 @@ pub fn size_notes(files: &BTreeMap<String, Vec<u8>>, refs: &Refs, compressed: u6
             w += ". Shrink props and background models with `mb model . <name> --reprocess --polys N --texture-size 512` (free; keep the hero and close-ups at 1024), images with smaller sizes or JPEG, music with shorter loops";
         }
         out.push(w);
+    } else if compressed > LARGE {
+        out.push(format!(
+            "the bundle is {}, over {}: it's a large bundle (SPEC §1), which only newer apps open, and maimbrain.com takes a kit game this big only once most phones do. Images as JPEG, smaller models and shorter music keep it under",
+            mb(compressed),
+            mb(LARGE)
+        ));
     }
     if let Some(s) = state(startup, MAX_STARTUP) {
         let mut st: Vec<(&str, u64)> = startup_assets.iter().filter_map(|a| files.get(a).map(|b| (a.as_str(), b.len() as u64))).collect();
@@ -639,11 +645,14 @@ mod tests {
         let src = &src;
         let unused = maybe_unused(&files, src);
         assert_eq!(unused, vec![("assets/heron.glb", 3_000_000)]);
-        let w = size_notes(&files, src, 10_946_089, 1_000_000, 500_000, &[]);
+        let w = size_notes(&files, src, 26_946_089, 1_000_000, 500_000, &[]);
         assert_eq!(w.len(), 1, "{w:?}");
-        assert!(w[0].starts_with("the bundle is 10.4 MB of its 10.0 MB limit (over it). Biggest assets: heron2.glb 3.0 MB, heron.glb 2.9 MB, boat.glb 1.0 MB"), "{w:?}");
+        assert!(w[0].starts_with("the bundle is 25.7 MB of its 25.0 MB limit (over it). Biggest assets: heron2.glb 3.0 MB, heron.glb 2.9 MB, boat.glb 1.0 MB"), "{w:?}");
         assert!(w[0].contains("Maybe unused (1 assets, 2.9 MB): heron.glb: nothing in src/ or art/*.csv names them"), "{w:?}");
         assert!(size_notes(&files, src, 5_000_000, 1_000_000, 500_000, &[]).is_empty());
+        // Over 10 MB: a large bundle, which not every app opens yet.
+        let large = size_notes(&files, src, 12_000_000, 1_000_000, 500_000, &[]);
+        assert!(large.len() == 1 && large[0].starts_with("the bundle is 11.4 MB, over 10.0 MB: it's a large bundle"), "{large:?}");
         let near = size_notes(&files, src, 5_000_000, 2_900_000, 3_900_000, &["assets/boat.glb".into()]);
         assert!(near[0].contains("startup set (game.wasm + startup_assets) is 2.8 MB of its 3.0 MB limit (near it); biggest: boat.glb 1.0 MB"), "{near:?}");
         assert!(near[1].starts_with("game.wasm is 3.7 MB of its 4.0 MB limit (near it)"), "{near:?}");

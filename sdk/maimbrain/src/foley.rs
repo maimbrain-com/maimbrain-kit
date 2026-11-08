@@ -297,13 +297,23 @@ impl<M: Mixer> Foley<M> {
     /// `full_speed` (vol 0.2 → 0.8, pitch 1.15 → 0.85), so a hop taps and a
     /// fall from the sky booms.
     pub fn impact(&mut self, sound: Sound, at: Vec3, speed: f32, full_speed: f32) -> Option<Voice> {
-        let k = (speed.abs() / full_speed.max(1e-3)).min(1.0);
-        if k < 0.05 {
-            return None;
-        }
-        let k = k.sqrt();
-        self.hit(sound, at, 0.2 + 0.6 * k, 1.15 - 0.3 * k, 1.0)
+        let (vol, pitch) = impact_level(speed, full_speed)?;
+        self.hit(sound, at, vol, pitch, 1.0)
     }
+}
+
+/// [`Foley::impact`]'s level and pitch for a hit at `speed` (m/s into the
+/// surface): None under 5% of `full_speed`, then vol 0.2 → 0.8 and pitch
+/// 1.15 → 0.85 by the square root of the share, so small taps still read.
+/// Before distance and variation; for a player of its own (Studio's
+/// `audio.impact`).
+pub fn impact_level(speed: f32, full_speed: f32) -> Option<(f32, f32)> {
+    let k = (speed.abs() / full_speed.max(1e-3)).min(1.0);
+    if k.is_nan() || k < 0.05 {
+        return None;
+    }
+    let k = k.sqrt();
+    Some((0.2 + 0.6 * k, 1.15 - 0.3 * k))
 }
 
 /// Footsteps from a stride's phase: each foot touches down at its offset in

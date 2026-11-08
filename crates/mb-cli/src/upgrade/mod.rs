@@ -397,12 +397,12 @@ mod tests {
         d
     }
 
-    const LOCK: &str = "version = 4\n\n[[package]]\nname = \"maimbrain\"\nversion = \"0.8.0\"\nsource = \"git+https://github.com/terracatta/maimbrain-kit#0123456789abcdef0123456789abcdef01234567\"\n\n[[package]]\nname = \"hop\"\nversion = \"0.1.0\"\n";
+    const LOCK: &str = "version = 4\n\n[[package]]\nname = \"maimbrain\"\nversion = \"0.8.0\"\nsource = \"git+https://github.com/maimbrain-com/maimbrain-kit#0123456789abcdef0123456789abcdef01234567\"\n\n[[package]]\nname = \"hop\"\nversion = \"0.1.0\"\n";
 
     #[test]
     fn a_git_game_reads_its_lock_and_a_path_game_has_nothing_to_bump() {
         let d = scratch("git");
-        std::fs::write(d.join("Cargo.toml"), "[package]\nname = \"hop\"\nversion = \"0.1.0\"\n\n[dependencies]\nmaimbrain = { git = \"https://github.com/terracatta/maimbrain-kit\" }\n\n[workspace]\n").unwrap();
+        std::fs::write(d.join("Cargo.toml"), "[package]\nname = \"hop\"\nversion = \"0.1.0\"\n\n[dependencies]\nmaimbrain = { git = \"https://github.com/maimbrain-com/maimbrain-kit\" }\n\n[workspace]\n").unwrap();
         let kit = Version::parse("0.8.2").unwrap();
         let s = sdk(&d, None).unwrap();
         assert_eq!((s.dependency.clone(), s.version.clone()), (DepKind::Git, None));
@@ -414,7 +414,7 @@ mod tests {
         assert_eq!(lock_plan(&d, &s, &kit).action, "update");
         assert_eq!(lock_plan(&d, &s, &Version::parse("0.8.0").unwrap()).action, "none");
         // Pinned to a tag: it won't move by itself.
-        std::fs::write(d.join("Cargo.toml"), "[package]\nname = \"hop\"\nversion = \"0.1.0\"\n\n[dependencies]\nmaimbrain = { git = \"https://github.com/terracatta/maimbrain-kit\", tag = \"v0.8.0\" }\n\n[workspace]\n").unwrap();
+        std::fs::write(d.join("Cargo.toml"), "[package]\nname = \"hop\"\nversion = \"0.1.0\"\n\n[dependencies]\nmaimbrain = { git = \"https://github.com/maimbrain-com/maimbrain-kit\", tag = \"v0.8.0\" }\n\n[workspace]\n").unwrap();
         let plan = lock_plan(&d, &sdk(&d, None).unwrap(), &kit);
         assert_eq!(plan.action, "manual");
         assert!(plan.message.contains("tag = \"v0.8.0\""), "{}", plan.message);

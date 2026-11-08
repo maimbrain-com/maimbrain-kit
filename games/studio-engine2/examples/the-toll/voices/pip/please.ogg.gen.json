@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:02Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "I haven't got any coins. Can I pay some other way?",
+  "full_prompt": "[nervous] I haven't got any coins. Can I pay some other way?",
+  "seed": 1995949198,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "41f7f1b881bd7d86400d239a0bd06eaeb65e001a7bdc0c79e849e552a4f38952"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/pip/please.wav",
+  "raw_sha256": "544499d81bdc5800390f9fbc0acb2600cdbfa4945fa19bfdab96c43f5f18277d",
+  "output_sha256": "afe8b064d8a749d0438d618a5d3e951ae9c2842dee2e790a917496c893befcbc",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "pip",
+    "delivery": "natural",
+    "emotion": "nervous",
+    "kind": "voice",
+    "line": "please",
+    "model": "mock-voice",
+    "out": "assets/vo/pip/please.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1995949198,
+    "speed": null,
+    "style": null,
+    "text": "I haven't got any coins. Can I pay some other way?",
+    "voice_id": "mock-713bb77-1"
+  },
+  "result": {
+    "key": "4fdf2c2f70af0935",
+    "lips": "assets/vo/pip/please.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -15.988990783691406,
+    "peak_db": -4.196401119232178,
+    "phone_loss_db": -5.599999904632568,
+    "seconds": 3.4283673763275146,
+    "subtitle": "I haven't got any coins. Can I pay some other way?",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

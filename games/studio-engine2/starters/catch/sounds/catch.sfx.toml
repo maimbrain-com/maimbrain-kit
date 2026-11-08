@@ -1,0 +1,7 @@
+# A catch: a plain blip (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 660
+duration = 0.06
+decay = 0.04
+volume = 0.6

@@ -404,6 +404,8 @@ pub struct ModelOutput {
     pub notes: Vec<String>,
     /// (step, provider task id), for support requests and the sidecar.
     pub tasks: Vec<(String, String)>,
+    /// (provider task id, seconds from its start to its result), for the sidecar's `result.tasks`.
+    pub seconds: Vec<(String, f64)>,
     /// The rig task and its rig type, when the provider rigged it: clips can be added to it later.
     pub rig: Option<(String, String)>,
 }

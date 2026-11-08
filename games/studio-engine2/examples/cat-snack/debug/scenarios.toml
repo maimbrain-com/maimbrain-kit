@@ -1,0 +1,13 @@
+# Named sets of debug picks: the debug menu's first tab ("Try it").
+[[scenario]]
+name = "Gold rush"
+note = "a gold fish with every catch, from 38"
+score = 38
+[scenario.set]
+goldRush = true
+
+[[scenario]]
+name = "Fast fish"
+note = "everything twice as fast"
+[scenario.set]
+fastFish = true

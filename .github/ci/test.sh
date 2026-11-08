@@ -14,7 +14,7 @@
 # One script, run in two places so they can't drift:
 #   - the kit's own release workflow (.github/workflows/release.yml, `test` job),
 #     on pull requests to the kit, on Linux, macOS and Windows (Git Bash);
-#   - the monorepo's PR CI (`Kit tests` in terracatta/maimbrain's ci.yml), on a
+#   - the monorepo's PR CI (`Kit tests` in maimbrain-com/maimbrain's ci.yml), on a
 #     kit assembled with tools/kit/build.sh exactly as the release assembles it.
 #     There Linux runs `unit` and `templates kits serve` side by side, and macOS
 #     and Windows run `mb smoke serve`: what can differ between platforms.
@@ -74,12 +74,12 @@ new_game() {
     3d)
       "$mb" new "$tmp/$g" --3d --id "com.example.$g" --creator @ci
       # The 3D game also turns on physics3d, so Rapier is built for wasm32 here.
-      sed -i.bak 's|maimbrain = { git = "https://github.com/terracatta/maimbrain-kit" }|maimbrain = { git = "https://github.com/terracatta/maimbrain-kit", features = ["physics3d"] }|' "$tmp/$g/Cargo.toml"
+      sed -i.bak 's|maimbrain = { git = "https://github.com/maimbrain-com/maimbrain-kit" }|maimbrain = { git = "https://github.com/maimbrain-com/maimbrain-kit", features = ["physics3d"] }|' "$tmp/$g/Cargo.toml"
       grep -q physics3d "$tmp/$g/Cargo.toml"
       ;;
     *) "$mb" new --kit "$from" "$tmp/$g" --id "com.example.$(echo "$from" | tr -d -)" --creator @ci ;;
   esac
-  printf '\n[patch."https://github.com/terracatta/maimbrain-kit"]\nmaimbrain = { path = "%s/sdk/maimbrain" }\n' "$kit" >> "$tmp/$g/Cargo.toml"
+  printf '\n[patch."https://github.com/maimbrain-com/maimbrain-kit"]\nmaimbrain = { path = "%s/sdk/maimbrain" }\n' "$kit" >> "$tmp/$g/Cargo.toml"
 }
 
 # A game passes its own tests (rules, and the bot's difficulty report or sanity

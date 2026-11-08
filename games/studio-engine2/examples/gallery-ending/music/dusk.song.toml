@@ -1,0 +1,15 @@
+# The arena after the fight: a slow, warm dusk loop (a synth stand-in).
+bpm = 72
+order = ["a", "b"]
+
+[voices.pulse1]
+duty = 0.5
+volume = 0.11
+
+[patterns.a]
+pulse1   = "E4 . . . G4 . . . B4 . . . A4 . G4 ."
+triangle = "C2 . . . C2 . . . A1 . . . A1 . . ."
+
+[patterns.b]
+pulse1   = "D4 . . . F#4 . . . A4 . . . G4 . E4 ."
+triangle = "G1 . . . G1 . . . D2 . . . D2 . . ."

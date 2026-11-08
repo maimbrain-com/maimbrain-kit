@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:03Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Wrong! Try again, tiny.",
+  "full_prompt": "[laughing] Wrong! Try again, tiny.",
+  "seed": 1327304023,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "522092e6cb3091be19647478e04ac3b7512a0abc22c61f4bc09bff6c595a3fe8"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/jeer1.wav",
+  "raw_sha256": "8cf8a4808e4ee61e88d981d82eb7fed441e0a2e86472a6b8a586c307d257a65c",
+  "output_sha256": "1046d37b0e163d8c1843004c0e974abde9a9754eca2d3c2b4268ad7d9d8ffbeb",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "laughing",
+    "kind": "voice",
+    "line": "jeer1",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/jeer1.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1327304023,
+    "speed": null,
+    "style": null,
+    "text": "Wrong! Try again, tiny.",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "e3245807334e1fbf",
+    "lips": "assets/vo/gruk/jeer1.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -16.10857391357422,
+    "peak_db": -3.3481719493865967,
+    "phone_loss_db": -3.700000047683716,
+    "seconds": 1.739115595817566,
+    "subtitle": "Wrong! Try again, tiny.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

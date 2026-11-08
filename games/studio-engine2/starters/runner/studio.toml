@@ -1,0 +1,30 @@
+# The runner starter (landscape): a fox runs the desert at sundown, jumping
+# cacti and ducking vultures for gold. Its look (the pictures, sounds and
+# identity) is the starter's, drawn by tools/studio/starter_art.py: a
+# stand-in to replace with the game's own, in DESIGN.md's look
+# (docs/STUDIO.md "The first version").
+title = "Dust Run"
+tagline = "how far can a fox go?"
+engine = "2.0"
+kind = "2d"
+orientation = "landscape"
+lives = 1
+
+# The manifest's identity for `mb build` (Studio's server sets its own).
+id = "dev.maimbrain.studio2.runner"
+version = "0.1.0"
+creator = "@maimbrain"
+
+# The cards and HUD (the reference topic "identity"): the starter's, like its art.
+[identity]
+name = "saloon"
+
+[text]
+over = "Crashed!"
+
+[[scores]]
+label = "Distance"
+order = "high"
+
+[remix]
+allowed = true

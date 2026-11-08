@@ -1,0 +1,6 @@
+# Named sets of debug picks: the debug menu's first tab.
+[[scenario]]
+name = "Side view"
+note = "the camera beside the buggy, to see it leave the ground"
+[scenario.set]
+SIDE = true

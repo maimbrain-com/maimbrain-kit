@@ -15,6 +15,8 @@ use crate::vm::FrameInput;
 /// Seconds and art pixels a quick drag must take to count as a swipe.
 const SWIPE_SECS: f64 = 0.35;
 const SWIPE_MIN: f32 = 16.0;
+/// The same in the 3D view's logical units (16 art pixels at 2.5 units each).
+pub const SWIPE_MIN_3D: f32 = 40.0;
 
 #[derive(Default)]
 pub struct Mapper {
@@ -25,6 +27,8 @@ pub struct Mapper {
     keys: Keys,
     stick: (f32, f32),
     tilt: Option<f32>,
+    /// How far a swipe goes in the units `feed` maps to (0: `SWIPE_MIN` art pixels).
+    pub swipe_min: f32,
 }
 
 #[derive(Default)]
@@ -119,7 +123,8 @@ impl Mapper {
                 self.pointer = None;
                 (f.release, f.rx, f.ry, f.x, f.y) = (true, x, y, x, y);
                 let (dx, dy) = (x - self.down_at.0, y - self.down_at.1);
-                if e.time - self.down_at.2 <= SWIPE_SECS && dx.hypot(dy) >= SWIPE_MIN {
+                let min = if self.swipe_min > 0.0 { self.swipe_min } else { SWIPE_MIN };
+                if e.time - self.down_at.2 <= SWIPE_SECS && dx.hypot(dy) >= min {
                     f.swipe = Some((dx, dy));
                 }
             }

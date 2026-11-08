@@ -1,0 +1,9 @@
+# The champion's mech giving way: a sagging servo groan.
+wave = "saw"
+freq = 180
+freq_end = 70
+duration = 0.6
+attack = 0.05
+decay = 0.2
+vibrato = [0.6, 7]
+volume = 0.35

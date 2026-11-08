@@ -1,0 +1,7 @@
+# A lantern lighting: a soft rising chime.
+wave = "triangle"
+freq = 660
+freq_end = 990
+duration = 0.18
+decay = 0.25
+volume = 0.5

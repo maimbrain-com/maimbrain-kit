@@ -1,0 +1,8 @@
+# A quick bite: a square blip sliding down.
+wave = "square"
+duty = 0.25
+freq = 660
+freq_end = 330
+duration = 0.07
+decay = 0.05
+volume = 0.7

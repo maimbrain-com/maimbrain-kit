@@ -1,0 +1,8 @@
+# A flap: a plain blip up (a stand-in).
+wave = "square"
+duty = 0.5
+freq = 440
+freq_end = 660
+duration = 0.06
+decay = 0.04
+volume = 0.5

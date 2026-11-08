@@ -174,15 +174,22 @@ impl Font {
     }
 }
 
-/// An image decoded from a ready PNG asset.
+/// An image decoded from a ready PNG asset (or a JPEG, for a game that
+/// declares `mb2d = 3`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Image(pub u32);
 
 impl Image {
-    /// None until the asset is ready, or if it isn't a valid PNG.
+    /// None until the asset is ready, or if it isn't a valid PNG (or JPEG, with mb2d 3).
     pub fn new(asset: crate::sys::Asset) -> Option<Image> {
         let h = unsafe { ffi::mb2d_image(asset.0) };
         (h > 0).then_some(Image(h as u32))
+    }
+
+    /// Samples the image nearest (crisp texels, for pixel art drawn at any
+    /// scale) or linearly (the default). Needs `stdlib = { mb2d = 3 }`.
+    pub fn set_nearest(self, nearest: bool) {
+        unsafe { ffi::mb2d_image_filter(self.0, nearest as u32) };
     }
 }
 

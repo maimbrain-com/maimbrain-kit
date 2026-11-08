@@ -1,0 +1,37 @@
+# Named sets of debug picks: the debug menu's first tab ("Try it").
+[[scenario]]
+name = "Autopilot"
+note = "the round plays itself, building and upgrading as a good player does"
+[scenario.set]
+AUTO = true
+
+[[scenario]]
+name = "Helmets"
+note = "just before wave 4: armored jellies POP barely scratches (a BOOM cracks them)"
+[scenario.set]
+WAVE = 4
+
+[[scenario]]
+name = "The king"
+note = "just before wave 10: the king jelly, who bites three hearts"
+[scenario.set]
+WAVE = 10
+
+[[scenario]]
+name = "Late waves"
+note = "wave 14, the budget mixes, with a defense built to match"
+[scenario.set]
+WAVE = 14
+AUTO = true
+
+[[scenario]]
+name = "Last heart"
+note = "one heart left: the cake panics, the music turns urgent, the edge glows red"
+[scenario.set]
+HEARTS = 1
+
+[[scenario]]
+name = "Rich"
+note = "500 coins to try every tower and upgrade"
+[scenario.set]
+COINS = 500

@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:03Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "Gruk could do this all day.",
+  "full_prompt": "[bored] Gruk could do this all day.",
+  "seed": 1513106345,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "522092e6cb3091be19647478e04ac3b7512a0abc22c61f4bc09bff6c595a3fe8"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/jeer3.wav",
+  "raw_sha256": "a427f7869a2275d58bf4bd430fd2e91057e1a82fb6b957b1eae9428ca1a30d96",
+  "output_sha256": "5c15ad34a0f8b4257a303542d1848c148c2af83574746163d2a3d733c58ec463",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "bored",
+    "kind": "voice",
+    "line": "jeer3",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/jeer3.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1513106345,
+    "speed": null,
+    "style": null,
+    "text": "Gruk could do this all day.",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "0ffe2ae54100a55b",
+    "lips": "assets/vo/gruk/jeer3.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -15.980880737304688,
+    "peak_db": -3.6869499683380127,
+    "phone_loss_db": -3.9000000953674316,
+    "seconds": 1.7595010995864868,
+    "subtitle": "Gruk could do this all day.",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

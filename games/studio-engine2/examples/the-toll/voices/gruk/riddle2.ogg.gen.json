@@ -1,0 +1,53 @@
+{
+  "generator": "mb 0.9.0 voice",
+  "date": "2026-11-08T01:41:03Z",
+  "provider": "mock",
+  "model": "mock-voice",
+  "prompt": "What can fill a room but takes up no space?",
+  "full_prompt": "[smug] What can fill a room but takes up no space?",
+  "seed": 1845689120,
+  "seed_honored": true,
+  "references": [],
+  "style": {
+    "path": "art/voices.toml",
+    "sha256": "522092e6cb3091be19647478e04ac3b7512a0abc22c61f4bc09bff6c595a3fe8"
+  },
+  "est_cost_usd": 0.0,
+  "cost_usd": 0.0,
+  "raw": "art/raw/vo/gruk/riddle2.wav",
+  "raw_sha256": "5a1ee52ff02047625b1676b57e4ace64b69235bf67392e00abfd996303a4ec83",
+  "output_sha256": "efeca42b9b717f7e29f1497e6fda4d2c86eff6c5dc4d478e6dd72caf2e5bf0c6",
+  "allowed_names": [],
+  "model_text": null,
+  "recipe": {
+    "allow_names": [],
+    "character": "gruk",
+    "delivery": "natural",
+    "emotion": "smug",
+    "kind": "voice",
+    "line": "riddle2",
+    "model": "mock-voice",
+    "out": "assets/vo/gruk/riddle2.ogg",
+    "provider": "mock",
+    "quality": 4.0,
+    "rate": 44100,
+    "seed": 1845689120,
+    "speed": null,
+    "style": null,
+    "text": "What can fill a room but takes up no space?",
+    "voice_id": "mock-dbb763cf-3"
+  },
+  "result": {
+    "key": "7771fdb718325fe8",
+    "lips": "assets/vo/gruk/riddle2.lips.txt",
+    "lips_hz": 30,
+    "loud_rms_db": -15.975188255310059,
+    "peak_db": -3.7735202312469482,
+    "phone_loss_db": -3.799999952316284,
+    "seconds": 2.7592971324920654,
+    "subtitle": "What can fill a room but takes up no space?",
+    "timed_by": "the provider's character timings",
+    "warnings": []
+  },
+  "note": "Placeholder from the offline mock provider: replace before publishing."
+}

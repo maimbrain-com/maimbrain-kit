@@ -48,8 +48,8 @@ fn old_runner(name: &str, dep: &str) -> PathBuf {
     d
 }
 
-const GIT: &str = "{ git = \"https://github.com/terracatta/maimbrain-kit\" }";
-const OLD_LOCK: &str = "version = 4\n\n[[package]]\nname = \"maimbrain\"\nversion = \"0.8.0\"\nsource = \"git+https://github.com/terracatta/maimbrain-kit#0123456789abcdef0123456789abcdef01234567\"\n\n[[package]]\nname = \"runner\"\nversion = \"0.1.0\"\ndependencies = [\n \"maimbrain\",\n]\n";
+const GIT: &str = "{ git = \"https://github.com/maimbrain-com/maimbrain-kit\" }";
+const OLD_LOCK: &str = "version = 4\n\n[[package]]\nname = \"maimbrain\"\nversion = \"0.8.0\"\nsource = \"git+https://github.com/maimbrain-com/maimbrain-kit#0123456789abcdef0123456789abcdef01234567\"\n\n[[package]]\nname = \"runner\"\nversion = \"0.1.0\"\ndependencies = [\n \"maimbrain\",\n]\n";
 
 fn mb(dir: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_mb"))
@@ -103,7 +103,7 @@ fn json_says_what_changed_since_an_older_sdk_and_what_applies() {
     let o = mb(game.parent().unwrap(), &["upgrade", "runner"]);
     let text = String::from_utf8_lossy(&o.stdout);
     assert!(o.status.success());
-    for want in ["SDK 0.8.0 (git https://github.com/terracatta/maimbrain-kit at 0123456)", &format!("This kit: {CURRENT}"), "Upgrade notes since 0.8.0", "Required (", "Available (", "Rounds::daily(1)", "[--apply does it]"] {
+    for want in ["SDK 0.8.0 (git https://github.com/maimbrain-com/maimbrain-kit at 0123456)", &format!("This kit: {CURRENT}"), "Upgrade notes since 0.8.0", "Required (", "Available (", "Rounds::daily(1)", "[--apply does it]"] {
         assert!(text.contains(want), "{want}:\n{text}");
     }
 }
@@ -142,7 +142,7 @@ fn build_commands_say_once_when_the_sdk_is_behind() {
     let o = mb(game.parent().unwrap(), &["publish", "runner"]);
     assert!(!String::from_utf8_lossy(&o.stderr).contains("built with SDK"));
     let path = old_runner("nudge-path", "{ path = \"../../sdk/maimbrain\" }");
-    std::fs::write(path.join("Cargo.lock"), OLD_LOCK.replace("source = \"git+https://github.com/terracatta/maimbrain-kit#0123456789abcdef0123456789abcdef01234567\"\n", "")).unwrap();
+    std::fs::write(path.join("Cargo.lock"), OLD_LOCK.replace("source = \"git+https://github.com/maimbrain-com/maimbrain-kit#0123456789abcdef0123456789abcdef01234567\"\n", "")).unwrap();
     let o = mb(path.parent().unwrap(), &["publish", "runner"]);
     assert!(!String::from_utf8_lossy(&o.stderr).contains("built with SDK"));
 }
